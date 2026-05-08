@@ -11,17 +11,18 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any
-
-# In production these come from your FastAPI app:
-# from anthropic import AsyncAnthropic
-# client = AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
+from typing import TYPE_CHECKING, Any
+from uuid import UUID
 
 from app.formatter.thesis_formatter import (
     FrontMatter, ThesisInput, Chapter, Section, SubSection, BlockQuotation,
     render_thesis_docx,
 )
 from app.formatter.prompts import COMPILE_SYSTEM_PROMPT
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
+    from app.services.claude_service import ClaudeService
 
 
 log = logging.getLogger(__name__)
@@ -107,7 +108,10 @@ def parse_compile_json(raw_json: str | dict, front_matter: FrontMatter) -> Thesi
 
 async def compile_thesis(
     *,
-    anthropic_client,
+    claude_service: ClaudeService,
+    db: AsyncSession,
+    user_id: UUID,
+    session_id: UUID,
     conversation_messages: list[dict[str, str]],
     front_matter: FrontMatter,
     logo_path: str,
@@ -116,12 +120,14 @@ async def compile_thesis(
 ) -> str:
     """
     Run the full compile pipeline:
-        1. Call Claude with the conversation + COMPILE_SYSTEM_PROMPT.
+        1. Call Claude (via the CLI subprocess in ClaudeService) with the
+           conversation + COMPILE_SYSTEM_PROMPT.
         2. Parse the JSON response.
         3. Render the .docx file.
 
     Args:
-        anthropic_client: AsyncAnthropic instance.
+        claude_service: shared ClaudeService instance (manages the CLI subprocess).
+        db, user_id, session_id: required so the call records a usage_events row.
         conversation_messages: full session history as [{"role": ..., "content": ...}, ...].
         front_matter: institution and student data from the session intake form.
         logo_path: path to the college logo image.
@@ -134,30 +140,23 @@ async def compile_thesis(
     log.info("Calling Claude compile pass: model=%s, history_turns=%d",
              model, len(conversation_messages))
 
-    response = await anthropic_client.messages.create(
-        model=model,
-        max_tokens=16000,
-        system=COMPILE_SYSTEM_PROMPT,
+    raw_text = await claude_service.call_compile(
         messages=conversation_messages,
+        system_prompt=COMPILE_SYSTEM_PROMPT,
+        db=db,
+        user_id=user_id,
+        session_id=session_id,
+        model=model,
     )
 
-    # Concatenate all text blocks from the response
-    raw_text = "".join(
-        block.text for block in response.content if block.type == "text"
-    )
+    log.info("Compile pass complete: response_chars=%d", len(raw_text))
 
-    log.info("Compile pass complete: input_tokens=%d, output_tokens=%d",
-             response.usage.input_tokens, response.usage.output_tokens)
-
-    # Parse JSON → ThesisInput dataclass
     thesis_input = parse_compile_json(raw_text, front_matter)
 
-    # Render the final .docx
     render_thesis_docx(
         thesis_input,
         logo_path=logo_path,
         output_path=output_path,
-        # static_toc_for_preview=False  # production: use Word TOC field
     )
 
     return output_path

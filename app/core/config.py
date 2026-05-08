@@ -35,14 +35,21 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRY_DAYS: int = 30
     MAGIC_LINK_EXPIRY_MINUTES: int = 15
-    ALLOWED_EMAIL_DOMAINS: str = "mcc.edu.in"
+
+    # Open signup: any email domain may sign up. Domain matching against an
+    # institution's email_domains is a hint; this is the fallback institution
+    # for emails that don't match any (gmail, protonmail, etc.).
+    DEFAULT_INSTITUTION_SHORT_NAME: str = "MCC"
 
     # ---- Frontend ----
     FRONTEND_URL: str = "http://localhost:3000"
     FRONTEND_LOGIN_PATH: str = "/auth/callback"
 
     # ---- Anthropic ----
+    # ANTHROPIC_API_KEY is unused under the Max+CLI auth path. Kept non-empty so
+    # the Settings model's min_length check passes; .env has a placeholder.
     ANTHROPIC_API_KEY: str = Field(..., min_length=10)
+    CLAUDE_CLI_PATH: str = "claude"
     CLAUDE_COACHING_MODEL: str = "claude-sonnet-4-5"
     CLAUDE_COMPILE_MODEL: str = "claude-opus-4-7"
     CLAUDE_UTILITY_MODEL: str = "claude-haiku-4-5-20251001"
@@ -66,11 +73,6 @@ class Settings(BaseSettings):
     CORS_ORIGINS: str = "http://localhost:3000"
 
     # ---- Computed ----
-    @property
-    def allowed_email_domains_list(self) -> list[str]:
-        """Parsed list of allowed institutional email domains."""
-        return [d.strip().lower() for d in self.ALLOWED_EMAIL_DOMAINS.split(",") if d.strip()]
-
     @property
     def cors_origins_list(self) -> list[str]:
         """Parsed list of CORS allowed origins."""

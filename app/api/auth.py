@@ -11,8 +11,11 @@ Security notes:
 - Tokens are SHA-256 hashed before storage. The raw token only travels through
   email and the verify URL.
 - Tokens are single-use (used_at marks consumption) and expire (default 15 min).
-- Email domain allowlist is checked at request time so unauthorized domains
-  never trigger an email send.
+- Signup is open: any email domain may request a magic link. Domain is used as
+  a hint to assign an institution; emails not matching any institution land at
+  DEFAULT_INSTITUTION_SHORT_NAME. Per-session override is available on
+  ThesisSession.institution_id_override for users whose email doesn't reflect
+  their actual institution.
 """
 
 from __future__ import annotations
@@ -31,7 +34,6 @@ from app.core.security import (
     create_access_token,
     generate_magic_link_token,
     hash_magic_link_token,
-    is_email_domain_allowed,
 )
 from app.db.deps import get_db
 from app.models.auth_token import AuthToken
@@ -55,7 +57,7 @@ async def request_magic_link(
     body: MagicLinkRequest,
     db: AsyncSession = Depends(get_db),
 ) -> MagicLinkResponse:
-    """Send a magic-link email if the address is on an allowed institutional domain.
+    """Send a magic-link email. Open signup — any email domain accepted.
 
     Returns the same response regardless of whether the email is valid or
     registered, to prevent email enumeration. Errors are logged server-side.
@@ -63,15 +65,15 @@ async def request_magic_link(
     settings = get_settings()
     email = body.email.lower().strip()
 
-    # Domain allowlist — fail-closed but silently to caller.
-    if not is_email_domain_allowed(email):
-        log.warning("Magic-link request rejected: email domain not allowed: %s", _redact(email))
-        return MagicLinkResponse()
-
-    # Find or create the user. New users land on the institution matching their domain.
+    # Open signup. New users get an institution either by domain match or by
+    # falling back to DEFAULT_INSTITUTION_SHORT_NAME. None is returned only on
+    # system misconfiguration (default institution missing).
     user = await _get_or_create_user(db, email)
     if user is None:
-        log.warning("Magic-link request: no institution matches email domain: %s", _redact(email))
+        log.error(
+            "Magic-link request failed: default institution '%s' not found",
+            settings.DEFAULT_INSTITUTION_SHORT_NAME,
+        )
         return MagicLinkResponse()
 
     # Generate a fresh token, store the hash, send the raw token in the URL.
@@ -180,28 +182,44 @@ async def me(current_user: CurrentUser) -> CurrentUserResponse:
 # ---------------------------------------------------------------------------
 
 async def _get_or_create_user(db: AsyncSession, email: str) -> User | None:
-    """Look up a user by email, or create one if their domain matches an institution.
+    """Look up a user by email, or create one with institution assigned by hint.
 
-    Returns None if no institution claims this domain.
+    Resolution order for new users:
+        1. If an active institution's email_domains includes the email's domain,
+           assign that institution.
+        2. Otherwise, look up the institution whose short_name equals
+           DEFAULT_INSTITUTION_SHORT_NAME and assign that.
+
+    Returns None only if both resolution steps fail (system misconfigured: the
+    default institution doesn't exist).
     """
     result = await db.execute(select(User).where(User.email == email))
     existing = result.scalar_one_or_none()
     if existing is not None:
         return existing
 
-    # New user. Find an institution whose email_domains includes this one.
-    domain = email.split("@", 1)[1].lower()
+    settings = get_settings()
     inst_result = await db.execute(select(Institution).where(Institution.is_active.is_(True)))
+    institutions = list(inst_result.scalars())
+
+    domain = email.split("@", 1)[1].lower() if "@" in email else ""
     matching_inst = next(
-        (i for i in inst_result.scalars() if domain in i.email_domains_list),
+        (i for i in institutions if domain and domain in i.email_domains_list),
         None,
     )
+
+    if matching_inst is None:
+        matching_inst = next(
+            (i for i in institutions if i.short_name == settings.DEFAULT_INSTITUTION_SHORT_NAME),
+            None,
+        )
+
     if matching_inst is None:
         return None
 
     user = User(email=email, institution_id=matching_inst.id)
     db.add(user)
-    await db.flush()  # populate user.id without committing
+    await db.flush()
     return user
 
 

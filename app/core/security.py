@@ -62,14 +62,3 @@ def hash_magic_link_token(raw_token: str) -> str:
     return hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
 
 
-# ---------------------------------------------------------------------------
-# Email domain validation
-# ---------------------------------------------------------------------------
-
-def is_email_domain_allowed(email: str) -> bool:
-    """Check if the email's domain is in the institutional allowlist."""
-    settings = get_settings()
-    if "@" not in email:
-        return False
-    domain = email.split("@", 1)[1].strip().lower()
-    return domain in settings.allowed_email_domains_list

@@ -36,6 +36,15 @@ class ThesisSession(Base):
         index=True,
     )
 
+    # Per-session institution override. When set, the formatter uses this
+    # institution instead of the user's. Lets a student who signed up with a
+    # personal email pick the right institution per thesis.
+    institution_id_override: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("institutions.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
     title: Mapped[str] = mapped_column(String(300), nullable=False, default="New thesis")
 
     # Workflow tracking

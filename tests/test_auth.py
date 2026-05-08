@@ -18,26 +18,25 @@ from app.models.user import User
 pytestmark = pytest.mark.asyncio
 
 
-async def test_request_link_for_allowed_domain_creates_token(
+async def test_request_link_for_matching_domain_assigns_that_institution(
     client: AsyncClient,
     db_session: AsyncSession,
     test_institution: Institution,
 ) -> None:
-    """A request from an allowed domain creates an auth_token row."""
+    """An email whose domain matches an institution's email_domains is assigned to it."""
     response = await client.post(
         "/auth/request-link",
         json={"email": "newstudent@test.edu"},
     )
     assert response.status_code == 200
 
-    # The user should have been created.
     user_result = await db_session.execute(
         select(User).where(User.email == "newstudent@test.edu")
     )
     user = user_result.scalar_one_or_none()
     assert user is not None
+    assert user.institution_id == test_institution.id
 
-    # And a token row should exist.
     token_result = await db_session.execute(
         select(AuthToken).where(AuthToken.user_id == user.id)
     )
@@ -45,22 +44,34 @@ async def test_request_link_for_allowed_domain_creates_token(
     assert len(tokens) == 1
 
 
-async def test_request_link_for_disallowed_domain_returns_ok_silently(
+async def test_request_link_for_unmatched_domain_falls_back_to_default(
     client: AsyncClient,
     db_session: AsyncSession,
+    test_institution: Institution,
 ) -> None:
-    """A request from a non-allowlisted domain returns 200 (to prevent enumeration)
-    but does NOT create a user or token."""
+    """An email whose domain doesn't match any institution lands on the default.
+
+    `test_institution` has short_name 'TU', which conftest sets as
+    DEFAULT_INSTITUTION_SHORT_NAME. So a gmail address should still create a
+    user, assigned to the default institution.
+    """
     response = await client.post(
         "/auth/request-link",
-        json={"email": "stranger@evil.com"},
+        json={"email": "stranger@gmail.com"},
     )
     assert response.status_code == 200
 
     user_result = await db_session.execute(
-        select(User).where(User.email == "stranger@evil.com")
+        select(User).where(User.email == "stranger@gmail.com")
     )
-    assert user_result.scalar_one_or_none() is None
+    user = user_result.scalar_one_or_none()
+    assert user is not None
+    assert user.institution_id == test_institution.id
+
+    token_result = await db_session.execute(
+        select(AuthToken).where(AuthToken.user_id == user.id)
+    )
+    assert len(list(token_result.scalars().all())) == 1
 
 
 async def test_verify_with_valid_token_sets_cookie(

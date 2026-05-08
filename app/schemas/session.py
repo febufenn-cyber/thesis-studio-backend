@@ -28,6 +28,7 @@ class SessionUpdate(BaseModel):
     supervisor_designation: str | None = Field(None, max_length=200)
     hod_full_name: str | None = Field(None, max_length=200)
     study_period: str | None = Field(None, max_length=100)
+    institution_id_override: UUID | None = None
 
 
 class SessionResponse(BaseModel):

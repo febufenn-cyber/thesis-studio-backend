@@ -64,15 +64,28 @@ If you need to call an endpoint without auth for testing, use the test fixtures 
 
 This project uses SQLAlchemy 2.0 async. **Don't write sync queries.** All `db.execute()` calls are awaited. All routes that touch the DB are `async def`.
 
-### Money: every Claude call must record usage
+### Every Claude call records a usage_events row
 
-Every call to the Anthropic API records a row in `usage_events` with `input_tokens`, `output_tokens`, `cached_input_tokens`, `model`, and computed `estimated_cost_usd`. We're billing the institution for this; the audit trail is required.
+Every call to Claude records a row in `usage_events` with `input_tokens`, `output_tokens`, `cached_input_tokens`, `model`, and `estimated_cost_usd`. Under Max+CLI the cost is notional (Max is flat-rate, not per-call), but the row is still useful for relative comparisons across calls and as an operational audit trail.
 
-## Cost-optimization rules
+### Auth: Claude Code CLI subprocess with Max OAuth
 
-- **Default model:** `claude-sonnet-4-5` for chat. `claude-opus-4-7` only for the compile pass. `claude-haiku-4-5-20251001` for utility calls (titles, intent classification).
-- **Always enable prompt caching** on the static portion of the system prompt. The `build_coaching_system_blocks()` helper in `app/formatter/prompts.py` already does this — use it.
-- **Per-user monthly cap:** 2M input + 200K output tokens. Reject requests at the cap with a friendly message; don't silently fail.
+Claude calls go through the Claude Code CLI (`claude -p ...`) as a subprocess from `app/services/claude_service.py`. The CLI handles its own OAuth state — log in once per host with `claude /login`. `ANTHROPIC_API_KEY` in `.env` is unused at runtime; a non-empty placeholder satisfies the Settings min_length check.
+
+### Do not switch the chat path to `--continue` / `--resume`
+
+The chat subprocess deliberately uses `--no-session-persistence` and embeds prior turns into each user prompt via `ClaudeService._format_conversation`. Reasons:
+
+- Our session of record is the `sessions` + `messages` rows in Postgres, owned per-user. `--continue`/`--resume` would introduce a parallel Claude-Code-managed session store on disk and require synchronizing UUIDs across the two stores.
+- Cross-store sync would also bypass per-user isolation (the on-disk sessions aren't owned by anyone in our model).
+- Embedded history is stateless, debuggable from the DB, and survives restarts of the CLI.
+
+If you find yourself reaching for `--continue` to "fix" multi-turn behavior, the right move is to improve the formatting in `_format_conversation`, not to introduce session-store sync.
+
+## Model rules
+
+- **Default model:** `claude-sonnet-4-5` for chat. `claude-opus-4-7` only for the compile pass. `claude-haiku-4-5-20251001` for utility calls (titles, intent classification). Pass full model IDs to the CLI, not aliases like `sonnet` (the alias resolves to whatever the latest Sonnet is).
+- **Per-user monthly token caps are disabled.** All sessions share the one Max account's 5-hour rate limit; per-user enforcement isn't meaningful when the upstream constraint is shared. The `USER_MONTHLY_*_TOKEN_CAP` settings are kept for forward-compat but no middleware reads them.
 
 ## Conventions
 
@@ -117,6 +130,10 @@ Triple-quoted, one-line summary then optional details. Required on all service-l
 - **Don't disable Pydantic strict mode.** Schemas are the API contract.
 - **Don't commit `.env`** files. The `.gitignore` already excludes them but double-check.
 - **Don't make the JWT secret short or guessable.** It's loaded from env, generated with `openssl rand -hex 32`.
+
+## Known issues
+
+- **`tests/conftest.py` per-test transaction isolation is broken.** 11 of 14 tests error in the fixture (not in app code) due to a `join_transaction_mode` issue: the outer transaction isn't `create_savepoint`-wrapped, so handler `commit()` calls desync the connection ("another operation is in progress"). The 2 tests that pass don't exercise the handler-commit path, so they're not a meaningful gate. **Smoke test (curl against the dev server) is the current integration gate.** Fix conftest before any deploy that adds real users — the isolation contract matters too much to ship without working tests.
 
 ## Build phases (current state)
 
@@ -165,7 +182,7 @@ See `.env.example` for the full list. Required for the app to boot:
 - `RESEND_API_KEY` — for sending magic-link emails
 - `R2_*` — Cloudflare R2 credentials and bucket
 - `FRONTEND_URL` — for CORS and magic-link redirects
-- `ALLOWED_EMAIL_DOMAINS` — comma-separated list (`mcc.edu.in,students.mcc.edu.in`)
+- `DEFAULT_INSTITUTION_SHORT_NAME` — fallback institution for emails not matching any institution's `email_domains` (e.g. `MCC`). Open signup is enabled; domain match is a hint, not a requirement.
 
 ## When in doubt
 

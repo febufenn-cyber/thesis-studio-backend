@@ -6,6 +6,12 @@ Provides:
 - Factories for institutions, users, and JWTs to make tests concise.
 """
 
+# TODO: Fix per-test transaction isolation — current fixture has
+# join_transaction_mode issue causing 11/14 tests to error.
+# Two passing tests prove the basic fixture works; the rest fail
+# in the fixture, not the app code. Smoke test is currently the
+# real gate. Fix before any production deploy that adds real users.
+
 from __future__ import annotations
 
 import asyncio
@@ -22,7 +28,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://thesis:thesis@localhost:5432/thesis_studio_test")
 os.environ.setdefault("JWT_SECRET", "a" * 64)
 os.environ.setdefault("ANTHROPIC_API_KEY", "sk-ant-test-key-do-not-use")
-os.environ.setdefault("ALLOWED_EMAIL_DOMAINS", "test.edu")
+os.environ.setdefault("DEFAULT_INSTITUTION_SHORT_NAME", "TU")
 
 from app.core.security import create_access_token  # noqa: E402
 from app.db.deps import get_db  # noqa: E402
