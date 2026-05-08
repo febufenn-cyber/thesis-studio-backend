@@ -99,7 +99,7 @@ This repo includes a `CLAUDE.md` file at the root with standing instructions. Op
 
 ## Stack
 
-- Python 3.11, FastAPI, SQLAlchemy 2.0 async, PostgreSQL 16
+- Python 3.11, FastAPI, SQLAlchemy 2.0 async, PostgreSQL 14+
 - Anthropic Claude API (Sonnet 4.6 chat, Opus 4.7 compile, Haiku 4.5 utility)
 - Cloudflare R2 for file storage
 - Resend for transactional email

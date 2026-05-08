@@ -112,7 +112,7 @@ echo "[remote] Installing system packages (idempotent)"
 sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
     git curl ca-certificates build-essential \
     python3.11 python3.11-venv python3.11-dev \
-    postgresql-16 postgresql-client-16 \
+    postgresql postgresql-client \
     >/dev/null
 
 if ! command -v node >/dev/null 2>&1 || [[ "$(node -v 2>/dev/null | cut -d. -f1 | tr -d v)" -lt 20 ]]; then

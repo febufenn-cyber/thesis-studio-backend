@@ -14,7 +14,7 @@ The frontend (Next.js) lives in a separate repo: `thesis-studio-frontend`. This 
 - **Web framework:** FastAPI (async)
 - **ORM:** SQLAlchemy 2.0 (async, with asyncpg driver)
 - **Migrations:** Alembic
-- **Database:** PostgreSQL 16
+- **Database:** PostgreSQL 14+ (uses no version-specific features)
 - **LLM:** Anthropic Claude API via the `anthropic` Python SDK
 - **Document generation:** `python-docx` (already built — see `app/formatter/`, treat as a black box)
 - **File storage:** Cloudflare R2 (S3-compatible, via `boto3`)

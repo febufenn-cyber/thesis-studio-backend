@@ -135,7 +135,7 @@ This is the deploy procedure once the app is ready for staging/production.
 ssh root@68.233.116.11
 
 # Postgres (use the same VM)
-apt install -y postgresql-16
+apt install -y postgresql postgresql-client
 sudo -u postgres createuser thesis -P     # set password, save it
 sudo -u postgres createdb thesis_studio -O thesis
 

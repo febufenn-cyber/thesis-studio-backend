@@ -40,19 +40,19 @@ Look at the output and pick the matching outcome below.
 
 ---
 
-### Outcome B — Postgres 16 already running for another app (e.g. LeadFinder)
+### Outcome B — A Postgres cluster is already running for another app (e.g. LeadFinder)
 
-`dpkg -l | grep postgresql` shows `postgresql-16` as installed. `ss -tlnp` shows postgres listening on `:5432`. `sudo -u postgres psql -l` lists at least one DB (likely `leadfinder` or similar).
+`dpkg -l | grep postgresql` shows a `postgresql-*` package installed. `ss -tlnp` shows postgres listening on `:5432`. `sudo -u postgres psql -l` lists at least one DB (likely `leadfinder` or similar).
 
-**Trust the existing Postgres**; just add our role + DB to it.
+**Trust the existing Postgres** regardless of major version; just add our role + DB to it. The schema works on Postgres 14+.
 
-In `scripts/deploy_to_oracle.sh`, comment out these two lines (keep everything else):
+In `scripts/deploy_to_oracle.sh`, remove `postgresql postgresql-client \` from the apt-install block:
 
 ```bash
 sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
     git curl ca-certificates build-essential \
     python3.11 python3.11-venv python3.11-dev \
-    postgresql-16 postgresql-client-16 \
+    postgresql postgresql-client \
     >/dev/null
 ```
 
@@ -65,9 +65,7 @@ sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
     >/dev/null
 ```
 
-(remove the `postgresql-16 postgresql-client-16 \` line)
-
-And:
+And comment out the systemctl line:
 
 ```bash
 echo "[remote] Ensuring Postgres is running"
@@ -77,16 +75,6 @@ sudo systemctl enable --now postgresql >/dev/null
 → comment out both lines (replace with `:` no-op or a comment).
 
 The "Ensuring Postgres role + database exist" block stays as-is; it uses `sudo -u postgres psql` which works against whichever Postgres cluster is on the socket.
-
----
-
-### Outcome C — Different Postgres major (e.g. postgresql-14)
-
-`dpkg -l | grep postgresql` shows `postgresql-14` (not 16). The cluster is already running.
-
-Same fix as Outcome B — don't install Postgres 16 alongside (clusters running on different ports gets messy fast). Postgres 14 is fine for our use; we don't depend on Postgres 16-only features.
-
-Comment out the same two sections as Outcome B.
 
 ---
 
