@@ -3,332 +3,658 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Thesis Studio</title>
+  <title>Robofox Thesis Studio</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@500;700;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
   <style>
     :root {
       --bg: #09090f;
-      --card: rgba(13, 13, 24, 0.72);
-      --line: rgba(255, 255, 255, 0.15);
+      --surface: rgba(13, 13, 24, 0.78);
+      --surface-2: rgba(255, 255, 255, 0.04);
+      --line: rgba(255, 255, 255, 0.12);
+      --line-strong: rgba(255, 255, 255, 0.22);
       --text: #e9ecff;
-      --muted: #9fa8cc;
+      --muted: #9aa3c5;
       --accent: #73f3d7;
       --accent-2: #72a7ff;
       --danger: #ff6b8a;
       --ok: #4be58f;
     }
     * { box-sizing: border-box; }
+    html, body { height: 100%; }
     body {
       margin: 0;
-      min-height: 100vh;
       color: var(--text);
-      font-family: "IBM Plex Sans", sans-serif;
+      font-family: "IBM Plex Sans", system-ui, sans-serif;
       background:
-        radial-gradient(1000px 480px at 100% -10%, rgba(114, 167, 255, 0.25), transparent 60%),
-        radial-gradient(700px 380px at 0% 120%, rgba(115, 243, 215, 0.2), transparent 70%),
+        radial-gradient(900px 420px at 100% -8%, rgba(114, 167, 255, 0.16), transparent 60%),
+        radial-gradient(640px 340px at 0% 110%, rgba(115, 243, 215, 0.12), transparent 70%),
         var(--bg);
-      overflow-x: hidden;
+      overflow: hidden;
     }
-    body::before {
-      content: "";
-      position: fixed;
-      inset: 0;
-      pointer-events: none;
-      background-image:
-        linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
-      background-size: 28px 28px;
-      mask-image: radial-gradient(circle at 50% 20%, black 20%, transparent 80%);
-    }
-    .wrap { max-width: 1120px; margin: 0 auto; padding: 42px 22px 72px; }
-    .hero {
-      display: grid;
-      grid-template-columns: 1.1fr 0.9fr;
-      gap: 24px;
-      align-items: end;
-      margin-bottom: 18px;
-    }
-    h1 {
-      margin: 0;
-      font-family: "Syne", sans-serif;
-      font-size: clamp(2.4rem, 6vw, 5rem);
-      letter-spacing: -0.04em;
-      line-height: 0.9;
-      text-wrap: balance;
+    #topbar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 22px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(9, 9, 15, 0.7);
+      backdrop-filter: blur(8px);
+      position: sticky; top: 0; z-index: 5;
     }
     .brand {
-      display: inline-flex;
-      align-items: center;
-      border: 1px solid var(--line);
-      padding: 6px 12px;
-      border-radius: 999px;
-      color: var(--muted);
-      margin-bottom: 14px;
-      font-size: 0.84rem;
-      backdrop-filter: blur(6px);
-    }
-    .sub {
-      color: var(--muted);
-      font-size: 1.03rem;
-      max-width: 680px;
-      margin-top: 14px;
-      line-height: 1.6;
-    }
-    .pulse {
-      justify-self: end;
-      border: 1px solid var(--line);
-      border-radius: 14px;
-      width: 220px;
-      aspect-ratio: 1;
-      display: grid;
-      place-items: center;
-      background: linear-gradient(145deg, rgba(114,167,255,0.2), rgba(115,243,215,0.05));
-      box-shadow: inset 0 0 50px rgba(255,255,255,0.05), 0 0 65px rgba(114,167,255,0.2);
-    }
-    .pulse-dot {
-      width: 44px; height: 44px; border-radius: 50%;
-      background: radial-gradient(circle at 35% 35%, #fff, var(--accent));
-      box-shadow: 0 0 22px var(--accent), 0 0 52px rgba(115,243,215,0.6);
-      animation: pulse 2.7s infinite;
-    }
-    @keyframes pulse {
-      0%, 100% { transform: scale(1); opacity: 1; }
-      50% { transform: scale(1.25); opacity: 0.8; }
-    }
-    .grid {
-      margin-top: 18px;
-      display: grid;
-      grid-template-columns: repeat(12, 1fr);
-      gap: 16px;
-    }
-    .card {
-      border: 1px solid var(--line);
-      border-radius: 18px;
-      background: var(--card);
-      backdrop-filter: blur(8px);
-      padding: 18px;
-      box-shadow: 0 12px 35px rgba(0,0,0,0.25);
-    }
-    .auth { grid-column: span 5; }
-    .session { grid-column: span 7; }
-    .meta { grid-column: span 12; }
-    .title {
-      margin: 0 0 6px;
-      font-size: 0.94rem;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      color: var(--muted);
-    }
-    .headline {
-      margin: 0 0 12px;
       font-family: "Syne", sans-serif;
-      font-size: 1.45rem;
+      font-weight: 700;
       letter-spacing: -0.02em;
+      font-size: 1.05rem;
     }
-    .row { display: grid; gap: 10px; margin-top: 10px; }
-    input, button {
-      border-radius: 11px;
-      border: 1px solid transparent;
-      font: inherit;
+    .brand .dot {
+      display: inline-block; width: 8px; height: 8px; margin-right: 8px;
+      border-radius: 50%; background: var(--accent);
+      box-shadow: 0 0 8px var(--accent);
+      vertical-align: middle;
     }
-    input {
-      width: 100%;
-      background: rgba(255,255,255,0.06);
-      color: var(--text);
+    #userInfo { color: var(--muted); font-size: 0.9rem; }
+    #userInfo strong { color: var(--text); font-weight: 600; }
+    .icon-btn {
+      background: transparent; color: var(--muted);
+      border: 1px solid var(--line);
+      padding: 6px 11px; border-radius: 8px;
+      font: inherit; font-size: 0.85rem; cursor: pointer;
+    }
+    .icon-btn:hover { color: var(--text); border-color: var(--line-strong); }
+
+    main#app {
+      height: calc(100vh - 53px);
+      display: flex; flex-direction: column;
+    }
+    .view { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+    .view[hidden] { display: none; }
+
+    /* ---------- Login ---------- */
+    #loginView {
+      align-items: center; justify-content: center; padding: 24px;
+    }
+    .login-card {
+      width: 100%; max-width: 460px;
+      background: var(--surface); border: 1px solid var(--line);
+      border-radius: 18px; padding: 32px;
+      backdrop-filter: blur(10px);
+    }
+    .login-card h1 {
+      margin: 0 0 6px;
+      font-family: "Syne", sans-serif; font-weight: 700;
+      font-size: 1.9rem; letter-spacing: -0.02em;
+    }
+    .login-card .sub { margin: 0 0 22px; color: var(--muted); font-size: 0.95rem; line-height: 1.55; }
+    .login-card form { display: grid; gap: 10px; }
+    input, textarea, button {
+      font: inherit; border-radius: 11px;
+      border: 1px solid var(--line);
+    }
+    input, textarea {
+      background: var(--surface-2); color: var(--text);
       padding: 12px 13px;
-      border-color: rgba(255,255,255,0.08);
     }
-    input:focus {
-      outline: none;
-      border-color: var(--accent-2);
-      box-shadow: 0 0 0 4px rgba(114, 167, 255, 0.18);
+    input:focus, textarea:focus {
+      outline: none; border-color: var(--accent-2);
+      box-shadow: 0 0 0 4px rgba(114, 167, 255, 0.16);
     }
-    .btn {
-      padding: 12px 14px;
-      color: #06121a;
+    .btn-primary {
+      padding: 12px 14px; cursor: pointer;
+      color: #06121a; border: 0;
       background: linear-gradient(90deg, var(--accent), #95b6ff);
       font-weight: 700;
-      cursor: pointer;
-      transition: transform .2s ease, filter .2s ease;
+      transition: transform .15s ease, filter .15s ease;
     }
-    .btn:hover { transform: translateY(-1px); filter: brightness(1.06); }
-    .btn.secondary {
-      color: var(--text);
-      background: rgba(255,255,255,0.06);
-      border-color: rgba(255,255,255,0.1);
-      font-weight: 600;
+    .btn-primary:hover { transform: translateY(-1px); filter: brightness(1.06); }
+    .btn-primary:disabled { opacity: 0.55; cursor: not-allowed; transform: none; filter: none; }
+    .hint {
+      margin-top: 14px; padding: 12px 13px;
+      background: var(--surface-2); border: 1px dashed var(--line);
+      border-radius: 10px;
+      font-size: 0.86rem; color: var(--muted); line-height: 1.55;
     }
-    .btn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-    .status {
-      margin-top: 10px;
-      min-height: 20px;
-      font-size: 0.95rem;
-      color: var(--muted);
+    .hint.ok { color: var(--ok); border-color: rgba(75, 229, 143, 0.3); border-style: solid; }
+    .hint.err { color: var(--danger); border-color: rgba(255, 107, 138, 0.4); border-style: solid; }
+    .hint code { font-family: "IBM Plex Mono", "Menlo", monospace; color: var(--text); }
+
+    /* ---------- Sessions ---------- */
+    #sessionsView { padding: 36px 22px 22px; align-items: center; }
+    .sessions-wrap { width: 100%; max-width: 720px; }
+    .sessions-head {
+      display: flex; justify-content: space-between; align-items: end;
+      margin-bottom: 18px; gap: 12px;
     }
-    .status.ok { color: var(--ok); }
-    .status.err { color: var(--danger); }
-    .pill {
-      border: 1px solid rgba(115,243,215,0.34);
-      color: var(--accent);
-      border-radius: 999px;
-      padding: 4px 9px;
-      display: inline-block;
-      font-size: 0.8rem;
-      margin-left: 8px;
-    }
-    pre {
+    .sessions-head h1 {
       margin: 0;
-      white-space: pre-wrap;
-      word-break: break-word;
-      font-size: 0.87rem;
-      line-height: 1.56;
-      color: #ccdaff;
-      background: rgba(10, 12, 21, 0.72);
-      border: 1px solid rgba(255,255,255,0.09);
-      border-radius: 12px;
-      padding: 12px;
-      max-height: 330px;
-      overflow: auto;
+      font-family: "Syne", sans-serif; font-weight: 700;
+      font-size: 2rem; letter-spacing: -0.02em;
     }
-    .note {
-      margin-top: 12px;
+    .sessions-head .sub { color: var(--muted); font-size: 0.92rem; margin-top: 4px; }
+    .sessions-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+    .session-row {
+      background: var(--surface); border: 1px solid var(--line);
+      border-radius: 14px; padding: 14px 16px;
+      display: flex; justify-content: space-between; align-items: center;
+      gap: 12px; cursor: pointer;
+      transition: border-color .15s ease, transform .15s ease;
+    }
+    .session-row:hover { border-color: var(--line-strong); transform: translateY(-1px); }
+    .session-row .meta { color: var(--muted); font-size: 0.85rem; margin-top: 4px; }
+    .session-row .title { font-weight: 600; font-size: 1.02rem; }
+    .session-row .badge {
+      font-size: 0.75rem; color: var(--accent); border: 1px solid rgba(115,243,215,0.3);
+      padding: 3px 8px; border-radius: 999px;
+    }
+    .empty {
+      text-align: center; padding: 40px 20px;
+      color: var(--muted); font-size: 0.95rem;
+    }
+
+    /* ---------- Chat ---------- */
+    #chatView { padding: 0; }
+    .chat-header {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 22px; border-bottom: 1px solid var(--line);
+      background: rgba(9, 9, 15, 0.5);
+    }
+    .chat-header h2 {
+      margin: 0; flex: 1; min-width: 0;
+      font-family: "Syne", sans-serif; font-weight: 600;
+      font-size: 1.1rem; letter-spacing: -0.01em;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    #messages {
+      flex: 1; overflow-y: auto;
+      padding: 24px 22px;
+      scroll-behavior: smooth;
+    }
+    .messages-inner { max-width: 760px; margin: 0 auto; display: grid; gap: 18px; }
+    .msg {
+      display: grid; gap: 6px;
+    }
+    .msg .role {
+      font-size: 0.74rem; letter-spacing: 0.14em; text-transform: uppercase;
       color: var(--muted);
-      font-size: 0.9rem;
     }
-    @media (max-width: 920px) {
-      .hero { grid-template-columns: 1fr; }
-      .pulse { justify-self: start; width: 120px; border-radius: 12px; }
-      .auth, .session, .meta { grid-column: span 12; }
+    .msg .body {
+      font-family: "IBM Plex Serif", Georgia, serif;
+      font-size: 1.02rem; line-height: 1.62;
+      white-space: pre-wrap; word-wrap: break-word;
+    }
+    .msg.user .body {
+      background: rgba(114, 167, 255, 0.07);
+      border: 1px solid rgba(114, 167, 255, 0.18);
+      padding: 12px 14px; border-radius: 12px;
+    }
+    .msg.assistant .body em { font-style: italic; color: #d6e2ff; }
+    .msg.assistant .body strong { font-weight: 600; color: #fff; }
+    .msg.streaming .body::after {
+      content: "▍";
+      display: inline-block;
+      margin-left: 2px;
+      animation: blink 1s steps(1) infinite;
+      color: var(--accent);
+    }
+    @keyframes blink { 50% { opacity: 0; } }
+    .msg-empty {
+      text-align: center; color: var(--muted); padding: 40px 20px;
+      font-size: 0.95rem;
+    }
+
+    .composer {
+      border-top: 1px solid var(--line);
+      padding: 14px 22px;
+      background: rgba(9, 9, 15, 0.5);
+    }
+    .composer-inner {
+      max-width: 760px; margin: 0 auto;
+      display: grid; grid-template-columns: 1fr auto; gap: 10px;
+      align-items: end;
+    }
+    #messageInput {
+      resize: none; min-height: 48px; max-height: 200px;
+      font-family: "IBM Plex Sans", sans-serif;
+    }
+    .composer .send {
+      padding: 12px 18px;
+      color: #06121a; border: 0;
+      background: linear-gradient(90deg, var(--accent), #95b6ff);
+      font-weight: 700; cursor: pointer;
+      border-radius: 11px;
+      transition: transform .15s ease, filter .15s ease;
+    }
+    .composer .send:hover:not(:disabled) { transform: translateY(-1px); filter: brightness(1.06); }
+    .composer .send:disabled { opacity: 0.45; cursor: not-allowed; }
+    .composer-hint {
+      max-width: 760px; margin: 8px auto 0;
+      color: var(--muted); font-size: 0.78rem;
+    }
+    .composer-hint.err { color: var(--danger); }
+
+    /* ---------- responsive ---------- */
+    @media (max-width: 720px) {
+      #topbar { padding: 12px 16px; }
+      .login-card { padding: 22px; }
+      #sessionsView { padding: 24px 14px 14px; }
+      .sessions-head h1 { font-size: 1.6rem; }
+      #messages, .composer { padding-left: 14px; padding-right: 14px; }
+      .msg .body { font-size: 0.98rem; }
     }
   </style>
 </head>
 <body>
-  <main class="wrap">
-    <section class="hero">
-      <div>
-        <div class="brand">ROBOFOX THESIS STUDIO <span class="pill">LIVE</span></div>
-        <h1>Write your thesis with an AI copilot that actually feels alive.</h1>
-        <p class="sub">A cinematic workspace for postgraduate writing: magic-link auth, persistent sessions, and institution-aware routing powered by your backend.</p>
+  <header id="topbar">
+    <span class="brand"><span class="dot"></span>Robofox Thesis Studio</span>
+    <div style="display: flex; gap: 10px; align-items: center;">
+      <span id="userInfo"></span>
+      <button id="logoutBtn" class="icon-btn" hidden>Sign out</button>
+    </div>
+  </header>
+
+  <main id="app">
+    <!-- LOGIN -->
+    <section id="loginView" class="view">
+      <div class="login-card">
+        <h1>Sign in</h1>
+        <p class="sub">Enter any email — we'll send a magic link. Your institution is matched from the email domain, falling back to MCC.</p>
+        <form id="loginForm">
+          <input id="emailInput" type="email" placeholder="you@anywhere.com" required autocomplete="email">
+          <button type="submit" class="btn-primary" id="loginSubmit">Send magic link</button>
+        </form>
+        <div id="loginHint" class="hint" hidden></div>
       </div>
-      <div class="pulse"><div class="pulse-dot"></div></div>
     </section>
 
-    <section class="grid">
-      <article class="card auth">
-        <p class="title">Access</p>
-        <h2 class="headline">Request a magic link</h2>
-        <div class="row">
-          <input id="email" type="email" placeholder="you@college.edu" autocomplete="email" />
-          <button id="requestLinkBtn" class="btn">Send magic link</button>
+    <!-- SESSIONS -->
+    <section id="sessionsView" class="view" hidden>
+      <div class="sessions-wrap">
+        <div class="sessions-head">
+          <div>
+            <h1>Your theses</h1>
+            <p class="sub" id="sessionsCount"></p>
+          </div>
+          <button id="newSessionBtn" class="btn-primary">+ New thesis</button>
         </div>
-        <div id="authStatus" class="status"></div>
-        <p class="note">After opening the email link, refresh this page and hit <strong>Load My Profile</strong>.</p>
-      </article>
+        <ul id="sessionsList" class="sessions-list"></ul>
+        <div id="sessionsEmpty" class="empty" hidden>
+          No theses yet. Start your first one — pick "+ New thesis" above.
+        </div>
+      </div>
+    </section>
 
-      <article class="card session">
-        <p class="title">Workspace</p>
-        <h2 class="headline">Profile + Sessions</h2>
-        <div class="btn-row">
-          <button id="meBtn" class="btn secondary">Load My Profile</button>
-          <button id="newSessionBtn" class="btn secondary">Create Session</button>
+    <!-- CHAT -->
+    <section id="chatView" class="view" hidden>
+      <div class="chat-header">
+        <button id="backToSessionsBtn" class="icon-btn">← Sessions</button>
+        <h2 id="chatTitle"></h2>
+      </div>
+      <div id="messages"><div class="messages-inner" id="messagesInner"></div></div>
+      <form id="chatForm" class="composer">
+        <div class="composer-inner">
+          <textarea id="messageInput" placeholder="Ask, share a passage, request a draft…" rows="2"></textarea>
+          <button type="submit" class="send" id="sendBtn">Send</button>
         </div>
-        <div id="sessionStatus" class="status"></div>
-        <pre id="output">{ "ready": true }</pre>
-      </article>
-
-      <article class="card meta">
-        <p class="title">System</p>
-        <h2 class="headline">Runtime status</h2>
-        <div class="btn-row">
-          <button id="healthBtn" class="btn secondary">Check /healthz</button>
-          <button id="listSessionsBtn" class="btn secondary">List Sessions</button>
-        </div>
-      </article>
+        <p class="composer-hint" id="composerHint">Press <kbd>Enter</kbd> to send · <kbd>Shift+Enter</kbd> for newline</p>
+      </form>
     </section>
   </main>
 
   <script>
-    const authStatus = document.getElementById("authStatus");
-    const sessionStatus = document.getElementById("sessionStatus");
-    const output = document.getElementById("output");
+    "use strict";
 
-    function setStatus(el, type, msg) {
-      el.className = "status " + (type || "");
+    const state = {
+      user: null,
+      sessions: [],
+      currentSessionId: null,
+      messages: [],
+      streaming: false,
+    };
+
+    const $ = (id) => document.getElementById(id);
+
+    function showView(name) {
+      for (const v of ["loginView", "sessionsView", "chatView"]) {
+        $(v).hidden = (v !== name);
+      }
+    }
+
+    function escapeHtml(s) {
+      return s.replace(/[&<>"']/g, (c) => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+      }[c]));
+    }
+
+    // Minimal markdown: *italics*, **bold**, single newlines preserved.
+    // The coaching prompt only emits these, plus quotation marks (left as-is).
+    function renderAssistantBody(text) {
+      let out = escapeHtml(text);
+      out = out.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+      out = out.replace(/\*([^*\n]+)\*/g, "<em>$1</em>");
+      return out;
+    }
+
+    function setHint(el, kind, msg) {
+      el.hidden = !msg;
+      el.className = "hint" + (kind ? " " + kind : "");
       el.textContent = msg;
     }
 
-    function show(data) {
-      output.textContent = JSON.stringify(data, null, 2);
+    // ------------------- Auth -------------------
+
+    async function loadMe() {
+      const resp = await fetch("/auth/me", { credentials: "include" });
+      if (!resp.ok) return null;
+      return resp.json();
     }
 
-    async function readJson(response) {
-      const contentType = response.headers.get("content-type") || "";
-      if (contentType.includes("application/json")) return response.json();
-      return { text: await response.text() };
+    async function init() {
+      const me = await loadMe();
+      if (me) {
+        state.user = me;
+        renderUserInfo();
+        await enterSessions();
+      } else {
+        showView("loginView");
+      }
     }
 
-    document.getElementById("requestLinkBtn").addEventListener("click", async () => {
-      const email = document.getElementById("email").value.trim();
-      if (!email) {
-        setStatus(authStatus, "err", "Enter an email first.");
+    function renderUserInfo() {
+      if (!state.user) {
+        $("userInfo").textContent = "";
+        $("logoutBtn").hidden = true;
         return;
       }
-      setStatus(authStatus, "", "Sending...");
+      const inst = state.user.institution_short_name;
+      $("userInfo").innerHTML =
+        `<strong>${escapeHtml(state.user.email)}</strong> · ${escapeHtml(inst)}`;
+      $("logoutBtn").hidden = false;
+    }
+
+    $("loginForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const email = $("emailInput").value.trim();
+      if (!email) return;
+      const submitBtn = $("loginSubmit");
+      submitBtn.disabled = true;
+      setHint($("loginHint"), "", "Sending...");
       try {
         const resp = await fetch("/auth/request-link", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email })
+          body: JSON.stringify({ email }),
         });
-        const data = await readJson(resp);
-        show(data);
-        setStatus(
-          authStatus,
-          resp.ok ? "ok" : "err",
-          resp.ok ? "Magic link requested. Check your inbox." : "Request failed."
-        );
+        if (!resp.ok) {
+          setHint($("loginHint"), "err", "Request failed. Try again.");
+        } else {
+          setHint($("loginHint"), "ok",
+            `Link sent to ${email}. In dev mode (no Resend key), check the uvicorn / pm2 console for a line starting "RESEND_API_KEY not set". Open the URL it logs.`);
+        }
       } catch (err) {
-        setStatus(authStatus, "err", "Network error while requesting magic link.");
+        setHint($("loginHint"), "err", "Network error. Is the backend up?");
+      } finally {
+        submitBtn.disabled = false;
       }
     });
 
-    document.getElementById("meBtn").addEventListener("click", async () => {
-      setStatus(sessionStatus, "", "Loading profile...");
-      const resp = await fetch("/auth/me", { credentials: "include" });
-      const data = await readJson(resp);
-      show(data);
-      setStatus(sessionStatus, resp.ok ? "ok" : "err", resp.ok ? "Authenticated." : "Not logged in.");
+    $("logoutBtn").addEventListener("click", async () => {
+      await fetch("/auth/logout", { method: "POST", credentials: "include" });
+      state.user = null;
+      state.sessions = [];
+      state.currentSessionId = null;
+      renderUserInfo();
+      showView("loginView");
+      setHint($("loginHint"), "", "");
     });
 
-    document.getElementById("newSessionBtn").addEventListener("click", async () => {
-      setStatus(sessionStatus, "", "Creating session...");
+    // ------------------- Sessions list -------------------
+
+    async function enterSessions() {
+      showView("sessionsView");
+      await loadSessions();
+    }
+
+    async function loadSessions() {
+      const resp = await fetch("/sessions", { credentials: "include" });
+      if (!resp.ok) {
+        // Likely cookie expired
+        state.user = null; renderUserInfo(); showView("loginView");
+        return;
+      }
+      state.sessions = await resp.json();
+      renderSessions();
+    }
+
+    function renderSessions() {
+      const list = $("sessionsList");
+      const empty = $("sessionsEmpty");
+      list.innerHTML = "";
+      if (!state.sessions.length) {
+        empty.hidden = false;
+        $("sessionsCount").textContent = "Nothing yet — make your first thesis.";
+        return;
+      }
+      empty.hidden = true;
+      const n = state.sessions.length;
+      $("sessionsCount").textContent = `${n} thesis${n === 1 ? "" : "es"} in progress.`;
+      for (const s of state.sessions) {
+        const li = document.createElement("li");
+        li.className = "session-row";
+        const updated = new Date(s.updated_at);
+        const phase = (s.phase || "intake").replace(/^./, c => c.toUpperCase());
+        li.innerHTML = `
+          <div>
+            <div class="title">${escapeHtml(s.title || "Untitled")}</div>
+            <div class="meta">${phase} · updated ${updated.toLocaleString()}</div>
+          </div>
+          <span class="badge">${escapeHtml(phase)}</span>
+        `;
+        li.addEventListener("click", () => openSession(s.id, s.title || "Untitled"));
+        list.appendChild(li);
+      }
+    }
+
+    $("newSessionBtn").addEventListener("click", async () => {
+      const title = "Thesis · " + new Date().toLocaleString();
       const resp = await fetch("/sessions", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: "Thesis " + new Date().toLocaleString() })
+        body: JSON.stringify({ title }),
       });
-      const data = await readJson(resp);
-      show(data);
-      setStatus(sessionStatus, resp.ok ? "ok" : "err", resp.ok ? "Session created." : "Create session failed.");
+      if (!resp.ok) {
+        alert("Could not create session.");
+        return;
+      }
+      const s = await resp.json();
+      await openSession(s.id, s.title);
     });
 
-    document.getElementById("healthBtn").addEventListener("click", async () => {
-      const resp = await fetch("/healthz");
-      const data = await readJson(resp);
-      show(data);
-      setStatus(sessionStatus, resp.ok ? "ok" : "err", "Health check complete.");
+    // ------------------- Chat -------------------
+
+    async function openSession(id, title) {
+      state.currentSessionId = id;
+      $("chatTitle").textContent = title;
+      state.messages = [];
+      renderMessages();
+      showView("chatView");
+
+      const resp = await fetch(`/sessions/${id}/messages`, { credentials: "include" });
+      if (resp.ok) {
+        state.messages = await resp.json();
+        renderMessages();
+        $("messageInput").focus();
+      }
+    }
+
+    $("backToSessionsBtn").addEventListener("click", async () => {
+      state.currentSessionId = null;
+      state.messages = [];
+      await enterSessions();
     });
 
-    document.getElementById("listSessionsBtn").addEventListener("click", async () => {
-      setStatus(sessionStatus, "", "Loading sessions...");
-      const resp = await fetch("/sessions", { credentials: "include" });
-      const data = await readJson(resp);
-      show(data);
-      setStatus(sessionStatus, resp.ok ? "ok" : "err", resp.ok ? "Sessions loaded." : "List sessions failed.");
+    function renderMessages() {
+      const inner = $("messagesInner");
+      inner.innerHTML = "";
+      if (!state.messages.length) {
+        const empty = document.createElement("div");
+        empty.className = "msg-empty";
+        empty.textContent =
+          "New thesis — say what you're working on (subfield, primary text, working topic).";
+        inner.appendChild(empty);
+        return;
+      }
+      for (const m of state.messages) {
+        inner.appendChild(buildMessageEl(m));
+      }
+      requestAnimationFrame(scrollMessagesToBottom);
+    }
+
+    function buildMessageEl(m) {
+      const wrap = document.createElement("div");
+      wrap.className = "msg " + (m.role || "assistant");
+      if (m.streaming) wrap.classList.add("streaming");
+      const role = document.createElement("div");
+      role.className = "role";
+      role.textContent = m.role === "user" ? "You" : "Robofox Scholar";
+      const body = document.createElement("div");
+      body.className = "body";
+      if (m.role === "assistant") {
+        body.innerHTML = renderAssistantBody(m.content);
+      } else {
+        body.textContent = m.content;
+      }
+      wrap.appendChild(role);
+      wrap.appendChild(body);
+      return wrap;
+    }
+
+    function scrollMessagesToBottom() {
+      const m = $("messages");
+      m.scrollTop = m.scrollHeight;
+    }
+
+    function setComposerHint(kind, msg) {
+      const el = $("composerHint");
+      el.className = "composer-hint" + (kind ? " " + kind : "");
+      el.textContent = msg || "Press Enter to send · Shift+Enter for newline";
+    }
+
+    async function sendMessage(text) {
+      if (!state.currentSessionId || !text.trim() || state.streaming) return;
+      const sessionId = state.currentSessionId;
+      state.streaming = true;
+      $("sendBtn").disabled = true;
+      $("messageInput").disabled = true;
+
+      // Optimistic: append user message + placeholder assistant message
+      state.messages.push({ role: "user", content: text });
+      const assistantMsg = { role: "assistant", content: "", streaming: true };
+      state.messages.push(assistantMsg);
+      renderMessages();
+
+      try {
+        const resp = await fetch(`/sessions/${sessionId}/messages`, {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ content: text }),
+        });
+        if (!resp.ok) {
+          throw new Error(`HTTP ${resp.status}`);
+        }
+
+        const reader = resp.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        let inErrorEvent = false;
+
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          let idx;
+          while ((idx = buffer.indexOf("\n\n")) !== -1) {
+            const chunk = buffer.slice(0, idx);
+            buffer = buffer.slice(idx + 2);
+            for (const line of chunk.split("\n")) {
+              if (!line.startsWith("data:")) continue;
+              const json = line.slice(5).trimStart();
+              if (!json) continue;
+              let evt;
+              try { evt = JSON.parse(json); } catch { continue; }
+              if (evt.type === "token" && evt.text) {
+                assistantMsg.content += evt.text;
+                updateLastAssistantBody(assistantMsg);
+                scrollMessagesToBottom();
+              } else if (evt.type === "error") {
+                inErrorEvent = true;
+                assistantMsg.content =
+                  (assistantMsg.content ? assistantMsg.content + "\n\n" : "") +
+                  "_(error: " + (evt.message || "stream failed") + ")_";
+                updateLastAssistantBody(assistantMsg);
+              } else if (evt.type === "done") {
+                // finalized
+              }
+            }
+          }
+        }
+
+        assistantMsg.streaming = false;
+        renderMessages();
+        if (inErrorEvent) {
+          setComposerHint("err", "The assistant hit an error. Try again.");
+        } else {
+          setComposerHint("", "");
+        }
+      } catch (err) {
+        assistantMsg.content = "_(network error: " + (err.message || err) + ")_";
+        assistantMsg.streaming = false;
+        renderMessages();
+        setComposerHint("err", "Send failed: " + (err.message || err));
+      } finally {
+        state.streaming = false;
+        $("sendBtn").disabled = false;
+        $("messageInput").disabled = false;
+        $("messageInput").focus();
+      }
+    }
+
+    function updateLastAssistantBody(msg) {
+      const inner = $("messagesInner");
+      const wraps = inner.querySelectorAll(".msg.assistant");
+      const last = wraps[wraps.length - 1];
+      if (!last) return;
+      const body = last.querySelector(".body");
+      body.innerHTML = renderAssistantBody(msg.content);
+    }
+
+    $("chatForm").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const ta = $("messageInput");
+      const text = ta.value;
+      if (!text.trim()) return;
+      ta.value = "";
+      autoresize(ta);
+      sendMessage(text);
     });
+
+    // Enter to send, Shift+Enter for newline
+    $("messageInput").addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        $("chatForm").dispatchEvent(new Event("submit"));
+      }
+    });
+
+    // Auto-grow textarea
+    function autoresize(el) {
+      el.style.height = "auto";
+      el.style.height = Math.min(el.scrollHeight, 200) + "px";
+    }
+    $("messageInput").addEventListener("input", (e) => autoresize(e.target));
+
+    init();
   </script>
 </body>
 </html>
