@@ -10,9 +10,11 @@ from __future__ import annotations
 
 import logging
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 
 from app.api import auth as auth_router
 from app.api import chat as chat_router
@@ -56,6 +58,7 @@ async def lifespan(app: FastAPI):
 
 def create_app() -> FastAPI:
     settings = get_settings()
+    static_index = Path(__file__).parent / "static" / "index.html"
 
     app = FastAPI(
         title="Robofox Thesis Studio API",
@@ -84,6 +87,11 @@ def create_app() -> FastAPI:
     async def health() -> dict:
         """Liveness probe."""
         return {"status": "ok"}
+
+    @app.get("/", include_in_schema=False)
+    async def frontend() -> FileResponse:
+        """Serve the embedded frontend app."""
+        return FileResponse(static_index)
 
     return app
 

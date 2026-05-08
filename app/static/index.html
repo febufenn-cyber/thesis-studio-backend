@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Thesis Studio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@500;700;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #09090f;
+      --card: rgba(13, 13, 24, 0.72);
+      --line: rgba(255, 255, 255, 0.15);
+      --text: #e9ecff;
+      --muted: #9fa8cc;
+      --accent: #73f3d7;
+      --accent-2: #72a7ff;
+      --danger: #ff6b8a;
+      --ok: #4be58f;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--text);
+      font-family: "IBM Plex Sans", sans-serif;
+      background:
+        radial-gradient(1000px 480px at 100% -10%, rgba(114, 167, 255, 0.25), transparent 60%),
+        radial-gradient(700px 380px at 0% 120%, rgba(115, 243, 215, 0.2), transparent 70%),
+        var(--bg);
+      overflow-x: hidden;
+    }
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+      background-size: 28px 28px;
+      mask-image: radial-gradient(circle at 50% 20%, black 20%, transparent 80%);
+    }
+    .wrap { max-width: 1120px; margin: 0 auto; padding: 42px 22px 72px; }
+    .hero {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 24px;
+      align-items: end;
+      margin-bottom: 18px;
+    }
+    h1 {
+      margin: 0;
+      font-family: "Syne", sans-serif;
+      font-size: clamp(2.4rem, 6vw, 5rem);
+      letter-spacing: -0.04em;
+      line-height: 0.9;
+      text-wrap: balance;
+    }
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      border: 1px solid var(--line);
+      padding: 6px 12px;
+      border-radius: 999px;
+      color: var(--muted);
+      margin-bottom: 14px;
+      font-size: 0.84rem;
+      backdrop-filter: blur(6px);
+    }
+    .sub {
+      color: var(--muted);
+      font-size: 1.03rem;
+      max-width: 680px;
+      margin-top: 14px;
+      line-height: 1.6;
+    }
+    .pulse {
+      justify-self: end;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      width: 220px;
+      aspect-ratio: 1;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(145deg, rgba(114,167,255,0.2), rgba(115,243,215,0.05));
+      box-shadow: inset 0 0 50px rgba(255,255,255,0.05), 0 0 65px rgba(114,167,255,0.2);
+    }
+    .pulse-dot {
+      width: 44px; height: 44px; border-radius: 50%;
+      background: radial-gradient(circle at 35% 35%, #fff, var(--accent));
+      box-shadow: 0 0 22px var(--accent), 0 0 52px rgba(115,243,215,0.6);
+      animation: pulse 2.7s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.25); opacity: 0.8; }
+    }
+    .grid {
+      margin-top: 18px;
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 16px;
+    }
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: var(--card);
+      backdrop-filter: blur(8px);
+      padding: 18px;
+      box-shadow: 0 12px 35px rgba(0,0,0,0.25);
+    }
+    .auth { grid-column: span 5; }
+    .session { grid-column: span 7; }
+    .meta { grid-column: span 12; }
+    .title {
+      margin: 0 0 6px;
+      font-size: 0.94rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .headline {
+      margin: 0 0 12px;
+      font-family: "Syne", sans-serif;
+      font-size: 1.45rem;
+      letter-spacing: -0.02em;
+    }
+    .row { display: grid; gap: 10px; margin-top: 10px; }
+    input, button {
+      border-radius: 11px;
+      border: 1px solid transparent;
+      font: inherit;
+    }
+    input {
+      width: 100%;
+      background: rgba(255,255,255,0.06);
+      color: var(--text);
+      padding: 12px 13px;
+      border-color: rgba(255,255,255,0.08);
+    }
+    input:focus {
+      outline: none;
+      border-color: var(--accent-2);
+      box-shadow: 0 0 0 4px rgba(114, 167, 255, 0.18);
+    }
+    .btn {
+      padding: 12px 14px;
+      color: #06121a;
+      background: linear-gradient(90deg, var(--accent), #95b6ff);
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform .2s ease, filter .2s ease;
+    }
+    .btn:hover { transform: translateY(-1px); filter: brightness(1.06); }
+    .btn.secondary {
+      color: var(--text);
+      background: rgba(255,255,255,0.06);
+      border-color: rgba(255,255,255,0.1);
+      font-weight: 600;
+    }
+    .btn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .status {
+      margin-top: 10px;
+      min-height: 20px;
+      font-size: 0.95rem;
+      color: var(--muted);
+    }
+    .status.ok { color: var(--ok); }
+    .status.err { color: var(--danger); }
+    .pill {
+      border: 1px solid rgba(115,243,215,0.34);
+      color: var(--accent);
+      border-radius: 999px;
+      padding: 4px 9px;
+      display: inline-block;
+      font-size: 0.8rem;
+      margin-left: 8px;
+    }
+    pre {
+      margin: 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-size: 0.87rem;
+      line-height: 1.56;
+      color: #ccdaff;
+      background: rgba(10, 12, 21, 0.72);
+      border: 1px solid rgba(255,255,255,0.09);
+      border-radius: 12px;
+      padding: 12px;
+      max-height: 330px;
+      overflow: auto;
+    }
+    .note {
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+    @media (max-width: 920px) {
+      .hero { grid-template-columns: 1fr; }
+      .pulse { justify-self: start; width: 120px; border-radius: 12px; }
+      .auth, .session, .meta { grid-column: span 12; }
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <section class="hero">
+      <div>
+        <div class="brand">ROBOFOX THESIS STUDIO <span class="pill">LIVE</span></div>
+        <h1>Write your thesis with an AI copilot that actually feels alive.</h1>
+        <p class="sub">A cinematic workspace for postgraduate writing: magic-link auth, persistent sessions, and institution-aware routing powered by your backend.</p>
+      </div>
+      <div class="pulse"><div class="pulse-dot"></div></div>
+    </section>
+
+    <section class="grid">
+      <article class="card auth">
+        <p class="title">Access</p>
+        <h2 class="headline">Request a magic link</h2>
+        <div class="row">
+          <input id="email" type="email" placeholder="you@college.edu" autocomplete="email" />
+          <button id="requestLinkBtn" class="btn">Send magic link</button>
+        </div>
+        <div id="authStatus" class="status"></div>
+        <p class="note">After opening the email link, refresh this page and hit <strong>Load My Profile</strong>.</p>
+      </article>
+
+      <article class="card session">
+        <p class="title">Workspace</p>
+        <h2 class="headline">Profile + Sessions</h2>
+        <div class="btn-row">
+          <button id="meBtn" class="btn secondary">Load My Profile</button>
+          <button id="newSessionBtn" class="btn secondary">Create Session</button>
+        </div>
+        <div id="sessionStatus" class="status"></div>
+        <pre id="output">{ "ready": true }</pre>
+      </article>
+
+      <article class="card meta">
+        <p class="title">System</p>
+        <h2 class="headline">Runtime status</h2>
+        <div class="btn-row">
+          <button id="healthBtn" class="btn secondary">Check /healthz</button>
+          <button id="listSessionsBtn" class="btn secondary">List Sessions</button>
+        </div>
+      </article>
+    </section>
+  </main>
+
+  <script>
+    const authStatus = document.getElementById("authStatus");
+    const sessionStatus = document.getElementById("sessionStatus");
+    const output = document.getElementById("output");
+
+    function setStatus(el, type, msg) {
+      el.className = "status " + (type || "");
+      el.textContent = msg;
+    }
+
+    function show(data) {
+      output.textContent = JSON.stringify(data, null, 2);
+    }
+
+    async function readJson(response) {
+      const contentType = response.headers.get("content-type") || "";
+      if (contentType.includes("application/json")) return response.json();
+      return { text: await response.text() };
+    }
+
+    document.getElementById("requestLinkBtn").addEventListener("click", async () => {
+      const email = document.getElementById("email").value.trim();
+      if (!email) {
+        setStatus(authStatus, "err", "Enter an email first.");
+        return;
+      }
+      setStatus(authStatus, "", "Sending...");
+      try {
+        const resp = await fetch("/auth/request-link", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email })
+        });
+        const data = await readJson(resp);
+        show(data);
+        setStatus(
+          authStatus,
+          resp.ok ? "ok" : "err",
+          resp.ok ? "Magic link requested. Check your inbox." : "Request failed."
+        );
+      } catch (err) {
+        setStatus(authStatus, "err", "Network error while requesting magic link.");
+      }
+    });
+
+    document.getElementById("meBtn").addEventListener("click", async () => {
+      setStatus(sessionStatus, "", "Loading profile...");
+      const resp = await fetch("/auth/me", { credentials: "include" });
+      const data = await readJson(resp);
+      show(data);
+      setStatus(sessionStatus, resp.ok ? "ok" : "err", resp.ok ? "Authenticated." : "Not logged in.");
+    });
+
+    document.getElementById("newSessionBtn").addEventListener("click", async () => {
+      setStatus(sessionStatus, "", "Creating session...");
+      const resp = await fetch("/sessions", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: "Thesis " + new Date().toLocaleString() })
+      });
+      const data = await readJson(resp);
+      show(data);
+      setStatus(sessionStatus, resp.ok ? "ok" : "err", resp.ok ? "Session created." : "Create session failed.");
+    });
+
+    document.getElementById("healthBtn").addEventListener("click", async () => {
+      const resp = await fetch("/healthz");
+      const data = await readJson(resp);
+      show(data);
+      setStatus(sessionStatus, resp.ok ? "ok" : "err", "Health check complete.");
+    });
+
+    document.getElementById("listSessionsBtn").addEventListener("click", async () => {
+      setStatus(sessionStatus, "", "Loading sessions...");
+      const resp = await fetch("/sessions", { credentials: "include" });
+      const data = await readJson(resp);
+      show(data);
+      setStatus(sessionStatus, resp.ok ? "ok" : "err", resp.ok ? "Sessions loaded." : "List sessions failed.");
+    });
+  </script>
+</body>
+</html>
