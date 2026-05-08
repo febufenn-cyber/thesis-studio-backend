@@ -386,9 +386,30 @@
         });
         if (!resp.ok) {
           setHint($("loginHint"), "err", "Request failed. Try again.");
+          return;
+        }
+        const data = await resp.json();
+        if (data.magic_link) {
+          // Local dev: backend handed us the link. Render a one-click button.
+          const hint = $("loginHint");
+          hint.hidden = false;
+          hint.className = "hint ok";
+          hint.innerHTML = "";
+          const msg = document.createElement("div");
+          msg.textContent = "Dev mode — click to sign in:";
+          msg.style.marginBottom = "10px";
+          const a = document.createElement("a");
+          a.href = data.magic_link;
+          a.className = "btn-primary";
+          a.style.display = "inline-block";
+          a.style.textDecoration = "none";
+          a.style.padding = "10px 14px";
+          a.textContent = "Sign in as " + email;
+          hint.appendChild(msg);
+          hint.appendChild(a);
         } else {
           setHint($("loginHint"), "ok",
-            `Link sent to ${email}. In dev mode (no Resend key), check the uvicorn / pm2 console for a line starting "RESEND_API_KEY not set". Open the URL it logs.`);
+            `Magic link sent to ${email}. Check your inbox (and spam folder).`);
         }
       } catch (err) {
         setHint($("loginHint"), "err", "Network error. Is the backend up?");

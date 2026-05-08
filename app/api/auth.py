@@ -97,6 +97,10 @@ async def request_magic_link(
         # Don't surface email failures to the caller — that would leak info.
         log.exception("Failed to send magic-link email: %s", exc)
 
+    # In DEBUG (local dev), return the link directly so the UI can render
+    # a one-click sign-in button. Production never returns the link.
+    if settings.DEBUG:
+        return MagicLinkResponse(magic_link=link_url)
     return MagicLinkResponse()
 
 

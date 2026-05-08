@@ -12,10 +12,16 @@ class MagicLinkRequest(BaseModel):
 
 
 class MagicLinkResponse(BaseModel):
-    """POST /auth/request-link response — opaque success regardless of email validity."""
+    """POST /auth/request-link response — opaque success regardless of email validity.
+
+    `magic_link` is only populated when DEBUG=true (local dev), so the frontend
+    can render a clickable sign-in button and skip the email/log dance. Never
+    populated in production.
+    """
 
     ok: bool = True
     message: str = "If the email is registered, a sign-in link has been sent."
+    magic_link: str | None = None
 
 
 class CurrentUserResponse(BaseModel):
