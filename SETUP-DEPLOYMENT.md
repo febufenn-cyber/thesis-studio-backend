@@ -179,6 +179,18 @@ Back on your Mac, in the repo root:
 scripts/deploy_to_oracle.sh
 ```
 
+The script defaults to:
+- `SSH_KEY=~/.ssh/oracle_key` — the Mac's private key for the VM
+- `REPO_URL_SSH=git@github.com:febufenn-cyber/thesis-studio-backend.git` — used for the VM-side `git clone`/`pull` over the deploy key
+- `VM_DEPLOY_KEY=/home/ubuntu/.ssh/thesis_deploy_key` — read-only deploy key already registered on the GitHub repo
+
+Override any of these via env vars, e.g.:
+
+```bash
+SSH_KEY=~/.ssh/other_key scripts/deploy_to_oracle.sh
+REPO_URL_SSH=git@github.com:org/forked-repo.git scripts/deploy_to_oracle.sh
+```
+
 If you edited the script per Outcome B/C, those edits stay local — don't commit them; the script's "clean tree" check would reject the deploy. Either:
 - Edit the script, run it, then `git checkout scripts/deploy_to_oracle.sh` to revert
 - Or set `DEPLOY_SKIP_POSTGRES_INSTALL=1` and add a one-line guard in the script (cleaner; consider for a future commit)
@@ -186,3 +198,36 @@ If you edited the script per Outcome B/C, those edits stay local — don't commi
 After the script reports `pm2 status: online` for `thesis-api`, follow the next-steps printed at the end (one-time `claude /login` on the VM, then `pm2 restart thesis-api`).
 
 Then: open `SETUP-CLOUDFLARE-TUNNEL.md` and continue with the tunnel + Access setup.
+
+---
+
+## 5. Memory pressure
+
+The Oracle VM at `68.233.116.11` has **956 MB RAM and 4 GB swap**. LeadFinder already runs alongside us; our uvicorn process plus any concurrent `claude -p` Node.js subprocesses share what's left. Two guardrails are in place:
+
+- **`scripts/run_thesis_api.sh`** sets `ulimit -v 716800` (≈700 MB) before exec'ing uvicorn. The cap is inherited by every child process — including the `claude` subprocess. A runaway leak hits the cap and the offending process dies cleanly instead of triggering OOM-kill on whatever else the kernel decides to evict.
+- **`ecosystem.config.js`** sets `max_memory_restart: '600M'`. pm2 restarts our app gracefully if RSS crosses 600 MB — earlier than the ulimit, so most leaks self-recover without needing to drop a request.
+
+### Symptoms to watch for
+
+```bash
+# Has the kernel OOM-killed anything recently?
+sudo dmesg | grep -iE 'killed process|out of memory'
+
+# How much swap is in use?
+free -h
+
+# Have we restarted often? (column "↺")
+pm2 status
+
+# Tail thesis-api restart events
+pm2 logs thesis-api --lines 100 | grep -iE 'restart|memory'
+```
+
+If you're seeing frequent restarts or OOM-kills, the VM is the bottleneck.
+
+### Upgrade paths
+
+- **Oracle shape change to AMD 4GB:** dashboard → instance → Resize → pick `VM.Standard.E4.Flex` with 1 OCPU + 4 GB. Costs ~$0.025/hour but stops the memory-pressure problem cold. Reboots once.
+- **Migration to ARM Ampere A1 free tier:** Oracle's "Always Free" tier includes 4 OCPUs / 24 GB on ARM. Means migrating *everything* on this host (LeadFinder included) — bigger lift. Worth it if free is the goal and you have an afternoon.
+- **In-place: kill swap-thrashing processes:** if it's an emergency and you can't resize, `sudo swapoff -a && sudo swapon -a` resets swap; longer-term, look at LeadFinder's footprint too — between us we may be under-provisioned.

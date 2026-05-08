@@ -21,18 +21,18 @@ Open items the deploy already addressed: pm2 process running, app bound to `127.
 
 ## 1. Install `cloudflared` on the VM
 
-ARM64 (Oracle Ampere is arm64):
+The Oracle VM at `68.233.116.11` is x86_64 (`uname -m` → `x86_64`):
 
 ```bash
 ssh ubuntu@68.233.116.11
 curl -L --output cloudflared.deb \
-  https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm64.deb
+  https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
 sudo dpkg -i cloudflared.deb
 rm cloudflared.deb
 cloudflared --version
 ```
 
-If your VM is x86_64, swap `linux-arm64` for `linux-amd64` in that URL. Confirm with `uname -m`.
+> **Sidebar — ARM64 VMs (e.g. Oracle Ampere A1 free tier):** swap `linux-amd64` for `linux-arm64` in the URL above. Confirm arch with `uname -m` before downloading.
 
 ---
 
