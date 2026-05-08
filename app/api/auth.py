@@ -1,0 +1,213 @@
+"""Authentication routes: magic-link login flow.
+
+Flow:
+1. POST /auth/request-link {email}  → email sent with one-time link
+2. GET  /auth/verify?token=...      → JWT cookie set, redirect to frontend
+3. GET  /me                         → returns current user
+
+Security notes:
+- Email enumeration is prevented: /auth/request-link returns the same response
+  whether the email exists or not.
+- Tokens are SHA-256 hashed before storage. The raw token only travels through
+  email and the verify URL.
+- Tokens are single-use (used_at marks consumption) and expire (default 15 min).
+- Email domain allowlist is checked at request time so unauthorized domains
+  never trigger an email send.
+"""
+
+from __future__ import annotations
+
+import logging
+from datetime import datetime, timedelta, timezone
+
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi.responses import RedirectResponse
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.api.deps import CurrentUser
+from app.core.config import get_settings
+from app.core.security import (
+    create_access_token,
+    generate_magic_link_token,
+    hash_magic_link_token,
+    is_email_domain_allowed,
+)
+from app.db.deps import get_db
+from app.models.auth_token import AuthToken
+from app.models.institution import Institution
+from app.models.user import User
+from app.schemas.auth import (
+    CurrentUserResponse,
+    MagicLinkRequest,
+    MagicLinkResponse,
+)
+from app.services.email_service import send_magic_link_email
+
+
+log = logging.getLogger(__name__)
+
+router = APIRouter(prefix="/auth", tags=["auth"])
+
+
+@router.post("/request-link", response_model=MagicLinkResponse)
+async def request_magic_link(
+    body: MagicLinkRequest,
+    db: AsyncSession = Depends(get_db),
+) -> MagicLinkResponse:
+    """Send a magic-link email if the address is on an allowed institutional domain.
+
+    Returns the same response regardless of whether the email is valid or
+    registered, to prevent email enumeration. Errors are logged server-side.
+    """
+    settings = get_settings()
+    email = body.email.lower().strip()
+
+    # Domain allowlist — fail-closed but silently to caller.
+    if not is_email_domain_allowed(email):
+        log.warning("Magic-link request rejected: email domain not allowed: %s", _redact(email))
+        return MagicLinkResponse()
+
+    # Find or create the user. New users land on the institution matching their domain.
+    user = await _get_or_create_user(db, email)
+    if user is None:
+        log.warning("Magic-link request: no institution matches email domain: %s", _redact(email))
+        return MagicLinkResponse()
+
+    # Generate a fresh token, store the hash, send the raw token in the URL.
+    raw_token, hashed_token = generate_magic_link_token()
+    expires_at = datetime.now(timezone.utc) + timedelta(
+        minutes=settings.MAGIC_LINK_EXPIRY_MINUTES
+    )
+
+    db.add(AuthToken(
+        user_id=user.id,
+        token_hash=hashed_token,
+        expires_at=expires_at,
+    ))
+    await db.commit()
+
+    link_url = settings.magic_link_url_template.format(token=raw_token)
+
+    try:
+        await send_magic_link_email(to_email=email, link_url=link_url)
+    except Exception as exc:
+        # Don't surface email failures to the caller — that would leak info.
+        log.exception("Failed to send magic-link email: %s", exc)
+
+    return MagicLinkResponse()
+
+
+@router.get("/verify")
+async def verify_magic_link(
+    token: str,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> RedirectResponse:
+    """Exchange a magic-link token for an authenticated session.
+
+    Sets an HTTP-only JWT cookie and redirects to the frontend.
+    Single-use: the token's used_at field is set on success.
+    """
+    settings = get_settings()
+    hashed = hash_magic_link_token(token)
+
+    result = await db.execute(
+        select(AuthToken).where(AuthToken.token_hash == hashed)
+    )
+    auth_token = result.scalar_one_or_none()
+
+    if auth_token is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+
+    now = datetime.now(timezone.utc)
+    if auth_token.used_at is not None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token already used",
+        )
+    if auth_token.expires_at < now:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token expired",
+        )
+
+    # Mark the token consumed and update last_login on the user.
+    auth_token.used_at = now
+    user_result = await db.execute(select(User).where(User.id == auth_token.user_id))
+    user = user_result.scalar_one()
+    user.last_login_at = now
+    await db.commit()
+
+    # Issue a long-lived JWT and set as HTTP-only cookie.
+    jwt_token = create_access_token(user.id)
+    response = RedirectResponse(url=settings.FRONTEND_URL, status_code=302)
+    response.set_cookie(
+        key="access_token",
+        value=jwt_token,
+        max_age=settings.JWT_EXPIRY_DAYS * 24 * 60 * 60,
+        httponly=True,
+        secure=settings.ENV != "development",
+        samesite="lax",
+    )
+    return response
+
+
+@router.post("/logout")
+async def logout(response: Response) -> dict:
+    """Clear the JWT cookie. Tokens themselves can't be revoked server-side
+    in a stateless JWT scheme — they expire when they expire. For now this
+    is fine; we can add a revocation list if needed."""
+    response.delete_cookie("access_token")
+    return {"ok": True}
+
+
+@router.get("/me", response_model=CurrentUserResponse)
+async def me(current_user: CurrentUser) -> CurrentUserResponse:
+    """Return the currently authenticated user."""
+    return CurrentUserResponse(
+        id=str(current_user.id),
+        email=current_user.email,
+        full_name=current_user.full_name,
+        register_number=current_user.register_number,
+        institution_name=current_user.institution.name,
+        institution_short_name=current_user.institution.short_name,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+async def _get_or_create_user(db: AsyncSession, email: str) -> User | None:
+    """Look up a user by email, or create one if their domain matches an institution.
+
+    Returns None if no institution claims this domain.
+    """
+    result = await db.execute(select(User).where(User.email == email))
+    existing = result.scalar_one_or_none()
+    if existing is not None:
+        return existing
+
+    # New user. Find an institution whose email_domains includes this one.
+    domain = email.split("@", 1)[1].lower()
+    inst_result = await db.execute(select(Institution).where(Institution.is_active.is_(True)))
+    matching_inst = next(
+        (i for i in inst_result.scalars() if domain in i.email_domains_list),
+        None,
+    )
+    if matching_inst is None:
+        return None
+
+    user = User(email=email, institution_id=matching_inst.id)
+    db.add(user)
+    await db.flush()  # populate user.id without committing
+    return user
+
+
+def _redact(email: str) -> str:
+    """Redact most of an email for logging purposes."""
+    if "@" not in email:
+        return "***"
+    local, domain = email.split("@", 1)
+    return f"{local[:2]}***@{domain}"

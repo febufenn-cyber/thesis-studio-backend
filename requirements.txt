@@ -1,0 +1,49 @@
+# Robofox Thesis Studio — Backend dependencies
+# Python 3.11+
+
+# Web framework
+fastapi==0.115.6
+uvicorn[standard]==0.32.1
+python-multipart==0.0.20
+
+# Database
+sqlalchemy[asyncio]==2.0.36
+asyncpg==0.30.0
+alembic==1.14.0
+
+# Validation & settings
+pydantic==2.10.4
+pydantic-settings==2.7.0
+email-validator==2.2.0
+
+# Auth & security
+pyjwt==2.10.1
+cryptography==44.0.0
+passlib[bcrypt]==1.7.4
+
+# HTTP client (for Resend email + R2)
+httpx==0.28.1
+
+# Anthropic Claude API
+anthropic==0.42.0
+
+# Document generation (formatter dependencies)
+python-docx==1.1.2
+Pillow==11.0.0
+
+# Cloudflare R2 (S3-compatible)
+boto3==1.35.91
+
+# Logging
+structlog==24.4.0
+
+# Testing
+pytest==8.3.4
+pytest-asyncio==0.25.0
+pytest-cov==6.0.0
+httpx-sse==0.4.0
+faker==33.1.0
+
+# Dev tooling
+ruff==0.8.4
+mypy==1.13.0
