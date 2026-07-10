@@ -20,6 +20,7 @@ import tempfile
 from datetime import datetime
 from uuid import UUID
 
+from botocore.exceptions import BotoCoreError, ClientError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -86,6 +87,26 @@ def build_front_matter(
 # ---------------------------------------------------------------------------
 # Background compile job
 # ---------------------------------------------------------------------------
+
+
+def _user_facing_error(exc: Exception) -> str:
+    """Map an exception to a message safe to store and show to the file owner.
+
+    Raw exception text can embed thesis content (parse errors quote the model
+    output) or infrastructure details (boto errors include bucket names), so
+    only known-safe, generic phrasings leave the server log.
+    """
+    from app.services.claude_service import ClaudeRateLimitError, ClaudeSubprocessError
+
+    if isinstance(exc, ClaudeRateLimitError):
+        return "The AI service is rate-limited right now. Please try again later."
+    if isinstance(exc, ClaudeSubprocessError):
+        return "The AI compile step failed. Please try again."
+    if isinstance(exc, (BotoCoreError, ClientError)):
+        return "Storing the compiled document failed. Please try again."
+    if isinstance(exc, (KeyError, ValueError, TypeError)):
+        return "The compile result could not be parsed into a document. Please try again."
+    return "Compile failed unexpectedly. Please try again."
 
 
 async def _mark_failed(db: AsyncSession, file_row: File, reason: str) -> None:
@@ -250,9 +271,12 @@ async def run_compile(file_id: UUID, session_id: UUID, user_id: UUID) -> None:
             )
 
         except Exception as exc:
+            # Full traceback stays in the server log; the stored/user-visible
+            # message is sanitized (raw exception text can embed thesis
+            # content or storage details).
             log.exception("run_compile: failed file_id=%s", file_id)
             if file_row is not None:
-                await _mark_failed(db, file_row, str(exc))
+                await _mark_failed(db, file_row, _user_facing_error(exc))
 
         finally:
             if tmp_dir:

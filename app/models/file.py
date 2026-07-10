@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import BigInteger, DateTime, ForeignKey, Index, String, Text, func
+from sqlalchemy import BigInteger, DateTime, ForeignKey, Index, String, Text, func, text
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -56,4 +56,13 @@ class File(Base):
 
     __table_args__ = (
         Index("ix_files_session_created", "session_id", "created_at"),
+        # At most one in-flight compile per session. Closes the TOCTOU window
+        # in the route-level 409 guard: a racing second INSERT raises
+        # IntegrityError, which the global handler maps to 409.
+        Index(
+            "uq_files_session_compiling",
+            "session_id",
+            unique=True,
+            postgresql_where=text("status = 'compiling'"),
+        ),
     )

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+from uuid import uuid4
 
 import pytest
 from httpx import AsyncClient
@@ -137,3 +138,34 @@ async def test_verify_with_garbage_token_returns_401(client: AsyncClient) -> Non
     """A token that doesn't match anything in the DB returns 401."""
     response = await client.get("/auth/verify?token=this-is-not-a-real-token")
     assert response.status_code == 401
+
+
+async def test_request_link_cooldown_suppresses_reissue(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    test_institution: Institution,
+) -> None:
+    """A second request within the cooldown window must not create a new token."""
+    from sqlalchemy import func, select
+
+    from app.models.auth_token import AuthToken
+    from app.models.user import User
+
+    email = f"cooldown-{uuid4().hex[:8]}@test.edu"
+
+    first = await client.post("/auth/request-link", json={"email": email})
+    assert first.status_code == 200
+    second = await client.post("/auth/request-link", json={"email": email})
+    assert second.status_code == 200  # anti-enumeration: response identical
+
+    user_row = (
+        await db_session.execute(select(User).where(User.email == email))
+    ).scalar_one()
+    count = (
+        await db_session.execute(
+            select(func.count()).select_from(AuthToken).where(
+                AuthToken.user_id == user_row.id
+            )
+        )
+    ).scalar_one()
+    assert count == 1, "cooldown must suppress the second token"

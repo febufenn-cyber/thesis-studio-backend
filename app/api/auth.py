@@ -76,11 +76,27 @@ async def request_magic_link(
         )
         return MagicLinkResponse()
 
+    # Cooldown: if an unused, unexpired token was issued in the last few
+    # minutes, silently skip issuing another. Caps the email-spam / row-flood
+    # rate an attacker can drive against a victim address, at the cost of a
+    # short wait before a legitimate "resend". Response stays identical to
+    # preserve anti-enumeration.
+    now = datetime.now(timezone.utc)
+    recent = await db.execute(
+        select(AuthToken.id)
+        .where(AuthToken.user_id == user.id)
+        .where(AuthToken.used_at.is_(None))
+        .where(AuthToken.expires_at > now)
+        .where(AuthToken.created_at > now - timedelta(minutes=3))
+        .limit(1)
+    )
+    if recent.scalar_one_or_none() is not None:
+        log.info("Magic-link cooldown active for user %s — not reissuing", user.id)
+        return MagicLinkResponse()
+
     # Generate a fresh token, store the hash, send the raw token in the URL.
     raw_token, hashed_token = generate_magic_link_token()
-    expires_at = datetime.now(timezone.utc) + timedelta(
-        minutes=settings.MAGIC_LINK_EXPIRY_MINUTES
-    )
+    expires_at = now + timedelta(minutes=settings.MAGIC_LINK_EXPIRY_MINUTES)
 
     db.add(AuthToken(
         user_id=user.id,

@@ -230,9 +230,13 @@ class LocalStorageService(StorageService):
         compatibility but is not stored (filesystem has no metadata layer).
         """
         dest = self._key_path(key)
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(local_path, dest)
-        size = os.path.getsize(local_path)
+
+        def _copy() -> int:
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(local_path, dest)
+            return os.path.getsize(local_path)
+
+        size = await asyncio.to_thread(_copy)
         log.info("local upload: key=%s size=%d", key, size)
         return size
 
@@ -241,7 +245,7 @@ class LocalStorageService(StorageService):
         src = self._key_path(key)
         fd, tmp_path = tempfile.mkstemp(prefix="localdl_")
         os.close(fd)
-        shutil.copy2(src, tmp_path)
+        await asyncio.to_thread(shutil.copy2, src, tmp_path)
         log.info("local download: key=%s -> %s", key, tmp_path)
         return tmp_path
 
@@ -262,7 +266,7 @@ class LocalStorageService(StorageService):
         """Delete the file for *key* from the local storage root."""
         path = self._key_path(key)
         try:
-            path.unlink()
+            await asyncio.to_thread(path.unlink)
         except FileNotFoundError:
             log.warning("local delete: key=%s not found (already deleted?)", key)
         else:

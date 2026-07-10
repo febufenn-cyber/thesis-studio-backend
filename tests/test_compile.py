@@ -494,3 +494,55 @@ async def test_run_compile_end_to_end(
         # The module-level engine pooled connections on this test's event loop;
         # dispose them so later tests (other loops) can't pick them up.
         await engine.dispose()
+
+
+async def test_concurrent_compiling_rows_rejected_by_index(
+    db_session: AsyncSession,
+    user_a: User,
+) -> None:
+    """The partial unique index allows only one 'compiling' file per session.
+
+    This is the DB-level backstop for the route's 409 guard (TOCTOU race).
+    """
+    from sqlalchemy.exc import IntegrityError
+
+    session = await _seed_session_with_reply(db_session, user_a)
+    # Plain values: rollback() below expires ORM instances, and attribute
+    # access on expired objects triggers sync lazy-refresh (MissingGreenlet).
+    session_id, user_id = session.id, user_a.id
+    db_session.add(
+        File(
+            session_id=session_id,
+            user_id=user_id,
+            filename="first.docx",
+            file_type="docx",
+            status="compiling",
+        )
+    )
+    await db_session.commit()
+
+    db_session.add(
+        File(
+            session_id=session_id,
+            user_id=user_id,
+            filename="second.docx",
+            file_type="docx",
+            status="compiling",
+        )
+    )
+    with pytest.raises(IntegrityError):
+        await db_session.flush()
+    await db_session.rollback()
+
+    # A second 'ready' or 'failed' file is still fine.
+    db_session.add(
+        File(
+            session_id=session_id,
+            user_id=user_id,
+            filename="done.docx",
+            file_type="docx",
+            r2_key="files/x/y/done.docx",
+            status="ready",
+        )
+    )
+    await db_session.commit()
