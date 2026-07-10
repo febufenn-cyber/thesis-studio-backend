@@ -40,6 +40,10 @@ The `app/formatter/` directory contains a tested document-generation pipeline:
 
 These were verified end-to-end against a real MCC reference thesis. **Do not modify them** unless I explicitly ask. Use them as imports.
 
+### Compile flow
+
+`POST /sessions/{id}/compile` returns **202 Accepted** and kicks off a background task. The background task runs `render_thesis_docx` (from `compile_pipeline.py`) in a worker thread via `asyncio.to_thread`, uploads the resulting `.docx` to R2 via `app/services/storage_service.py`, and writes a `File` row with `status="ready"` (or `status="failed"` on error). Storage uses Cloudflare R2 in production and falls back to a local directory automatically when `STORAGE_BACKEND=local` (or `=auto` with no R2 credentials). The client polls `GET /sessions/{id}/files` until a ready file appears, then fetches a short-lived signed download URL from `GET /files/{id}/download`.
+
 ## Hard rules
 
 ### Per-user isolation is non-negotiable
@@ -84,7 +88,7 @@ If you find yourself reaching for `--continue` to "fix" multi-turn behavior, the
 
 ## Model rules
 
-- **Default model:** `claude-sonnet-4-5` for chat. `claude-opus-4-7` only for the compile pass. `claude-haiku-4-5-20251001` for utility calls (titles, intent classification). Pass full model IDs to the CLI, not aliases like `sonnet` (the alias resolves to whatever the latest Sonnet is).
+- **Default model:** `claude-sonnet-4-6` for chat. `claude-opus-4-8` only for the compile pass. `claude-haiku-4-5-20251001` for utility calls (titles, intent classification). Pass full model IDs to the CLI, not aliases like `sonnet` (the alias resolves to whatever the latest Sonnet is).
 - **Per-user monthly token caps are disabled.** All sessions share the one Max account's 5-hour rate limit; per-user enforcement isn't meaningful when the upstream constraint is shared. The `USER_MONTHLY_*_TOKEN_CAP` settings are kept for forward-compat but no middleware reads them.
 
 ## Conventions
@@ -133,13 +137,13 @@ Triple-quoted, one-line summary then optional details. Required on all service-l
 
 ## Known issues
 
-- **`tests/conftest.py` per-test transaction isolation is broken.** 11 of 14 tests error in the fixture (not in app code) due to a `join_transaction_mode` issue: the outer transaction isn't `create_savepoint`-wrapped, so handler `commit()` calls desync the connection ("another operation is in progress"). The 2 tests that pass don't exercise the handler-commit path, so they're not a meaningful gate. **Smoke test (curl against the dev server) is the current integration gate.** Fix conftest before any deploy that adds real users — the isolation contract matters too much to ship without working tests.
+None critical. `tests/conftest.py` per-test isolation is fixed: each test gets a NullPool engine (no connection reuse) and the outer transaction is wrapped in a savepoint (`create_savepoint`), so handler `commit()` calls roll back cleanly. The test database defaults to port 5433.
 
 ## Build phases (current state)
 
 - [x] Phase 1: Foundations — auth, DB schema, magic link login
-- [ ] Phase 2: Chat core — sessions, messages, SSE streaming, prompt caching
-- [ ] Phase 3: Compile and download — docx generation, R2 upload, signed URLs
+- [x] Phase 2: Chat core — sessions, messages, SSE streaming, prompt caching
+- [x] Phase 3: Compile and download — docx generation, R2 upload, signed URLs
 - [ ] Phase 4: Polish — usage caps, admin dashboard, onboarding flow
 
 When working on a phase, focus on it. Don't sprawl into the next phase before the current one is solid and tested.

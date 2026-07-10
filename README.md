@@ -45,12 +45,12 @@ Visit `http://localhost:8000/docs` for the interactive API docs (only enabled wh
 
 ```
 app/
-├── api/             # Route handlers (auth, sessions, chat, compile)
+├── api/             # Route handlers (auth, sessions, chat, compile, files)
 ├── core/            # Settings, JWT, security helpers
 ├── db/              # SQLAlchemy engine, session factory, deps
 ├── models/          # ORM models (one file per table)
 ├── schemas/         # Pydantic request/response shapes
-├── services/        # External integrations (Claude, email, R2)
+├── services/        # External integrations (Claude, email, storage)
 ├── formatter/       # Thesis document generation (verified — don't modify)
 └── main.py          # FastAPI app entry point
 
@@ -58,6 +58,10 @@ migrations/          # Alembic migrations
 scripts/             # Operational scripts (institution bootstrapping)
 tests/               # Pytest suite — test_isolation.py is critical
 ```
+
+### Compile and download
+
+`POST /sessions/{id}/compile` returns 202 and starts a background job that generates a `.docx` and uploads it to Cloudflare R2 (or local storage in dev). Poll `GET /sessions/{id}/files` until a file with `status="ready"` appears, then fetch a short-lived signed URL from `GET /files/{id}/download`.
 
 ## Running tests
 
@@ -100,7 +104,7 @@ This repo includes a `CLAUDE.md` file at the root with standing instructions. Op
 ## Stack
 
 - Python 3.11, FastAPI, SQLAlchemy 2.0 async, PostgreSQL 14+
-- Anthropic Claude API (Sonnet 4.6 chat, Opus 4.7 compile, Haiku 4.5 utility)
+- Anthropic Claude API (Sonnet 4.6 chat, Opus 4.8 compile, Haiku 4.5 utility)
 - Cloudflare R2 for file storage
 - Resend for transactional email
 - python-docx for Word document generation

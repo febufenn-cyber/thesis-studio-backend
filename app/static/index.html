@@ -232,6 +232,72 @@
     }
     .composer-hint.err { color: var(--danger); }
 
+    /* ---------- Compile & Documents ---------- */
+    .compile-btn {
+      white-space: nowrap;
+      border-color: rgba(115, 243, 215, 0.35);
+      color: var(--accent);
+    }
+    .compile-btn:hover:not(:disabled) {
+      border-color: var(--accent);
+      background: rgba(115, 243, 215, 0.06);
+    }
+    .compile-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .compile-bar {
+      padding: 7px 22px;
+      font-size: 0.82rem; color: var(--accent);
+      background: rgba(115, 243, 215, 0.05);
+      border-bottom: 1px solid rgba(115, 243, 215, 0.18);
+      flex-shrink: 0;
+    }
+    .compile-bar.err {
+      color: var(--danger);
+      background: rgba(255, 107, 138, 0.04);
+      border-bottom-color: rgba(255, 107, 138, 0.2);
+    }
+
+    .docs-panel {
+      border-top: 1px solid var(--line);
+      padding: 10px 22px 12px;
+      background: rgba(9, 9, 15, 0.4);
+      max-height: 190px; overflow-y: auto;
+      flex-shrink: 0;
+    }
+    .docs-head {
+      font-size: 0.7rem; letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--muted); margin-bottom: 7px;
+    }
+    .docs-list { display: grid; gap: 5px; }
+    .doc-row {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      padding: 6px 10px;
+      background: var(--surface-2); border: 1px solid var(--line);
+      border-radius: 8px; font-size: 0.85rem;
+    }
+    .doc-left { display: flex; align-items: center; gap: 9px; min-width: 0; }
+    .doc-name {
+      font-weight: 500;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      max-width: 260px;
+    }
+    .doc-size { color: var(--muted); font-size: 0.78rem; white-space: nowrap; flex-shrink: 0; }
+    .doc-action { flex-shrink: 0; white-space: nowrap; }
+    .doc-download {
+      color: var(--accent-2); text-decoration: none; font-size: 0.82rem;
+      border: 1px solid rgba(114, 167, 255, 0.28); padding: 3px 9px; border-radius: 6px;
+    }
+    .doc-download:hover { border-color: var(--accent-2); background: rgba(114, 167, 255, 0.08); }
+    .doc-compiling { color: var(--accent); font-size: 0.82rem; }
+    .doc-compiling::after {
+      content: "…";
+      animation: blink 1.2s steps(1) infinite;
+    }
+    .doc-failed {
+      color: var(--danger); font-size: 0.82rem;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 180px;
+    }
+
     /* ---------- responsive ---------- */
     @media (max-width: 720px) {
       #topbar { padding: 12px 16px; }
@@ -288,8 +354,14 @@
       <div class="chat-header">
         <button id="backToSessionsBtn" class="icon-btn">← Sessions</button>
         <h2 id="chatTitle"></h2>
+        <button id="compileBtn" class="icon-btn compile-btn">Compile thesis</button>
       </div>
+      <div id="compileBar" class="compile-bar" hidden></div>
       <div id="messages"><div class="messages-inner" id="messagesInner"></div></div>
+      <div id="docsPanel" class="docs-panel" hidden>
+        <div class="docs-head">Documents</div>
+        <div id="docsList" class="docs-list"></div>
+      </div>
       <form id="chatForm" class="composer">
         <div class="composer-inner">
           <textarea id="messageInput" placeholder="Ask, share a passage, request a draft…" rows="2"></textarea>
@@ -309,6 +381,8 @@
       currentSessionId: null,
       messages: [],
       streaming: false,
+      files: [],
+      compilePollingInterval: null,
     };
 
     const $ = (id) => document.getElementById(id);
@@ -420,9 +494,11 @@
 
     $("logoutBtn").addEventListener("click", async () => {
       await fetch("/auth/logout", { method: "POST", credentials: "include" });
+      stopCompilePolling();
       state.user = null;
       state.sessions = [];
       state.currentSessionId = null;
+      state.files = [];
       renderUserInfo();
       showView("loginView");
       setHint($("loginHint"), "", "");
@@ -495,8 +571,13 @@
 
     async function openSession(id, title) {
       state.currentSessionId = id;
+      state.files = [];
       $("chatTitle").textContent = title;
       state.messages = [];
+      stopCompilePolling();
+      setCompileBar("", "");
+      renderDocuments();
+      updateCompileBtn();
       renderMessages();
       showView("chatView");
 
@@ -506,11 +587,17 @@
         renderMessages();
         $("messageInput").focus();
       }
+      await loadFiles(id);
+      if (anyCompiling()) {
+        startCompilePolling(id);
+      }
     }
 
     $("backToSessionsBtn").addEventListener("click", async () => {
+      stopCompilePolling();
       state.currentSessionId = null;
       state.messages = [];
+      state.files = [];
       await enterSessions();
     });
 
@@ -567,6 +654,7 @@
       state.streaming = true;
       $("sendBtn").disabled = true;
       $("messageInput").disabled = true;
+      updateCompileBtn();
 
       // Optimistic: append user message + placeholder assistant message
       state.messages.push({ role: "user", content: text });
@@ -638,6 +726,7 @@
         $("sendBtn").disabled = false;
         $("messageInput").disabled = false;
         $("messageInput").focus();
+        updateCompileBtn();
       }
     }
 
@@ -674,6 +763,153 @@
       el.style.height = Math.min(el.scrollHeight, 200) + "px";
     }
     $("messageInput").addEventListener("input", (e) => autoresize(e.target));
+
+    // ------------------- Compile & Documents -------------------
+
+    function anyCompiling() {
+      return state.files.some((f) => f.status === "compiling");
+    }
+
+    function formatBytes(n) {
+      if (!n) return "";
+      if (n < 1024) return n + " B";
+      if (n < 1024 * 1024) return (n / 1024).toFixed(1) + " KB";
+      return (n / (1024 * 1024)).toFixed(1) + " MB";
+    }
+
+    function setCompileBar(kind, msg) {
+      const bar = $("compileBar");
+      if (!msg) { bar.hidden = true; return; }
+      bar.hidden = false;
+      bar.className = "compile-bar" + (kind ? " " + kind : "");
+      bar.textContent = msg;
+    }
+
+    function updateCompileBtn() {
+      const btn = $("compileBtn");
+      const compiling = anyCompiling();
+      btn.disabled = compiling || state.streaming;
+      btn.textContent = compiling ? "Compiling…" : "Compile thesis";
+    }
+
+    function renderDocuments() {
+      const panel = $("docsPanel");
+      const list = $("docsList");
+      if (!state.files.length) {
+        panel.hidden = true;
+        return;
+      }
+      panel.hidden = false;
+      list.innerHTML = "";
+      for (const f of state.files) {
+        const row = document.createElement("div");
+        row.className = "doc-row";
+
+        const left = document.createElement("div");
+        left.className = "doc-left";
+
+        const name = document.createElement("span");
+        name.className = "doc-name";
+        name.textContent = f.filename;
+        left.appendChild(name);
+
+        if (f.size_bytes) {
+          const sz = document.createElement("span");
+          sz.className = "doc-size";
+          sz.textContent = formatBytes(f.size_bytes);
+          left.appendChild(sz);
+        }
+
+        row.appendChild(left);
+
+        const action = document.createElement("span");
+        action.className = "doc-action";
+
+        if (f.status === "ready") {
+          const a = document.createElement("a");
+          a.href = "/files/" + f.id + "/download";
+          a.className = "doc-download";
+          a.textContent = "Download";
+          action.appendChild(a);
+        } else if (f.status === "compiling") {
+          const s = document.createElement("span");
+          s.className = "doc-compiling";
+          s.textContent = "Compiling";
+          action.appendChild(s);
+        } else if (f.status === "failed") {
+          const s = document.createElement("span");
+          s.className = "doc-failed";
+          s.title = f.error_message || "Failed";
+          s.textContent = f.error_message || "Failed";
+          action.appendChild(s);
+        }
+
+        row.appendChild(action);
+        list.appendChild(row);
+      }
+    }
+
+    async function loadFiles(sessionId) {
+      const resp = await fetch("/sessions/" + sessionId + "/files", { credentials: "include" });
+      if (!resp.ok) {
+        if (resp.status === 401) { stopCompilePolling(); }
+        return;
+      }
+      if (state.currentSessionId !== sessionId) return;
+      state.files = await resp.json();
+      renderDocuments();
+      updateCompileBtn();
+    }
+
+    function stopCompilePolling() {
+      if (state.compilePollingInterval) {
+        clearInterval(state.compilePollingInterval);
+        state.compilePollingInterval = null;
+      }
+    }
+
+    function startCompilePolling(sessionId) {
+      stopCompilePolling();
+      state.compilePollingInterval = setInterval(async () => {
+        await loadFiles(sessionId);
+        if (!anyCompiling()) {
+          stopCompilePolling();
+          setCompileBar("", "");
+        }
+      }, 5000);
+    }
+
+    $("compileBtn").addEventListener("click", async () => {
+      const sessionId = state.currentSessionId;
+      if (!sessionId) return;
+      setCompileBar("", "Compiling your dissertation — this takes a few minutes…");
+      $("compileBtn").disabled = true;
+      try {
+        const resp = await fetch("/sessions/" + sessionId + "/compile", {
+          method: "POST",
+          credentials: "include",
+        });
+        if (resp.status === 409) {
+          const data = await resp.json().catch(() => ({}));
+          setCompileBar("err", data.detail || "A compilation is already in progress.");
+          updateCompileBtn();
+          return;
+        }
+        if (!resp.ok) {
+          setCompileBar("err", "Compile request failed (HTTP " + resp.status + ").");
+          updateCompileBtn();
+          return;
+        }
+        // 202 Accepted — load the new file record then start polling
+        await loadFiles(sessionId);
+        if (anyCompiling()) {
+          startCompilePolling(sessionId);
+        }
+      } catch (err) {
+        setCompileBar("err", "Network error: " + (err.message || err));
+        updateCompileBtn();
+      }
+    });
 
     init();
   </script>
