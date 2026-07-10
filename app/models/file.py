@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import BigInteger, DateTime, ForeignKey, Index, String, func
+from sqlalchemy import BigInteger, DateTime, ForeignKey, Index, String, Text, func
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -43,8 +43,12 @@ class File(Base):
 
     filename: Mapped[str] = mapped_column(String(300), nullable=False)
     file_type: Mapped[str] = mapped_column(String(20), nullable=False)  # 'docx' | 'pdf'
-    r2_key: Mapped[str] = mapped_column(String(500), nullable=False)
+    r2_key: Mapped[str | None] = mapped_column(String(500), nullable=True)
     size_bytes: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    status: Mapped[str] = mapped_column(
+        String(20), nullable=False, server_default="ready"
+    )  # 'compiling' | 'ready' | 'failed'
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False

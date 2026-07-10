@@ -1,11 +1,14 @@
 """FastAPI dependencies — auth and access control.
 
 Every endpoint that touches user-owned data must use `get_current_user`.
+Shared ownership checks are exposed via ``fetch_owned_session`` so that
+the same logic is not duplicated across routers.
 """
 
 from __future__ import annotations
 
 from typing import Annotated
+from uuid import UUID
 
 import jwt
 from fastapi import Cookie, Depends, Header, HTTPException, status
@@ -14,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import decode_access_token
 from app.db.deps import get_db
+from app.models.session import ThesisSession
 from app.models.user import User
 
 
@@ -66,3 +70,28 @@ def _extract_token(cookie: str | None, auth_header: str | None) -> str | None:
 
 # Convenient alias for type-annotating route handlers.
 CurrentUser = Annotated[User, Depends(get_current_user)]
+
+
+async def fetch_owned_session(
+    db: AsyncSession,
+    session_id: UUID,
+    user_id: UUID,
+) -> ThesisSession:
+    """Fetch a thesis session, verifying it belongs to the given user.
+
+    Returns 404 (not 403) when the session is missing, belongs to another
+    user, or has been archived — so callers cannot enumerate session IDs.
+
+    This is the single authoritative implementation; both ``app.api.sessions``
+    and ``app.api.chat`` import it instead of maintaining private copies.
+    """
+    result = await db.execute(
+        select(ThesisSession)
+        .where(ThesisSession.id == session_id)
+        .where(ThesisSession.user_id == user_id)
+        .where(ThesisSession.archived.is_(False))
+    )
+    session = result.scalar_one_or_none()
+    if session is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
+    return session

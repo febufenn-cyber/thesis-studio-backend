@@ -11,11 +11,11 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, Response, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import CurrentUser
+from app.api.deps import CurrentUser, fetch_owned_session
 from app.db.deps import get_db
 from app.models.message import Message
 from app.models.session import ThesisSession
@@ -69,7 +69,7 @@ async def get_session(
     db: AsyncSession = Depends(get_db),
 ) -> ThesisSession:
     """Retrieve a single session. Returns 404 if not found OR not owned by current user."""
-    return await _fetch_owned_session(db, session_id, current_user.id)
+    return await fetch_owned_session(db, session_id, current_user.id)
 
 
 @router.patch("/{session_id}", response_model=SessionResponse)
@@ -80,7 +80,7 @@ async def update_session(
     db: AsyncSession = Depends(get_db),
 ) -> ThesisSession:
     """Update fields on a session. Only fields present in the body are touched."""
-    session = await _fetch_owned_session(db, session_id, current_user.id)
+    session = await fetch_owned_session(db, session_id, current_user.id)
 
     update_data = body.model_dump(exclude_unset=True)
     for field, value in update_data.items():
@@ -98,7 +98,7 @@ async def delete_session(
     db: AsyncSession = Depends(get_db),
 ) -> Response:
     """Soft-delete a session by setting archived=True."""
-    session = await _fetch_owned_session(db, session_id, current_user.id)
+    session = await fetch_owned_session(db, session_id, current_user.id)
     session.archived = True
     await db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
@@ -115,7 +115,7 @@ async def list_messages(
     Auth check: verifies session ownership before returning messages.
     """
     # Verify ownership FIRST. This is the security boundary.
-    await _fetch_owned_session(db, session_id, current_user.id)
+    await fetch_owned_session(db, session_id, current_user.id)
 
     result = await db.execute(
         select(Message)
@@ -124,28 +124,3 @@ async def list_messages(
     )
     return list(result.scalars().all())
 
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-async def _fetch_owned_session(
-    db: AsyncSession,
-    session_id: UUID,
-    user_id: UUID,
-) -> ThesisSession:
-    """Fetch a session, verifying it belongs to the given user.
-
-    Returns 404 (not 403) when the session exists but belongs to someone else,
-    so attackers can't enumerate session IDs.
-    """
-    result = await db.execute(
-        select(ThesisSession)
-        .where(ThesisSession.id == session_id)
-        .where(ThesisSession.user_id == user_id)
-        .where(ThesisSession.archived.is_(False))
-    )
-    session = result.scalar_one_or_none()
-    if session is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
-    return session

@@ -14,12 +14,13 @@ from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse, Response
 
 from app.api import auth as auth_router
 from app.api import chat as chat_router
 from app.api import sessions as sessions_router
 from app.core.config import get_settings
+from app.core.exceptions import register_exception_handlers
 
 
 # ---------------------------------------------------------------------------
@@ -89,9 +90,16 @@ def create_app() -> FastAPI:
         return {"status": "ok"}
 
     @app.get("/", include_in_schema=False)
-    async def frontend() -> FileResponse:
-        """Serve the embedded frontend app."""
+    async def frontend() -> Response:
+        """Serve the embedded frontend app, or 404 if the build is missing."""
+        if not static_index.exists():
+            return JSONResponse(
+                status_code=404,
+                content={"detail": "Frontend build not found."},
+            )
         return FileResponse(static_index)
+
+    register_exception_handlers(app)
 
     return app
 

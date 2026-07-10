@@ -44,3 +44,7 @@ logs/
 
 # Local Postgres data (from docker-compose)
 postgres_data/
+docker-compose.override.yml
+
+# Local storage backend output (dev)
+var/

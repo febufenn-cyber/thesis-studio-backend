@@ -6,15 +6,8 @@ Provides:
 - Factories for institutions, users, and JWTs to make tests concise.
 """
 
-# TODO: Fix per-test transaction isolation — current fixture has
-# join_transaction_mode issue causing 11/14 tests to error.
-# Two passing tests prove the basic fixture works; the rest fail
-# in the fixture, not the app code. Smoke test is currently the
-# real gate. Fix before any production deploy that adds real users.
-
 from __future__ import annotations
 
-import asyncio
 import os
 from collections.abc import AsyncGenerator
 from uuid import uuid4
@@ -25,7 +18,12 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 # Set test env vars BEFORE importing anything that reads settings.
-os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://thesis:thesis@localhost:5432/thesis_studio_test")
+#
+# DATABASE_URL default: port 5433 matches the committed docker-compose.yml
+# postgres-test mapping (5433:5432).  Machine-level overrides (e.g. 5453 on
+# this host via docker-compose.override.yml) win because setdefault only sets
+# when the variable is absent.
+os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://thesis:thesis@localhost:5433/thesis_studio_test")
 os.environ.setdefault("JWT_SECRET", "a" * 64)
 os.environ.setdefault("ANTHROPIC_API_KEY", "sk-ant-test-key-do-not-use")
 os.environ.setdefault("DEFAULT_INSTITUTION_SHORT_NAME", "TU")
@@ -39,28 +37,33 @@ from app.models.user import User  # noqa: E402
 
 
 # ---- Engine/session per-test ----
+#
+# Everything here is function-scoped on purpose. pytest-asyncio (0.25) gives
+# each test its own event loop; asyncpg connections are loop-bound, so any
+# engine (and its pooled connections) shared across tests raises
+# "Future attached to a different loop". A per-test engine with NullPool
+# (no pooled connections outliving the test) keeps every connection on the
+# test's own loop. Engine creation is milliseconds; schema creation is
+# guarded so it only runs once per session.
 
-@pytest_asyncio.fixture(scope="session")
-def event_loop():
-    """Use a single event loop for the entire test session."""
-    loop = asyncio.new_event_loop()
-    yield loop
-    loop.close()
+_schema_ready = False
 
 
-@pytest_asyncio.fixture(scope="session")
+@pytest_asyncio.fixture
 async def test_engine():
-    """Create the test database engine once per session.
+    """Per-test engine (NullPool, loop-safe). Schema created on first use."""
+    from sqlalchemy.pool import NullPool
 
-    Assumes a clean test database exists at DATABASE_URL.
-    Schema is created from Base.metadata (no Alembic for tests — faster).
-    """
     from app.core.config import get_settings
-    engine = create_async_engine(get_settings().DATABASE_URL, echo=False)
 
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
-        await conn.run_sync(Base.metadata.create_all)
+    global _schema_ready
+    engine = create_async_engine(get_settings().DATABASE_URL, echo=False, poolclass=NullPool)
+
+    if not _schema_ready:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.drop_all)
+            await conn.run_sync(Base.metadata.create_all)
+        _schema_ready = True
 
     yield engine
 
@@ -70,10 +73,16 @@ async def test_engine():
 @pytest_asyncio.fixture
 async def db_session(test_engine) -> AsyncGenerator[AsyncSession, None]:
     """Per-test DB session. Each test runs in its own transaction that's
-    rolled back at the end so tests don't pollute each other."""
+    rolled back at the end so tests don't pollute each other.
+
+    join_transaction_mode='create_savepoint' converts session commit() calls
+    into savepoint releases so the outer connection-level transaction stays
+    open and is rolled back at teardown — preventing test data from leaking
+    across tests.
+    """
     connection = await test_engine.connect()
     transaction = await connection.begin()
-    factory = async_sessionmaker(bind=connection, expire_on_commit=False)
+    factory = async_sessionmaker(bind=connection, expire_on_commit=False, join_transaction_mode="create_savepoint")
     session = factory()
 
     yield session

@@ -50,8 +50,8 @@ class Settings(BaseSettings):
     # the Settings model's min_length check passes; .env has a placeholder.
     ANTHROPIC_API_KEY: str = Field(..., min_length=10)
     CLAUDE_CLI_PATH: str = "claude"
-    CLAUDE_COACHING_MODEL: str = "claude-sonnet-4-5"
-    CLAUDE_COMPILE_MODEL: str = "claude-opus-4-7"
+    CLAUDE_COACHING_MODEL: str = "claude-sonnet-4-6"
+    CLAUDE_COMPILE_MODEL: str = "claude-opus-4-8"
     CLAUDE_UTILITY_MODEL: str = "claude-haiku-4-5-20251001"
 
     USER_MONTHLY_INPUT_TOKEN_CAP: int = 2_000_000
@@ -61,6 +61,10 @@ class Settings(BaseSettings):
     RESEND_API_KEY: str = ""
     EMAIL_FROM_ADDRESS: str = "thesis@robofox.online"
     EMAIL_FROM_NAME: str = "Robofox Thesis Studio"
+
+    # ---- Storage ----
+    LOCAL_STORAGE_DIR: str = "var/storage"
+    STORAGE_BACKEND: str = "auto"  # "auto" | "r2" | "local"
 
     # ---- R2 ----
     R2_ACCOUNT_ID: str = ""

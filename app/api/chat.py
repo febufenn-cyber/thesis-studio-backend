@@ -14,16 +14,15 @@ import json
 import logging
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import CurrentUser
+from app.api.deps import CurrentUser, fetch_owned_session
 from app.db.deps import get_db
 from app.formatter.prompts import build_coaching_system_blocks
 from app.models.message import Message, ROLE_ASSISTANT, ROLE_USER
-from app.models.session import ThesisSession
 from app.schemas.session import MessageCreate
 from app.services.claude_service import ClaudeService, get_claude_service
 
@@ -49,7 +48,7 @@ async def send_message(
         {"type": "error", "message": "..."}
     """
     # Ownership check — must come before anything else.
-    session = await _fetch_owned_session(db, session_id, current_user.id)
+    session = await fetch_owned_session(db, session_id, current_user.id)
 
     # Pull the conversation history for this session.
     history_result = await db.execute(
@@ -118,6 +117,26 @@ async def send_message(
                     model=usage["model"],
                 ))
                 await db.commit()
+            elif full_text:
+                # The CLI exited without emitting a result block but did produce
+                # text tokens. Persist what we have so the message is not lost,
+                # and log a warning for investigation.
+                log.warning(
+                    "Claude CLI exited without a result block for session %s; "
+                    "persisting %d chars with null token counts.",
+                    session.id,
+                    len(full_text),
+                )
+                db.add(Message(
+                    session_id=session.id,
+                    role=ROLE_ASSISTANT,
+                    content=full_text,
+                    input_tokens=None,
+                    output_tokens=None,
+                    cached_input_tokens=None,
+                    model=None,
+                ))
+                await db.commit()
 
             yield _sse({
                 "type": "done",
@@ -151,21 +170,3 @@ async def send_message(
 def _sse(payload: dict) -> str:
     """Format a dict as a Server-Sent Event line."""
     return f"data: {json.dumps(payload)}\n\n"
-
-
-async def _fetch_owned_session(
-    db: AsyncSession,
-    session_id: UUID,
-    user_id: UUID,
-) -> ThesisSession:
-    """Same ownership check as in app.api.sessions, duplicated to avoid a circular import."""
-    result = await db.execute(
-        select(ThesisSession)
-        .where(ThesisSession.id == session_id)
-        .where(ThesisSession.user_id == user_id)
-        .where(ThesisSession.archived.is_(False))
-    )
-    session = result.scalar_one_or_none()
-    if session is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
-    return session
