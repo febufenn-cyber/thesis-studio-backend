@@ -49,6 +49,9 @@ class Settings(BaseSettings):
     # ANTHROPIC_API_KEY is unused under the Max+CLI auth path. Kept non-empty so
     # the Settings model's min_length check passes; .env has a placeholder.
     ANTHROPIC_API_KEY: str = Field(..., min_length=10)
+
+    # Google Sign-In (OAuth web client ID). Empty string disables the button.
+    GOOGLE_CLIENT_ID: str = ""
     CLAUDE_CLI_PATH: str = "claude"
     CLAUDE_COACHING_MODEL: str = "claude-sonnet-4-6"
     CLAUDE_COMPILE_MODEL: str = "claude-opus-4-8"

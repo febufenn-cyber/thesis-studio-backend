@@ -93,3 +93,44 @@ Click this link to sign in. It expires in 15 minutes and can only be used once.
 
 If you didn't request this, you can ignore this email.
 """
+
+
+async def send_otp_email(to_email: str, code: str) -> None:
+    """Send the 6-digit sign-in code. Logs instead when RESEND_API_KEY is unset."""
+    settings = get_settings()
+
+    if not settings.RESEND_API_KEY:
+        log.warning(
+            "RESEND_API_KEY not set — OTP for %s NOT sent. Code: %s", to_email, code
+        )
+        return
+
+    payload = {
+        "from": f"{settings.EMAIL_FROM_NAME} <{settings.EMAIL_FROM_ADDRESS}>",
+        "to": [to_email],
+        "subject": f"{code} is your Robofox Thesis Studio sign-in code",
+        "html": (
+            '<div style="font-family: system-ui, sans-serif; max-width: 560px;'
+            ' margin: 0 auto; padding: 32px;">'
+            "<h2>Your sign-in code</h2>"
+            f'<p style="font-size: 32px; letter-spacing: 8px; font-weight: 700;">{code}</p>'
+            "<p>This code expires in 10 minutes. If you didn't request it, ignore this email.</p>"
+            "</div>"
+        ),
+        "text": (
+            f"Your Robofox Thesis Studio sign-in code is: {code}\n\n"
+            "It expires in 10 minutes. If you didn't request it, ignore this email."
+        ),
+    }
+    headers = {
+        "Authorization": f"Bearer {settings.RESEND_API_KEY}",
+        "Content-Type": "application/json",
+    }
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        response = await client.post(RESEND_API_URL, json=payload, headers=headers)
+        if response.status_code >= 400:
+            log.error(
+                "Resend API error (otp): status=%d body=%s",
+                response.status_code, response.text[:500],
+            )
+            response.raise_for_status()

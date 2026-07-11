@@ -169,3 +169,90 @@ async def test_request_link_cooldown_suppresses_reissue(
         )
     ).scalar_one()
     assert count == 1, "cooldown must suppress the second token"
+
+
+async def test_otp_flow_end_to_end(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    test_institution: Institution,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Request OTP → wrong code 401 → right code sets a working session cookie."""
+    from app.core.config import get_settings
+
+    monkeypatch.setattr(get_settings(), "DEBUG", True)
+    email = f"otp-{uuid4().hex[:8]}@test.edu"
+
+    r = await client.post("/auth/request-otp", json={"email": email})
+    assert r.status_code == 200
+    code = r.json()["debug_code"]
+    assert code and len(code) == 6
+
+    r = await client.post("/auth/verify-otp", json={"email": email, "code": "000000" if code != "000000" else "111111"})
+    assert r.status_code == 401
+
+    r = await client.post("/auth/verify-otp", json={"email": email, "code": code})
+    assert r.status_code == 200 and r.json()["ok"] is True
+    cookie = r.cookies.get("access_token")
+    assert cookie
+
+    r = await client.get("/auth/me", cookies={"access_token": cookie})
+    assert r.status_code == 200 and r.json()["email"] == email
+
+
+async def test_otp_attempt_limit(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    test_institution: Institution,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """After 5 wrong attempts even the correct code is rejected."""
+    from app.core.config import get_settings
+
+    monkeypatch.setattr(get_settings(), "DEBUG", True)
+    email = f"otplim-{uuid4().hex[:8]}@test.edu"
+    r = await client.post("/auth/request-otp", json={"email": email})
+    code = r.json()["debug_code"]
+    wrong = "999999" if code != "999999" else "888888"
+    for _ in range(5):
+        r = await client.post("/auth/verify-otp", json={"email": email, "code": wrong})
+        assert r.status_code == 401
+    r = await client.post("/auth/verify-otp", json={"email": email, "code": code})
+    assert r.status_code == 401
+
+
+async def test_google_sign_in(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    test_institution: Institution,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A verified Google credential creates the user and sets the cookie."""
+    email = f"goog-{uuid4().hex[:8]}@gmail.com"
+
+    async def _fake_verify(credential: str) -> dict:
+        assert credential == "fake-credential-token-abc"
+        return {"email": email, "email_verified": True, "name": "Goo Gle", "sub": "1"}
+
+    monkeypatch.setattr("app.api.auth.verify_google_credential", _fake_verify)
+    r = await client.post("/auth/google", json={"credential": "fake-credential-token-abc"})
+    assert r.status_code == 200 and r.json()["ok"] is True
+    cookie = r.cookies.get("access_token")
+    r = await client.get("/auth/me", cookies={"access_token": cookie})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["email"] == email and body["full_name"] == "Goo Gle"
+
+
+async def test_google_sign_in_rejects_bad_credential(
+    client: AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.services.google_auth import GoogleAuthError
+
+    async def _fail(credential: str) -> dict:
+        raise GoogleAuthError("nope")
+
+    monkeypatch.setattr("app.api.auth.verify_google_credential", _fail)
+    r = await client.post("/auth/google", json={"credential": "x" * 30})
+    assert r.status_code == 401

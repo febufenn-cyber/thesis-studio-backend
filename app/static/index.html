@@ -323,11 +323,19 @@
     <section id="loginView" class="view">
       <div class="login-card">
         <h1>Sign in</h1>
-        <p class="sub">Enter any email — we'll send a magic link. Your institution is matched from the email domain, falling back to MCC.</p>
+        <p class="sub">Enter any email — we'll send a 6-digit code. Your institution is matched from the email domain, falling back to MCC.</p>
         <form id="loginForm">
           <input id="emailInput" type="email" placeholder="you@anywhere.com" required autocomplete="email">
-          <button type="submit" class="btn-primary" id="loginSubmit">Send magic link</button>
+          <button type="submit" class="btn-primary" id="loginSubmit">Email me a code</button>
         </form>
+        <form id="otpForm" hidden>
+          <input id="otpInput" type="text" inputmode="numeric" pattern="[0-9]{6}" maxlength="6"
+                 placeholder="6-digit code" autocomplete="one-time-code"
+                 style="letter-spacing: 6px; text-align: center; font-size: 18px;">
+          <button type="submit" class="btn-primary" id="otpSubmit">Verify code</button>
+          <button type="button" id="otpBack" class="icon-btn" style="margin-top:8px;">← Use a different email</button>
+        </form>
+        <div id="googleWrap" style="margin-top:16px; display:flex; justify-content:center;"></div>
         <div id="loginHint" class="hint" hidden></div>
       </div>
     </section>
@@ -449,11 +457,12 @@
       e.preventDefault();
       const email = $("emailInput").value.trim();
       if (!email) return;
+      state.loginEmail = email;
       const submitBtn = $("loginSubmit");
       submitBtn.disabled = true;
       setHint($("loginHint"), "", "Sending...");
       try {
-        const resp = await fetch("/auth/request-link", {
+        const resp = await fetch("/auth/request-otp", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email }),
@@ -463,27 +472,16 @@
           return;
         }
         const data = await resp.json();
-        if (data.magic_link) {
-          // Local dev: backend handed us the link. Render a one-click button.
-          const hint = $("loginHint");
-          hint.hidden = false;
-          hint.className = "hint ok";
-          hint.innerHTML = "";
-          const msg = document.createElement("div");
-          msg.textContent = "Dev mode — click to sign in:";
-          msg.style.marginBottom = "10px";
-          const a = document.createElement("a");
-          a.href = data.magic_link;
-          a.className = "btn-primary";
-          a.style.display = "inline-block";
-          a.style.textDecoration = "none";
-          a.style.padding = "10px 14px";
-          a.textContent = "Sign in as " + email;
-          hint.appendChild(msg);
-          hint.appendChild(a);
+        $("loginForm").hidden = true;
+        $("otpForm").hidden = false;
+        $("otpInput").focus();
+        if (data.debug_code) {
+          // Local dev: backend returns the code so no email is needed.
+          $("otpInput").value = data.debug_code;
+          setHint($("loginHint"), "ok", "Dev mode — code prefilled. Press Verify.");
         } else {
           setHint($("loginHint"), "ok",
-            `Magic link sent to ${email}. Check your inbox (and spam folder).`);
+            `Code sent to ${email}. Check your inbox (and spam folder).`);
         }
       } catch (err) {
         setHint($("loginHint"), "err", "Network error. Is the backend up?");
@@ -491,6 +489,79 @@
         submitBtn.disabled = false;
       }
     });
+
+    $("otpForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const code = $("otpInput").value.trim();
+      if (!/^[0-9]{6}$/.test(code)) {
+        setHint($("loginHint"), "err", "Enter the 6-digit code from your email.");
+        return;
+      }
+      const btn = $("otpSubmit");
+      btn.disabled = true;
+      try {
+        const resp = await fetch("/auth/verify-otp", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: state.loginEmail, code }),
+        });
+        if (resp.ok) {
+          location.reload();
+        } else {
+          setHint($("loginHint"), "err", "Invalid or expired code. Try again.");
+        }
+      } catch (err) {
+        setHint($("loginHint"), "err", "Network error. Is the backend up?");
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    $("otpBack").addEventListener("click", () => {
+      $("otpForm").hidden = true;
+      $("loginForm").hidden = false;
+      $("otpInput").value = "";
+      setHint($("loginHint"), "", "");
+      $("loginHint").hidden = true;
+    });
+
+    // Google Sign-In: only rendered when the backend has a client ID configured.
+    async function initGoogleSignIn() {
+      try {
+        const resp = await fetch("/auth/config");
+        if (!resp.ok) return;
+        const cfg = await resp.json();
+        if (!cfg.google_client_id) return;
+        const script = document.createElement("script");
+        script.src = "https://accounts.google.com/gsi/client";
+        script.async = true;
+        script.onload = () => {
+          window.google.accounts.id.initialize({
+            client_id: cfg.google_client_id,
+            callback: async (response) => {
+              try {
+                const r = await fetch("/auth/google", {
+                  method: "POST",
+                  credentials: "include",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ credential: response.credential }),
+                });
+                if (r.ok) location.reload();
+                else setHint($("loginHint"), "err", "Google sign-in failed.");
+              } catch {
+                setHint($("loginHint"), "err", "Network error during Google sign-in.");
+              }
+            },
+          });
+          window.google.accounts.id.renderButton($("googleWrap"), {
+            theme: "filled_black", size: "large", shape: "pill", width: 280,
+          });
+        };
+        document.head.appendChild(script);
+      } catch { /* Google button is optional; login works without it */ }
+    }
+    initGoogleSignIn();
 
     $("logoutBtn").addEventListener("click", async () => {
       await fetch("/auth/logout", { method: "POST", credentials: "include" });

@@ -1,11 +1,16 @@
-"""Magic-link token model — short-lived single-use tokens for passwordless login."""
+"""Auth token model — short-lived single-use tokens for passwordless login.
+
+Two kinds share this table:
+- "magic": magic-link tokens (raw token in the emailed URL)
+- "otp":   6-digit email codes (attempt-limited)
+"""
 
 from __future__ import annotations
 
 from datetime import datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import DateTime, ForeignKey, String, func
+from sqlalchemy import DateTime, ForeignKey, Integer, String, func
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -38,6 +43,11 @@ class AuthToken(Base):
 
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    # "magic" (link token) or "otp" (6-digit email code).
+    kind: Mapped[str] = mapped_column(String(10), nullable=False, server_default="magic")
+    # Failed verification attempts (OTP only; blocked after 5).
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
