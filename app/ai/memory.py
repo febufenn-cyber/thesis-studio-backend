@@ -129,7 +129,7 @@ async def link_legacy_session(
         project_id=project.id,
         user_id=user_id,
         scope_type="project",
-        scope_key="project",
+        scope_key=f"legacy:{session.id}",
         kind="legacy_context",
         content=historical,
         based_on_document_version=project.document_version,
