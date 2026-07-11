@@ -7,7 +7,7 @@ from uuid import uuid4
 import pytest
 
 from app.canonical.migrations import upgrade_canonical_payload
-from app.canonical.model import ParagraphBlock, Run, ThesisDocument
+from app.canonical.model import ThesisDocument
 from app.editor.commands import CommandError, apply_command
 from app.services.review_service import _fingerprint
 
@@ -113,7 +113,8 @@ def test_update_text_is_exactly_reversible_and_preserves_block_id() -> None:
         },
     )
     assert applied.document.chapters[0].blocks[0].id == block.id
-    assert applied.document.chapters[0].status == "needs_review"
+    # A chapter already being actively edited remains in progress.
+    assert applied.document.chapters[0].status == "in_progress"
     inverse = applied.inverse_command
     restored = apply_command(
         applied.document,
@@ -122,6 +123,19 @@ def test_update_text_is_exactly_reversible_and_preserves_block_id() -> None:
         allow_internal=True,
     )
     assert restored.document.model_dump(mode="json") == document.model_dump(mode="json")
+
+
+def test_editing_approved_content_invalidates_approval() -> None:
+    document = _document()
+    document.chapters[0].status = "approved"
+    block = document.chapters[0].blocks[0]
+    result = apply_command(
+        document,
+        "update_block_text",
+        {"block_id": str(block.id), "text": "Approval-invalidating correction."},
+    )
+    assert result.document.chapters[0].status == "needs_review"
+    assert str(document.chapters[0].id) in result.invalidations["chapter_ids"]
 
 
 def test_split_and_insert_commands_roundtrip() -> None:
@@ -224,18 +238,6 @@ def test_batch_has_one_exact_document_inverse() -> None:
 
 def test_review_fingerprint_ignores_fragile_block_index() -> None:
     block_id = uuid4()
-    first = _fingerprint(
-        "quote_unverified",
-        {"chapter": 3, "chapter_id": str(uuid4()), "block_id": str(block_id), "block_index": 7},
-        None,
-    )
-    second = _fingerprint(
-        "quote_unverified",
-        {"chapter": 3, "chapter_id": str(uuid4()), "block_id": str(block_id), "block_index": 18},
-        None,
-    )
-    # Chapter IDs are true structural anchors and therefore intentionally affect
-    # identity. Use the same anchor to prove only array position is ignored.
     chapter_id = uuid4()
     first = _fingerprint(
         "quote_unverified",
