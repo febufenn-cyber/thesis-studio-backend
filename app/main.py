@@ -16,14 +16,17 @@ from app.api import ai_partner as ai_partner_router
 from app.api import auth as auth_router
 from app.api import chat as chat_router
 from app.api import citation_schema as citation_schema_router
+from app.api import collaboration as collaboration_router
 from app.api import compile as compile_router
 from app.api import editor as editor_router
+from app.api import institutional as institutional_router
 from app.api import manuscripts as manuscripts_router
 from app.api import previews as previews_router
 from app.api import projects as projects_router
 from app.api import resolutions as resolutions_router
 from app.api import review_workspace as review_workspace_router
 from app.api import sessions as sessions_router
+from app.api import submissions as submissions_router
 from app.core.config import get_settings
 from app.core.exceptions import register_exception_handlers
 from app.services.readiness_service import readiness_report
@@ -89,10 +92,10 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title="Robofox Thesis Studio API",
         description=(
-            "Integrity-first academic manuscript conversion, human review and a "
-            "grounded AI thesis partner whose changes require human acceptance."
+            "Integrity-first academic manuscript conversion, human review, governed AI, "
+            "and an institutional collaborative thesis workflow with separated authority."
         ),
-        version="0.5.0",
+        version="0.6.0",
         lifespan=lifespan,
         docs_url="/docs" if settings.DEBUG else None,
         redoc_url=None,
@@ -101,7 +104,7 @@ def create_app() -> FastAPI:
         CORSMiddleware,
         allow_origins=settings.cors_origins_list,
         allow_credentials=True,
-        allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+        allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
         allow_headers=["*"],
     )
     app.mount("/static", StaticFiles(directory=static_dir), name="static")
@@ -119,10 +122,17 @@ def create_app() -> FastAPI:
     app.include_router(review_workspace_router.router)
     app.include_router(previews_router.router)
     app.include_router(ai_partner_router.router)
+    app.include_router(collaboration_router.router)
+    app.include_router(institutional_router.router)
+    app.include_router(submissions_router.router)
 
     @app.get("/healthz", tags=["meta"])
     async def health() -> dict:
-        return {"status": "ok", "frontend": "v2", "phase": "grounded_ai_partner"}
+        return {
+            "status": "ok",
+            "frontend": "v2",
+            "phase": "collaborative_academic_workspace",
+        }
 
     @app.get("/readyz", tags=["meta"])
     async def ready():
