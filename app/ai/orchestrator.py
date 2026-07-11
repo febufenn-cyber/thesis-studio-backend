@@ -43,14 +43,6 @@ from app.services.verification_service import verify_project
 log = logging.getLogger(__name__)
 
 
-class AIRunStale(RuntimeError):
-    pass
-
-
-class AIRunCancelled(RuntimeError):
-    pass
-
-
 def _hash(value: Any) -> str:
     return hashlib.sha256(
         json.dumps(value, ensure_ascii=False, sort_keys=True, default=str, separators=(",", ":")).encode()
@@ -58,7 +50,13 @@ def _hash(value: Any) -> str:
 
 
 def _enrich_manifest(project: Project, scope: AIScope, compiled: CompiledContext) -> dict:
-    """Add stable hashes for every canonical object that could be proposed against."""
+    """Add hashes for the exact canonical objects the run is allowed to reason about.
+
+    Block and selection scopes use block hashes only so an unrelated change
+    elsewhere in the chapter does not invalidate a still-relevant suggestion.
+    Chapter/project scopes use chapter hashes because their reasoning depends on
+    the complete structure and ordering of those chapters.
+    """
 
     document = ThesisDocument.model_validate(project_payload(project))
     chapter_by_id = {str(chapter.id): chapter for chapter in document.chapters}
@@ -79,8 +77,6 @@ def _enrich_manifest(project: Project, scope: AIScope, compiled: CompiledContext
     elif scope.type == "project":
         chapter_ids = [str(chapter.id) for chapter in document.chapters]
     elif scope.type in {"review", "source", "quote"}:
-        # Advisory scopes cannot generate mutations, so no implicit block access
-        # is granted merely because their context contains a compact chapter map.
         block_ids = []
 
     manifest["chapter_ids"] = chapter_ids
@@ -90,11 +86,15 @@ def _enrich_manifest(project: Project, scope: AIScope, compiled: CompiledContext
         for block_id in block_ids
         if block_id in block_by_id
     }
-    manifest["chapter_hashes"] = {
-        chapter_id: _hash(chapter_by_id[chapter_id].model_dump(mode="json"))
-        for chapter_id in chapter_ids
-        if chapter_id in chapter_by_id
-    }
+    manifest["chapter_hashes"] = (
+        {
+            chapter_id: _hash(chapter_by_id[chapter_id].model_dump(mode="json"))
+            for chapter_id in chapter_ids
+            if chapter_id in chapter_by_id
+        }
+        if scope.type in {"chapter", "project"}
+        else {}
+    )
     return manifest
 
 
@@ -208,6 +208,7 @@ async def run_grounded_ai(
             )
 
             await db.refresh(run)
+            await db.refresh(project)
             if run.cancel_requested:
                 run.status = "cancelled"
                 run.completed_at = datetime.now(timezone.utc)
@@ -237,10 +238,6 @@ async def run_grounded_ai(
                     output.proposal,
                     manifest,
                 )
-            elif spec.result_type == "proposal":
-                # The provider may legitimately refuse to propose a mutation when
-                # evidence is missing. The explanation remains useful and inert.
-                validated_proposal = None
 
             structured = {
                 "analysis": output.analysis,
@@ -354,7 +351,7 @@ async def run_grounded_ai(
     except StructuredOutputError as exc:
         await _set_run_failure(run_id, str(exc), retryable=True)
         raise
-    except ClaudeRateLimitError as exc:
+    except ClaudeRateLimitError:
         await _set_run_failure(
             run_id,
             "AI provider capacity was reached. Editing and export remain available.",
@@ -364,7 +361,7 @@ async def run_grounded_ai(
     except ClaudeSubprocessError as exc:
         await _set_run_failure(run_id, str(exc), retryable=True)
         raise
-    except Exception as exc:
+    except Exception:
         log.exception("grounded AI run failed id=%s", run_id)
         await _set_run_failure(run_id, "Grounded AI task failed safely.", retryable=True)
         raise
