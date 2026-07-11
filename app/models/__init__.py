@@ -1,5 +1,10 @@
 """ORM models. Importing this module registers all tables on Base metadata."""
 
+from app.models.ai_memory import AIMemory
+from app.models.ai_message import AIMessage
+from app.models.ai_proposal import AIProposal
+from app.models.ai_run import AIRun
+from app.models.ai_thread import AIThread
 from app.models.auth_token import AuthToken
 from app.models.citation_resolution import CitationResolution
 from app.models.document_command import DocumentCommand
@@ -14,6 +19,7 @@ from app.models.manuscript_revision import ManuscriptRevision
 from app.models.message import Message
 from app.models.project import Project
 from app.models.quote import Quote
+from app.models.research_candidate import ResearchCandidate
 from app.models.review_item import ReviewItem
 from app.models.session import ThesisSession
 from app.models.source import Source
@@ -22,6 +28,11 @@ from app.models.usage_event import UsageEvent
 from app.models.user import User
 
 __all__ = [
+    "AIMemory",
+    "AIMessage",
+    "AIProposal",
+    "AIRun",
+    "AIThread",
     "AuthToken",
     "CitationResolution",
     "DocumentCommand",
@@ -36,6 +47,7 @@ __all__ = [
     "Message",
     "Project",
     "Quote",
+    "ResearchCandidate",
     "ReviewItem",
     "ThesisSession",
     "Source",
