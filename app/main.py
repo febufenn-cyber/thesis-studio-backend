@@ -14,6 +14,7 @@ from fastapi.staticfiles import StaticFiles
 from app.api import active_registry as active_registry_router
 from app.api import auth as auth_router
 from app.api import chat as chat_router
+from app.api import citation_schema as citation_schema_router
 from app.api import compile as compile_router
 from app.api import editor as editor_router
 from app.api import manuscripts as manuscripts_router
@@ -109,6 +110,7 @@ def create_app() -> FastAPI:
     app.include_router(manuscripts_router.router)
     app.include_router(resolutions_router.router)
     app.include_router(active_registry_router.router)
+    app.include_router(citation_schema_router.router)
     app.include_router(editor_router.router)
     app.include_router(review_workspace_router.router)
     app.include_router(previews_router.router)
