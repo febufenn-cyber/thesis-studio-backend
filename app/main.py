@@ -12,6 +12,7 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from app.api import active_registry as active_registry_router
+from app.api import ai_partner as ai_partner_router
 from app.api import auth as auth_router
 from app.api import chat as chat_router
 from app.api import citation_schema as citation_schema_router
@@ -87,8 +88,11 @@ def create_app() -> FastAPI:
 
     app = FastAPI(
         title="Robofox Thesis Studio API",
-        description="Integrity-first academic manuscript conversion, human review and thesis workflow.",
-        version="0.4.0",
+        description=(
+            "Integrity-first academic manuscript conversion, human review and a "
+            "grounded AI thesis partner whose changes require human acceptance."
+        ),
+        version="0.5.0",
         lifespan=lifespan,
         docs_url="/docs" if settings.DEBUG else None,
         redoc_url=None,
@@ -114,10 +118,11 @@ def create_app() -> FastAPI:
     app.include_router(editor_router.router)
     app.include_router(review_workspace_router.router)
     app.include_router(previews_router.router)
+    app.include_router(ai_partner_router.router)
 
     @app.get("/healthz", tags=["meta"])
     async def health() -> dict:
-        return {"status": "ok", "frontend": "v2", "phase": "human_review_workspace"}
+        return {"status": "ok", "frontend": "v2", "phase": "grounded_ai_partner"}
 
     @app.get("/readyz", tags=["meta"])
     async def ready():
