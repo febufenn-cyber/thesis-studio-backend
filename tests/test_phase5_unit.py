@@ -17,6 +17,7 @@ from app.commercial.features import feature_enabled
 from app.commercial.observability import opaque_identifier, release_identity
 from app.commercial.recovery import canonical_digest
 from app.models.commercial import EntitlementGrant, FeatureFlag, RolloutAssignment
+from app.models.project import Project
 from app.models.user import User
 
 
@@ -24,8 +25,6 @@ pytestmark = pytest.mark.asyncio
 
 
 def test_billing_signature_is_timestamped_and_constant_time(monkeypatch) -> None:
-    import app.commercial.billing as billing
-
     now = int(datetime.now(timezone.utc).timestamp())
     body = json.dumps({"id": "evt_1", "type": "customer.updated", "occurred_at": now, "data": {}}).encode()
     secret = "phase5-webhook-test-secret"
@@ -52,7 +51,13 @@ async def test_scope_specific_entitlement_grant_wins(
     user_a: User,
     test_institution,
 ) -> None:
-    project_id = uuid4()
+    project = Project(
+        user_id=user_a.id,
+        institution_id=test_institution.id,
+        title="Entitlement scope test",
+    )
+    db_session.add(project)
+    await db_session.flush()
     db_session.add_all(
         [
             EntitlementGrant(
@@ -67,7 +72,7 @@ async def test_scope_specific_entitlement_grant_wins(
                 key="export.pdf",
                 institution_id=test_institution.id,
                 user_id=user_a.id,
-                project_id=project_id,
+                project_id=project.id,
                 source="temporary_override",
                 value={"value": True},
                 priority=100,
@@ -83,7 +88,7 @@ async def test_scope_specific_entitlement_grant_wins(
         EntitlementContext(
             institution_id=test_institution.id,
             user_id=user_a.id,
-            project_id=project_id,
+            project_id=project.id,
         ),
         "export.pdf",
     )
