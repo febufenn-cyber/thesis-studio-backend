@@ -29,6 +29,7 @@ from app.renderers.phase1_profiles import resolve_phase1_profile
 from app.renderers.profiles import ResolvedProfile
 from app.renderers.txt_renderer import render_txt
 from app.renderers.works_cited import MissingCitationField
+from app.services.registry_scope import active_revision_rows
 from app.services.storage_service import get_storage_service
 from app.services.verification_service import post_render_qa
 
@@ -124,16 +125,18 @@ async def run_export(export_id: UUID, project_id: UUID, user_id: UUID) -> None:
             document = build_thesis_document(project)
             profile, profile_version = await _resolve_project_profile(db, project)
             export_row.profile_version = profile_version
-            source_rows = list(
+            all_sources = list(
                 (
                     await db.execute(select(Source).where(Source.project_id == project_id))
                 ).scalars()
             )
-            quote_rows = list(
+            all_quotes = list(
                 (
                     await db.execute(select(Quote).where(Quote.project_id == project_id))
                 ).scalars()
             )
+            source_rows = active_revision_rows(all_sources, project.active_revision_id)
+            quote_rows = active_revision_rows(all_quotes, project.active_revision_id)
             sources = {source.id: source for source in source_rows}
             revision = None
             if export_row.manuscript_revision_id:
