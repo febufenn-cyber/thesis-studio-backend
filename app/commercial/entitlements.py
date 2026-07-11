@@ -29,9 +29,7 @@ class EntitlementQuotaExceeded(RuntimeError):
     """A metered entitlement has exhausted its current period allowance."""
 
 
-# Safe fallback for accounts without billing setup. It allows the product to remain
-# usable during migration while still denying expensive commercial operations unless
-# they are explicitly granted. Institutions should receive a contract/subscription.
+# Production accounts without a contract remain deliberately conservative.
 FALLBACK_ENTITLEMENTS: dict[str, Any] = {
     "project.create": True,
     "project.active_limit": 1,
@@ -48,6 +46,26 @@ FALLBACK_ENTITLEMENTS: dict[str, Any] = {
     "seat.staff_limit": 0,
     "retention.days": 30,
     "support.priority": "standard",
+}
+
+# Non-production preserves the validated Phase 1–4 workflows while billing and
+# procurement are being configured. This is never used in production.
+PILOT_ENTITLEMENTS: dict[str, Any] = {
+    "project.create": True,
+    "project.active_limit": 100,
+    "manuscript.max_size_mb": 100,
+    "ai.chat": True,
+    "ai.chapter_review.monthly": 1000,
+    "ai.whole_thesis_review.monthly": 100,
+    "export.docx": True,
+    "export.pdf": True,
+    "export.pdf.monthly": 1000,
+    "review.supervisor": True,
+    "profile.custom": True,
+    "seat.student_limit": 1000,
+    "seat.staff_limit": 1000,
+    "retention.days": 365,
+    "support.priority": "pilot",
 }
 
 
@@ -121,7 +139,6 @@ async def _active_edition(
         customer_predicates.append(BillingCustomer.user_id == context.user_id)
     if not customer_predicates:
         return None, None
-
     row = (
         await db.execute(
             select(EditionVersion, Subscription.access_state)
@@ -145,7 +162,7 @@ async def _active_edition(
 async def _matching_grants(
     db: AsyncSession, context: EntitlementContext, key: str, now: datetime
 ) -> list[EntitlementGrant]:
-    scope = [
+    scopes = [
         and_(
             EntitlementGrant.institution_id.is_(None),
             EntitlementGrant.user_id.is_(None),
@@ -153,19 +170,42 @@ async def _matching_grants(
         )
     ]
     if context.institution_id is not None:
-        scope.append(EntitlementGrant.institution_id == context.institution_id)
+        scopes.append(
+            and_(
+                EntitlementGrant.institution_id == context.institution_id,
+                EntitlementGrant.user_id.is_(None),
+                EntitlementGrant.project_id.is_(None),
+            )
+        )
     if context.user_id is not None:
-        scope.append(EntitlementGrant.user_id == context.user_id)
+        scopes.append(
+            and_(
+                EntitlementGrant.user_id == context.user_id,
+                EntitlementGrant.project_id.is_(None),
+                or_(
+                    EntitlementGrant.institution_id.is_(None),
+                    EntitlementGrant.institution_id == context.institution_id,
+                ),
+            )
+        )
     if context.project_id is not None:
-        scope.append(EntitlementGrant.project_id == context.project_id)
-
+        scopes.append(
+            and_(
+                EntitlementGrant.project_id == context.project_id,
+                or_(EntitlementGrant.user_id.is_(None), EntitlementGrant.user_id == context.user_id),
+                or_(
+                    EntitlementGrant.institution_id.is_(None),
+                    EntitlementGrant.institution_id == context.institution_id,
+                ),
+            )
+        )
     rows = list(
         (
             await db.execute(
                 select(EntitlementGrant).where(
                     EntitlementGrant.key == key,
                     EntitlementGrant.state == "active",
-                    or_(*scope),
+                    or_(*scopes),
                     or_(EntitlementGrant.starts_at.is_(None), EntitlementGrant.starts_at <= now),
                     or_(EntitlementGrant.ends_at.is_(None), EntitlementGrant.ends_at > now),
                 )
@@ -195,7 +235,9 @@ async def usage_total(
     if context.project_id is not None:
         predicates.append(UsageLedgerEntry.project_id == context.project_id)
     total = (
-        await db.execute(select(func.coalesce(func.sum(UsageLedgerEntry.quantity), 0)).where(*predicates))
+        await db.execute(
+            select(func.coalesce(func.sum(UsageLedgerEntry.quantity), 0)).where(*predicates)
+        )
     ).scalar_one()
     return Decimal(str(total)), pkey
 
@@ -210,16 +252,15 @@ async def resolve_entitlement(
 ) -> EntitlementDecision:
     now = now or datetime.now(timezone.utc)
     edition, access_state = await _active_edition(db, context, now)
-    value: Any = FALLBACK_ENTITLEMENTS.get(key)
-    source = "fallback"
+    fallback = FALLBACK_ENTITLEMENTS if get_settings().ENV == "production" else PILOT_ENTITLEMENTS
+    value: Any = fallback.get(key)
+    source = "fallback" if get_settings().ENV == "production" else "pilot_grandfathered"
     edition_version_id: UUID | None = None
     grant_id: UUID | None = None
-
     if edition is not None and key in (edition.entitlements or {}):
         value = (edition.entitlements or {})[key]
         source = f"edition:{access_state}"
         edition_version_id = edition.id
-
     grants = await _matching_grants(db, context, key, now)
     if grants:
         selected = grants[-1]
@@ -227,14 +268,12 @@ async def resolve_entitlement(
         source = f"grant:{selected.source}"
         grant_id = selected.id
         edition_version_id = selected.edition_version_id or edition_version_id
-
     consumed = Decimal(0)
     remaining: Decimal | None = None
     pkey: str | None = None
     if isinstance(value, (int, float, Decimal)) and not isinstance(value, bool) and reset_period:
         consumed, pkey = await usage_total(db, context, key, reset_period=reset_period, now=now)
         remaining = max(Decimal(0), Decimal(str(value)) - consumed)
-
     return EntitlementDecision(
         key=key,
         value=value,
