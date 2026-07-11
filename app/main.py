@@ -20,6 +20,7 @@ from app.api import collaboration as collaboration_router
 from app.api import collaboration_commands as collaboration_commands_router
 from app.api import collaboration_read as collaboration_read_router
 from app.api import compile as compile_router
+from app.api import data_portability as data_portability_router
 from app.api import editor as editor_router
 from app.api import institutional as institutional_router
 from app.api import manuscripts as manuscripts_router
@@ -131,6 +132,7 @@ def create_app() -> FastAPI:
     app.include_router(presence_router.router)
     app.include_router(institutional_router.router)
     app.include_router(submissions_router.router)
+    app.include_router(data_portability_router.router)
 
     @app.get("/healthz", tags=["meta"])
     async def health() -> dict:
