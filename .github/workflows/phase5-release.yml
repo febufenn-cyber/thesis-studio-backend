@@ -1,0 +1,159 @@
+name: Phase 5 Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target environment
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+      expected_sha:
+        description: Exact commit SHA to deploy
+        required: true
+        type: string
+      canary_institution:
+        description: Optional canary institution UUID
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: phase5-release-${{ inputs.environment }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    outputs:
+      image: ${{ steps.image.outputs.value }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.expected_sha }}
+      - name: Verify immutable target
+        shell: bash
+        run: |
+          test "$(git rev-parse HEAD)" = "${{ inputs.expected_sha }}"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install and validate
+        run: |
+          pip install -r requirements.txt
+          python -m compileall -q app tests
+          pytest -q
+      - name: Migration expansion/rollback validation
+        env:
+          DATABASE_URL: ${{ secrets.RELEASE_VALIDATION_DATABASE_URL }}
+          JWT_SECRET: release-validation-secret-32-chars-min
+          ANTHROPIC_API_KEY: release-validation-placeholder
+          ENV: staging
+          STORAGE_BACKEND: local
+        run: |
+          alembic upgrade head
+          alembic downgrade 0016
+          alembic upgrade head
+      - name: Compute immutable image reference
+        id: image
+        run: echo "value=ghcr.io/${GITHUB_REPOSITORY,,}:${{ inputs.expected_sha }}" >> "$GITHUB_OUTPUT"
+      - name: Build release image
+        env:
+          IMAGE: ${{ steps.image.outputs.value }}
+        run: |
+          docker build \
+            --file Dockerfile.phase5 \
+            --build-arg RELEASE_SHA=${{ inputs.expected_sha }} \
+            --build-arg BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ) \
+            --tag "$IMAGE" .
+      - name: Authenticate container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Push immutable image
+        env:
+          IMAGE: ${{ steps.image.outputs.value }}
+        run: docker push "$IMAGE"
+
+  deploy-staging:
+    if: inputs.environment == 'staging'
+    needs: verify
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.expected_sha }}
+      - name: Deploy through audited remote release command
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.STAGING_HOST }}
+          username: ${{ secrets.STAGING_USER }}
+          key: ${{ secrets.STAGING_SSH_KEY }}
+          script_stop: true
+          script: |
+            export ROBOFOX_IMAGE='${{ needs.verify.outputs.image }}'
+            export ROBOFOX_ENV_FILE='${{ secrets.STAGING_ENV_PATH }}'
+            cd '${{ secrets.STAGING_DEPLOY_PATH }}'
+            docker compose -f deploy/compose.phase5.yml pull
+            docker compose -f deploy/compose.phase5.yml up -d --remove-orphans
+      - name: Staging smoke test
+        run: python scripts/phase5_smoke.py --base-url '${{ secrets.STAGING_BASE_URL }}' --expected-release '${{ inputs.expected_sha }}'
+
+  deploy-production:
+    if: inputs.environment == 'production'
+    needs: verify
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.expected_sha }}
+      - name: Require backup and migration evidence
+        shell: bash
+        env:
+          BACKUP_EVIDENCE: ${{ secrets.LATEST_BACKUP_EVIDENCE }}
+        run: |
+          test -n "$BACKUP_EVIDENCE"
+          echo "$BACKUP_EVIDENCE" | python -m json.tool >/dev/null
+      - name: Deploy canary or first application instance
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.PRODUCTION_HOST }}
+          username: ${{ secrets.PRODUCTION_USER }}
+          key: ${{ secrets.PRODUCTION_SSH_KEY }}
+          script_stop: true
+          script: |
+            export ROBOFOX_IMAGE='${{ needs.verify.outputs.image }}'
+            export ROBOFOX_ENV_FILE='${{ secrets.PRODUCTION_ENV_PATH }}'
+            export CANARY_INSTITUTION='${{ inputs.canary_institution }}'
+            cd '${{ secrets.PRODUCTION_DEPLOY_PATH }}'
+            docker compose -f deploy/compose.phase5.yml pull
+            docker compose -f deploy/compose.phase5.yml up -d web-a worker-general worker-ai worker-pdf maintenance
+      - name: Canary smoke test
+        run: python scripts/phase5_smoke.py --base-url '${{ secrets.PRODUCTION_CANARY_BASE_URL }}' --expected-release '${{ inputs.expected_sha }}'
+      - name: Complete rolling application deployment
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.PRODUCTION_HOST }}
+          username: ${{ secrets.PRODUCTION_USER }}
+          key: ${{ secrets.PRODUCTION_SSH_KEY }}
+          script_stop: true
+          script: |
+            export ROBOFOX_IMAGE='${{ needs.verify.outputs.image }}'
+            export ROBOFOX_ENV_FILE='${{ secrets.PRODUCTION_ENV_PATH }}'
+            cd '${{ secrets.PRODUCTION_DEPLOY_PATH }}'
+            docker compose -f deploy/compose.phase5.yml up -d web-b
+      - name: Production verification
+        run: python scripts/phase5_smoke.py --base-url '${{ secrets.PRODUCTION_BASE_URL }}' --expected-release '${{ inputs.expected_sha }}'
+
+# GitHub environment protection should require human approval for production.
+# This workflow never runs on push and never enables auto-merge.
