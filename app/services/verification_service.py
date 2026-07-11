@@ -9,7 +9,6 @@ from __future__ import annotations
 import os
 import zipfile
 from typing import Any
-from uuid import UUID
 
 from docx import Document
 from sqlalchemy import select
@@ -21,12 +20,12 @@ from app.models.manuscript_revision import ManuscriptRevision
 from app.models.project import Project
 from app.models.quote import Quote
 from app.models.source import Source
-from app.renderers.profiles import ResolvedProfile, resolve_profile
+from app.models.style_profile import StyleProfile
+from app.renderers.phase1_profiles import resolve_phase1_profile
+from app.renderers.profiles import ResolvedProfile
 
 
 class ExportBlockedError(RuntimeError):
-    """The project has one or more unresolved blocking violations."""
-
     def __init__(self, report: dict):
         self.report = report
         count = report.get("counts", {}).get("block", 0)
@@ -48,7 +47,13 @@ def _format_violations(
 ) -> list[dict]:
     violations: list[dict] = []
 
-    def add(rule: str, found: str, expected: str, severity: str = "block", location: dict | None = None) -> None:
+    def add(
+        rule: str,
+        found: str,
+        expected: str,
+        severity: str = "block",
+        location: dict | None = None,
+    ) -> None:
         violations.append(
             {
                 "rule": rule,
@@ -142,13 +147,7 @@ def _format_violations(
         for issue in report.get("issues", []):
             if issue.get("status", "open") == "resolved":
                 continue
-            severity = issue.get("severity", "review")
-            if severity == "info":
-                mapped = "info"
-            else:
-                # Structure review and unsupported content must be explicitly
-                # resolved before a final export.
-                mapped = "block"
+            mapped = "info" if issue.get("severity") == "info" else "block"
             add(
                 f"import_{issue.get('code', 'issue')}",
                 issue.get("message", "Open import issue"),
@@ -179,14 +178,20 @@ async def verify_project(db: AsyncSession, project: Project) -> dict:
     source_rows = list(
         (
             await db.execute(
-                select(Source).where(Source.project_id == project.id, Source.user_id == project.user_id)
+                select(Source).where(
+                    Source.project_id == project.id,
+                    Source.user_id == project.user_id,
+                )
             )
         ).scalars()
     )
     quote_rows = list(
         (
             await db.execute(
-                select(Quote).where(Quote.project_id == project.id, Quote.user_id == project.user_id)
+                select(Quote).where(
+                    Quote.project_id == project.id,
+                    Quote.user_id == project.user_id,
+                )
             )
         ).scalars()
     )
@@ -202,7 +207,20 @@ async def verify_project(db: AsyncSession, project: Project) -> dict:
             )
         ).scalar_one_or_none()
 
-    profile = resolve_profile(project.format_profile, None)
+    override = None
+    style_version = None
+    if project.style_profile_id:
+        style = (
+            await db.execute(
+                select(StyleProfile).where(StyleProfile.id == project.style_profile_id)
+            )
+        ).scalar_one_or_none()
+        if style:
+            override = style.data
+            style_version = f"style:{style.id}:{style.created_at.isoformat()}"
+    profile, governed_version = resolve_phase1_profile(project.format_profile, override)
+    profile_version = style_version or governed_version
+
     academic = verify_academic(
         document,
         {source.id: source for source in source_rows},
@@ -220,6 +238,8 @@ async def verify_project(db: AsyncSession, project: Project) -> dict:
         "document_version": project.document_version,
         "manuscript_revision_id": str(project.active_revision_id) if project.active_revision_id else None,
         "profile": project.format_profile,
+        "profile_version": profile_version,
+        "profile_notes": profile.notes,
         "counts": counts,
         "violations": combined,
         "academic": academic,
@@ -233,8 +253,6 @@ def post_render_qa(
     document: ThesisDocument,
     profile: ResolvedProfile,
 ) -> dict:
-    """Validate the actual rendered artifact, not only pre-render state."""
-
     violations: list[dict] = []
 
     def add(rule: str, found: str, expected: str) -> None:
@@ -278,9 +296,18 @@ def post_render_qa(
                 if any(abs(observed[key] - expected[key]) > 0.05 for key in expected):
                     add("margin_mismatch", str(observed), str(expected))
             rendered_text = "\n".join(paragraph.text for paragraph in rendered.paragraphs)
-            for marker in ("[VERIFY:", "[QUOTE_NEEDED:", "[UNSUPPORTED:", "[REVIEW_REQUIRED:"):
+            for marker in (
+                "[VERIFY:",
+                "[QUOTE_NEEDED:",
+                "[UNSUPPORTED:",
+                "[REVIEW_REQUIRED:",
+            ):
                 if marker in rendered_text:
-                    add("unresolved_marker_rendered", marker, "no unresolved marker in final output")
+                    add(
+                        "unresolved_marker_rendered",
+                        marker,
+                        "no unresolved marker in final output",
+                    )
             if "contents" in profile.front_matter_order and profile.toc.native_word_field:
                 with zipfile.ZipFile(output_path) as package:
                     xml = package.read("word/document.xml")
