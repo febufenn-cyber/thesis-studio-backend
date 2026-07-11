@@ -1,8 +1,13 @@
-"""Stable customer-facing entitlement catalog shared by migrations, APIs and tests."""
+"""Stable commercial catalog shared by migrations, APIs, restores and tests."""
 
 from __future__ import annotations
 
 from typing import Any
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models.commercial import EntitlementDefinition, ProductEdition, ServiceComponent
 
 
 ENTITLEMENT_CATALOG: dict[str, dict[str, Any]] = {
@@ -25,8 +30,63 @@ ENTITLEMENT_CATALOG: dict[str, dict[str, Any]] = {
 }
 
 
+PRODUCT_EDITIONS = {
+    "student": ("student", "Robofox Student", "One governed thesis workspace for an individual student."),
+    "operator": ("operator", "Robofox Operator", "Multi-project professional formatting and client delivery."),
+    "institution": ("institution", "Robofox Institution", "Department and institution collaboration, governance and procurement."),
+}
+
+
+SERVICE_COMPONENTS = {
+    "web": ("Web application", "Application shell and project navigation."),
+    "auth": ("Authentication", "OTP, identity and revocable sessions."),
+    "editing": ("Document editing", "Canonical document reads and saves."),
+    "ai": ("AI assistance", "Grounded AI queue and provider capacity."),
+    "ingestion": ("Manuscript ingestion", "Upload preflight and deterministic parsing."),
+    "pdf": ("Preview and PDF generation", "Dedicated rendering and conversion workers."),
+    "downloads": ("File downloads", "Verified export and sealed-package downloads."),
+    "email": ("Email notifications", "OTP and workflow notifications."),
+}
+
+
 def catalog_row(key: str) -> dict[str, Any] | None:
     value = ENTITLEMENT_CATALOG.get(key)
     if value is None:
         return None
     return {"key": key, "customer_visible": value.get("customer_visible", True), **value}
+
+
+async def ensure_commercial_catalog(db: AsyncSession) -> dict[str, int]:
+    """Idempotently restore seed metadata after fresh ORM creation or recovery."""
+    existing_entitlements = set((await db.execute(select(EntitlementDefinition.key))).scalars())
+    existing_editions = set((await db.execute(select(ProductEdition.slug))).scalars())
+    existing_components = set((await db.execute(select(ServiceComponent.key))).scalars())
+    created = {"entitlements": 0, "editions": 0, "components": 0}
+    for key, data in ENTITLEMENT_CATALOG.items():
+        if key in existing_entitlements:
+            continue
+        db.add(
+            EntitlementDefinition(
+                key=key,
+                value_type=data["value_type"],
+                unit=data.get("unit"),
+                description=data["description"],
+                customer_visible=data.get("customer_visible", True),
+                metered=data.get("metered", False),
+                reset_period=data.get("reset_period"),
+            )
+        )
+        created["entitlements"] += 1
+    for slug, (audience, name, description) in PRODUCT_EDITIONS.items():
+        if slug in existing_editions:
+            continue
+        db.add(ProductEdition(slug=slug, audience=audience, name=name, description=description, state="published"))
+        created["editions"] += 1
+    for key, (name, description) in SERVICE_COMPONENTS.items():
+        if key in existing_components:
+            continue
+        db.add(ServiceComponent(key=key, name=name, description=description, public_status=True, state="operational", metadata_json={}))
+        created["components"] += 1
+    if any(created.values()):
+        await db.commit()
+    return created
