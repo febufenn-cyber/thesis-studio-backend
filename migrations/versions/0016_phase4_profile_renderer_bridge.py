@@ -33,6 +33,12 @@ def upgrade() -> None:
                 RETURN NEW;
             END IF;
 
+            IF NEW.institution_id IS NULL THEN
+                SELECT institution_id INTO NEW.institution_id
+                FROM users
+                WHERE id = NEW.user_id;
+            END IF;
+
             SELECT * INTO profile_row
             FROM institutional_profile_versions
             WHERE id = NEW.institutional_profile_version_id
