@@ -55,8 +55,8 @@ def _drop_table(name: str) -> None:
 
 
 def upgrade() -> None:
-    # Identity and institution workspace state. Existing verified email users keep
-    # access to their own projects, but no new administrator privileges are inferred.
+    # Existing verified email users keep access to their own projects, but no new
+    # administrator privileges are inferred from a selected institution.
     op.add_column("users", sa.Column("identity_provider", sa.String(30), nullable=False, server_default="email_otp"))
     op.add_column("users", sa.Column("account_status", sa.String(24), nullable=False, server_default="active"))
     op.add_column("users", sa.Column("affiliation_status", sa.String(32), nullable=False, server_default="domain_verified"))
@@ -64,19 +64,18 @@ def upgrade() -> None:
     op.add_column("institutions", sa.Column("slug", sa.String(100), nullable=True))
     op.create_unique_constraint("uq_institutions_slug", "institutions", ["slug"])
     op.add_column("institutions", sa.Column("onboarding_state", sa.String(32), nullable=False, server_default="setup_required"))
+    # Rich safe defaults live on the ORM model. Neutral migration defaults avoid
+    # SQLAlchemy treating JSON :false/:true tokens as DDL bind parameters.
     op.add_column(
         "institutions",
         sa.Column(
             "workspace_settings",
             postgresql.JSONB(),
             nullable=False,
-            server_default=sa.text(
-                "'{\"admin_content_access_default\":false,\"email_content_previews\":false,\"support_access_requires_consent\":true}'::jsonb"
-            ),
+            server_default=sa.text("'{}'::jsonb"),
         ),
     )
 
-    # Tables that the project governance foreign keys depend on.
     for name in _TABLES_IN_ORDER[:14]:
         _create_table(name)
 
@@ -91,9 +90,7 @@ def upgrade() -> None:
             "collaboration_policy",
             postgresql.JSONB(),
             nullable=False,
-            server_default=sa.text(
-                "'{\"student_owns_acceptance\":true,\"supervisor_ai_history_default\":false,\"admin_content_access_default\":false,\"operator_prose_edit\":false,\"external_review\":true}'::jsonb"
-            ),
+            server_default=sa.text("'{}'::jsonb"),
         ),
     )
     op.add_column("projects", sa.Column("submission_locked", sa.Boolean(), nullable=False, server_default=sa.false()))
@@ -121,8 +118,6 @@ def upgrade() -> None:
     op.create_index("ix_projects_institution_id", "projects", ["institution_id"])
     op.create_index("ix_projects_department_id", "projects", ["department_id"])
 
-    # Remaining tables depend on the newly added project governance columns or on
-    # each other (submission packages before attestations/external grants).
     for name in _TABLES_IN_ORDER[14:]:
         _create_table(name)
 
