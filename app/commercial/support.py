@@ -37,73 +37,16 @@ async def diagnostic_bundle(
     ).scalar_one_or_none()
     if project is None:
         raise SupportError("Project no longer exists.")
-    jobs = list(
-        (
-            await db.execute(
-                select(Job)
-                .where(Job.project_id == project.id)
-                .order_by(Job.created_at.desc())
-                .limit(50)
-            )
-        ).scalars()
-    )
-    exports = list(
-        (
-            await db.execute(
-                select(Export)
-                .where(Export.project_id == project.id)
-                .order_by(Export.created_at.desc())
-                .limit(25)
-            )
-        ).scalars()
-    )
-    previews = list(
-        (
-            await db.execute(
-                select(DocumentPreview)
-                .where(DocumentPreview.project_id == project.id)
-                .order_by(DocumentPreview.created_at.desc())
-                .limit(25)
-            )
-        ).scalars()
-    )
-    revisions = list(
-        (
-            await db.execute(
-                select(ManuscriptRevision)
-                .where(ManuscriptRevision.project_id == project.id)
-                .order_by(ManuscriptRevision.revision_number.desc())
-                .limit(25)
-            )
-        ).scalars()
-    )
+    jobs = list((await db.execute(select(Job).where(Job.project_id == project.id).order_by(Job.created_at.desc()).limit(50))).scalars())
+    exports = list((await db.execute(select(Export).where(Export.project_id == project.id).order_by(Export.created_at.desc()).limit(25))).scalars())
+    previews = list((await db.execute(select(DocumentPreview).where(DocumentPreview.project_id == project.id).order_by(DocumentPreview.created_at.desc()).limit(25))).scalars())
+    revisions = list((await db.execute(select(ManuscriptRevision).where(ManuscriptRevision.project_id == project.id).order_by(ManuscriptRevision.revision_number.desc()).limit(25))).scalars())
     ai_counts = {
-        state: int(
-            (
-                await db.execute(
-                    select(func.count(AIRun.id)).where(
-                        AIRun.project_id == project.id,
-                        AIRun.status == state,
-                    )
-                )
-            ).scalar_one()
-        )
+        state: int((await db.execute(select(func.count(AIRun.id)).where(AIRun.project_id == project.id, AIRun.status == state))).scalar_one())
         for state in ("queued", "running", "succeeded", "failed", "cancelled", "stale")
     }
-    review_count = int(
-        (
-            await db.execute(
-                select(func.count(ReviewCycle.id)).where(ReviewCycle.project_id == project.id)
-            )
-        ).scalar_one()
-    )
-    approval_count = int(
-        (
-            await db.execute(
-                select(func.count(ApprovalRecord.id)).where(ApprovalRecord.project_id == project.id)
-            )
-        ).scalar_one()
-    )
+    review_count = int((await db.execute(select(func.count(ReviewCycle.id)).where(ReviewCycle.project_id == project.id))).scalar_one())
+    approval_count = int((await db.execute(select(func.count(ApprovalRecord.id)).where(ApprovalRecord.project_id == project.id))).scalar_one())
     bundle = {
         "schema": "robofox.support-diagnostic.v1",
         "generated_at": datetime.now(timezone.utc),
@@ -204,11 +147,7 @@ async def diagnostic_bundle(
             action="generate_diagnostic_bundle",
             justification=justification,
             content_accessed=False,
-            result={
-                "job_count": len(jobs),
-                "export_count": len(exports),
-                "preview_count": len(previews),
-            },
+            result={"job_count": len(jobs), "export_count": len(exports), "preview_count": len(previews)},
             release_sha=release_identity()["release_sha"],
         )
     )
@@ -223,6 +162,10 @@ async def retry_job(
     support_user_id: UUID,
     justification: str,
 ) -> Job:
+    job_id = job.id
+    job = (await db.execute(select(Job).where(Job.id == job_id))).scalar_one_or_none()
+    if job is None:
+        raise SupportError("Job no longer exists.")
     if job.status not in {"failed", "cancelled"}:
         raise SupportError("Only failed or cancelled jobs can be retried by support.")
     if job.attempts >= job.max_attempts:
