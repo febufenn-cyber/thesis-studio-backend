@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+import secrets
+from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
@@ -52,27 +53,69 @@ class WithdrawalRequest(BaseModel):
 class ExternalGrantCreate(BaseModel):
     recipient_email: str = Field(..., min_length=3, max_length=255)
     expires_at: datetime
-    permissions: list[Literal["sealed.read_metadata", "sealed.read_content", "sealed.download"]] = Field(default_factory=lambda: ["sealed.read_metadata", "sealed.read_content"])
+    permissions: list[
+        Literal["sealed.read_metadata", "sealed.read_content", "sealed.download"]
+    ] = Field(default_factory=lambda: ["sealed.read_metadata", "sealed.read_content"])
     download_allowed: bool = False
     watermark: str | None = Field(None, max_length=300)
 
 
 class ExternalAccessRequest(BaseModel):
     token: str = Field(..., min_length=20, max_length=200)
+    recipient_email: str = Field(..., min_length=3, max_length=255)
 
 
 def _package_dict(row: SubmissionPackage, *, include_manifest: bool = True) -> dict:
     data = {
-        "id": row.id, "project_id": row.project_id, "institution_id": row.institution_id,
-        "department_id": row.department_id, "package_number": row.package_number,
-        "state": row.state, "snapshot_id": row.snapshot_id, "document_version": row.document_version,
-        "document_checksum": row.document_checksum, "profile_version_id": row.profile_version_id,
-        "policy_version_id": row.policy_version_id, "package_checksum": row.package_checksum,
-        "sealed_by": row.sealed_by, "sealed_at": row.sealed_at, "withdrawn_at": row.withdrawn_at,
-        "withdrawal_reason": row.withdrawal_reason, "superseded_by_id": row.superseded_by_id,
+        "id": row.id,
+        "project_id": row.project_id,
+        "institution_id": row.institution_id,
+        "department_id": row.department_id,
+        "package_number": row.package_number,
+        "state": row.state,
+        "snapshot_id": row.snapshot_id,
+        "document_version": row.document_version,
+        "document_checksum": row.document_checksum,
+        "profile_version_id": row.profile_version_id,
+        "policy_version_id": row.policy_version_id,
+        "package_checksum": row.package_checksum,
+        "sealed_by": row.sealed_by,
+        "sealed_at": row.sealed_at,
+        "withdrawn_at": row.withdrawn_at,
+        "withdrawal_reason": row.withdrawal_reason,
+        "superseded_by_id": row.superseded_by_id,
     }
     if include_manifest:
         data["manifest"] = row.manifest
+    return data
+
+
+def _external_package_dict(row: SubmissionPackage, include_manifest: bool) -> dict:
+    data = _package_dict(row, include_manifest=False)
+    if not include_manifest:
+        return data
+    manifest = row.manifest or {}
+    data["manifest"] = {
+        "schema": manifest.get("schema"),
+        "package_number": manifest.get("package_number"),
+        "document_version": manifest.get("document_version"),
+        "document_checksum": manifest.get("document_checksum"),
+        "profile_version_id": manifest.get("profile_version_id"),
+        "policy_version_id": manifest.get("policy_version_id"),
+        "approvals": manifest.get("approvals", []),
+        "exports": [
+            {
+                "id": item.get("id"),
+                "format": item.get("format"),
+                "checksum": item.get("checksum"),
+                "size_bytes": item.get("size_bytes"),
+            }
+            for item in manifest.get("exports", [])
+        ],
+        "attestations": manifest.get("attestations", []),
+        "sealed_at": manifest.get("sealed_at"),
+        "signature_claim": manifest.get("signature_claim"),
+    }
     return data
 
 
@@ -99,10 +142,30 @@ async def add_attestation(
     if body.attestation_type == "supervisor_workflow_approval" and access.role != "supervisor":
         raise HTTPException(status_code=409, detail="Only an assigned supervisor can make this workflow attestation.")
     try:
-        row = await create_attestation(db, access.project, current_user.id, attestation_type=body.attestation_type, statement_version=body.statement_version, statement_text=body.statement_text, accepted=body.accepted, context=body.context)
+        row = await create_attestation(
+            db,
+            access.project,
+            current_user.id,
+            attestation_type=body.attestation_type,
+            statement_version=body.statement_version,
+            statement_text=body.statement_text,
+            accepted=body.accepted,
+            context=body.context,
+        )
     except SubmissionError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
-    return {"id": row.id, "attestation_type": row.attestation_type, "user_id": row.user_id, "statement_version": row.statement_version, "accepted": row.accepted, "created_at": row.created_at, "legal_notice": "This is an authenticated workflow attestation, not a representation of a legally certified digital signature."}
+    return {
+        "id": row.id,
+        "attestation_type": row.attestation_type,
+        "user_id": row.user_id,
+        "statement_version": row.statement_version,
+        "accepted": row.accepted,
+        "created_at": row.created_at,
+        "legal_notice": (
+            "This is an authenticated workflow attestation, not a representation "
+            "of a legally certified digital signature."
+        ),
+    }
 
 
 @router.post("/projects/{project_id}/submission-packages", status_code=201)
@@ -127,7 +190,15 @@ async def list_submission_packages(
     db: AsyncSession = Depends(get_db),
 ) -> list[dict]:
     await require_project_capability(db, project_id, current_user, "project.read_metadata")
-    rows = list((await db.execute(select(SubmissionPackage).where(SubmissionPackage.project_id == project_id).order_by(SubmissionPackage.package_number.desc()))).scalars())
+    rows = list(
+        (
+            await db.execute(
+                select(SubmissionPackage)
+                .where(SubmissionPackage.project_id == project_id)
+                .order_by(SubmissionPackage.package_number.desc())
+            )
+        ).scalars()
+    )
     return [_package_dict(row, include_manifest=False) for row in rows]
 
 
@@ -139,7 +210,14 @@ async def read_submission_package(
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     await require_project_capability(db, project_id, current_user, "project.read_metadata")
-    row = (await db.execute(select(SubmissionPackage).where(SubmissionPackage.id == package_id, SubmissionPackage.project_id == project_id))).scalar_one_or_none()
+    row = (
+        await db.execute(
+            select(SubmissionPackage).where(
+                SubmissionPackage.id == package_id,
+                SubmissionPackage.project_id == project_id,
+            )
+        )
+    ).scalar_one_or_none()
     if row is None:
         raise HTTPException(status_code=404, detail="Submission package not found")
     return _package_dict(row)
@@ -154,7 +232,14 @@ async def withdraw_package(
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     access = await require_project_capability(db, project_id, current_user, "project.transition_submission")
-    row = (await db.execute(select(SubmissionPackage).where(SubmissionPackage.id == package_id, SubmissionPackage.project_id == project_id))).scalar_one_or_none()
+    row = (
+        await db.execute(
+            select(SubmissionPackage).where(
+                SubmissionPackage.id == package_id,
+                SubmissionPackage.project_id == project_id,
+            )
+        )
+    ).scalar_one_or_none()
     if row is None:
         raise HTTPException(status_code=404, detail="Submission package not found")
     try:
@@ -163,7 +248,10 @@ async def withdraw_package(
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 
 
-@router.post("/projects/{project_id}/submission-packages/{package_id}/external-review", status_code=201)
+@router.post(
+    "/projects/{project_id}/submission-packages/{package_id}/external-review",
+    status_code=201,
+)
 async def add_external_review(
     project_id: UUID,
     package_id: UUID,
@@ -172,14 +260,42 @@ async def add_external_review(
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     await require_project_capability(db, project_id, current_user, "project.transition_submission")
-    package = (await db.execute(select(SubmissionPackage).where(SubmissionPackage.id == package_id, SubmissionPackage.project_id == project_id))).scalar_one_or_none()
+    package = (
+        await db.execute(
+            select(SubmissionPackage).where(
+                SubmissionPackage.id == package_id,
+                SubmissionPackage.project_id == project_id,
+            )
+        )
+    ).scalar_one_or_none()
     if package is None:
         raise HTTPException(status_code=404, detail="Submission package not found")
     try:
-        row, token = await create_external_review_grant(db, package, current_user.id, recipient_email=body.recipient_email, expires_at=body.expires_at, permissions=body.permissions, download_allowed=body.download_allowed, watermark=body.watermark)
+        row, token = await create_external_review_grant(
+            db,
+            package,
+            current_user.id,
+            recipient_email=body.recipient_email,
+            expires_at=body.expires_at,
+            permissions=body.permissions,
+            download_allowed=body.download_allowed,
+            watermark=body.watermark,
+        )
     except SubmissionError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
-    return {"id": row.id, "recipient_email": row.recipient_email, "permissions": row.permissions, "download_allowed": row.download_allowed, "watermark": row.watermark, "expires_at": row.expires_at, "access_token": token, "token_notice": "The token is returned once. Send it only to the bound recipient; it is not included in audit logs or analytics."}
+    return {
+        "id": row.id,
+        "recipient_email": row.recipient_email,
+        "permissions": row.permissions,
+        "download_allowed": row.download_allowed,
+        "watermark": row.watermark,
+        "expires_at": row.expires_at,
+        "access_token": token,
+        "token_notice": (
+            "The token is returned once. Send it only to the bound recipient; "
+            "it is not included in audit logs or analytics."
+        ),
+    }
 
 
 @router.delete("/projects/{project_id}/external-review/{grant_id}")
@@ -190,7 +306,16 @@ async def revoke_external_review(
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     await require_project_capability(db, project_id, current_user, "project.transition_submission")
-    row = (await db.execute(select(ExternalReviewGrant).join(SubmissionPackage, SubmissionPackage.id == ExternalReviewGrant.submission_package_id).where(ExternalReviewGrant.id == grant_id, SubmissionPackage.project_id == project_id))).scalar_one_or_none()
+    row = (
+        await db.execute(
+            select(ExternalReviewGrant)
+            .join(SubmissionPackage, SubmissionPackage.id == ExternalReviewGrant.submission_package_id)
+            .where(
+                ExternalReviewGrant.id == grant_id,
+                SubmissionPackage.project_id == project_id,
+            )
+        )
+    ).scalar_one_or_none()
     if row is None:
         raise HTTPException(status_code=404, detail="External review access not found")
     await revoke_external_review_grant(db, row, current_user.id)
@@ -206,6 +331,9 @@ async def external_review_access(
         grant, package, snapshot = await resolve_external_review_grant(db, body.token)
     except SubmissionError as exc:
         raise HTTPException(status_code=404, detail="External review access not found") from exc
+    supplied_email = body.recipient_email.strip().lower()
+    if not secrets.compare_digest(supplied_email, grant.recipient_email):
+        raise HTTPException(status_code=404, detail="External review access not found")
     response = {
         "grant": {
             "recipient_email": grant.recipient_email,
@@ -214,8 +342,18 @@ async def external_review_access(
             "download_allowed": grant.download_allowed,
             "expires_at": grant.expires_at,
         },
-        "submission": _package_dict(package, include_manifest="sealed.read_metadata" in grant.permissions),
-        "signature_notice": "Approvals shown are authenticated workflow records, not claims of legally certified signatures.",
+        "submission": _external_package_dict(
+            package,
+            include_manifest="sealed.read_metadata" in grant.permissions,
+        ),
+        "signature_notice": (
+            "Approvals shown are authenticated workflow records, not claims of "
+            "legally certified signatures."
+        ),
+        "watermark_notice": (
+            grant.watermark
+            or "This external review copy is bound to a sealed submission version."
+        ),
     }
     if "sealed.read_content" in grant.permissions:
         response["canonical_document"] = snapshot.canonical_document
