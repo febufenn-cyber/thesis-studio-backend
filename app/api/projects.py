@@ -1,17 +1,17 @@
-"""v2 project router — projects, document JSON, sources, quotes, exports.
+"""Project, canonical document, registry and export API.
 
-Per-user isolation contract (same as v1): every query filters user_id;
-cross-user access returns 404, never 403. Child resources (sources, quotes,
-exports) are reached only through an owned project or a user_id-filtered
-direct lookup.
+All resources are isolated by user_id. Canonical writes use optimistic
+concurrency. Final exports pass the deterministic Phase 1 verifier and run on
+the durable PostgreSQL worker.
 """
 
 from __future__ import annotations
 
 import re
+from datetime import datetime, timezone
 from uuid import UUID
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from fastapi.responses import FileResponse as FileDownloadResponse
 from fastapi.responses import RedirectResponse
 from sqlalchemy import select
@@ -39,16 +39,32 @@ from app.schemas.project import (
     SourceResponse,
     WorksCitedUpdate,
 )
-from app.services.export_service import EXPORT_FORMATS, MEDIA_TYPES, run_export
+from app.services.export_service import EXPORT_FORMATS, MEDIA_TYPES
+from app.services.job_queue import enqueue_job
 from app.services.storage_service import get_storage_service
+from app.services.verification_service import verify_project
 
 
 router = APIRouter(tags=["projects"])
 
 
-# ---------------------------------------------------------------------------
-# Projects CRUD
-# ---------------------------------------------------------------------------
+def _assert_version(project: Project, expected: int) -> None:
+    if project.document_version != expected:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "message": "Project changed in another session. Reload before saving.",
+                "expected_version": expected,
+                "current_version": project.document_version,
+            },
+        )
+
+
+async def _commit_canonical(project: Project, db: AsyncSession) -> Project:
+    project.document_version += 1
+    await db.commit()
+    await db.refresh(project)
+    return project
 
 
 @router.post("/projects", response_model=ProjectResponse, status_code=201)
@@ -57,13 +73,13 @@ async def create_project(
     current_user: CurrentUser,
     db: AsyncSession = Depends(get_db),
 ) -> Project:
-    """Create a v2 project (Mode B operator by default)."""
     project = Project(
         user_id=current_user.id,
         title=body.title,
         mode=body.mode,
         doc_type=body.doc_type,
         format_profile=body.format_profile,
+        document_version=1,
     )
     db.add(project)
     await db.commit()
@@ -76,14 +92,15 @@ async def list_projects(
     current_user: CurrentUser,
     db: AsyncSession = Depends(get_db),
 ) -> list[Project]:
-    """List the caller's non-archived projects, newest first."""
-    result = await db.execute(
-        select(Project)
-        .where(Project.user_id == current_user.id)
-        .where(Project.archived.is_(False))
-        .order_by(Project.created_at.desc())
+    return list(
+        (
+            await db.execute(
+                select(Project)
+                .where(Project.user_id == current_user.id, Project.archived.is_(False))
+                .order_by(Project.created_at.desc())
+            )
+        ).scalars()
     )
-    return list(result.scalars().all())
 
 
 @router.get("/projects/{project_id}", response_model=ProjectDetailResponse)
@@ -92,7 +109,6 @@ async def get_project(
     current_user: CurrentUser,
     db: AsyncSession = Depends(get_db),
 ) -> Project:
-    """Full project detail including the document JSON columns."""
     return await fetch_owned_project(db, project_id, current_user.id)
 
 
@@ -102,16 +118,10 @@ async def archive_project(
     current_user: CurrentUser,
     db: AsyncSession = Depends(get_db),
 ) -> Response:
-    """Soft-delete (archive) a project."""
     project = await fetch_owned_project(db, project_id, current_user.id)
     project.archived = True
     await db.commit()
-    return Response(status_code=status.HTTP_204_NO_CONTENT)
-
-
-# ---------------------------------------------------------------------------
-# Document JSON updates (validated through the canonical model)
-# ---------------------------------------------------------------------------
+    return Response(status_code=204)
 
 
 @router.patch("/projects/{project_id}/meta", response_model=ProjectDetailResponse)
@@ -121,12 +131,10 @@ async def update_meta(
     current_user: CurrentUser,
     db: AsyncSession = Depends(get_db),
 ) -> Project:
-    """Replace the ThesisMeta block."""
     project = await fetch_owned_project(db, project_id, current_user.id)
+    _assert_version(project, body.expected_version)
     project.meta = body.meta.model_dump(mode="json")
-    await db.commit()
-    await db.refresh(project)
-    return project
+    return await _commit_canonical(project, db)
 
 
 @router.patch("/projects/{project_id}/chapters", response_model=ProjectDetailResponse)
@@ -136,12 +144,10 @@ async def update_chapters(
     current_user: CurrentUser,
     db: AsyncSession = Depends(get_db),
 ) -> Project:
-    """Replace the chapters list (validated canonical ChapterDoc[])."""
     project = await fetch_owned_project(db, project_id, current_user.id)
-    project.chapters = [c.model_dump(mode="json") for c in body.chapters]
-    await db.commit()
-    await db.refresh(project)
-    return project
+    _assert_version(project, body.expected_version)
+    project.chapters = [chapter.model_dump(mode="json") for chapter in body.chapters]
+    return await _commit_canonical(project, db)
 
 
 @router.patch("/projects/{project_id}/front_matter", response_model=ProjectDetailResponse)
@@ -151,12 +157,10 @@ async def update_front_matter(
     current_user: CurrentUser,
     db: AsyncSession = Depends(get_db),
 ) -> Project:
-    """Replace the front-matter entry list."""
     project = await fetch_owned_project(db, project_id, current_user.id)
-    project.front_matter = [e.model_dump(mode="json") for e in body.front_matter]
-    await db.commit()
-    await db.refresh(project)
-    return project
+    _assert_version(project, body.expected_version)
+    project.front_matter = [entry.model_dump(mode="json") for entry in body.front_matter]
+    return await _commit_canonical(project, db)
 
 
 @router.patch("/projects/{project_id}/works_cited", response_model=ProjectDetailResponse)
@@ -166,40 +170,38 @@ async def update_works_cited(
     current_user: CurrentUser,
     db: AsyncSession = Depends(get_db),
 ) -> Project:
-    """Replace the works-cited source references."""
     project = await fetch_owned_project(db, project_id, current_user.id)
-    project.works_cited = [r.model_dump(mode="json") for r in body.works_cited]
-    await db.commit()
-    await db.refresh(project)
-    return project
+    _assert_version(project, body.expected_version)
+    project.works_cited = [reference.model_dump(mode="json") for reference in body.works_cited]
+    return await _commit_canonical(project, db)
 
 
-# ---------------------------------------------------------------------------
-# Sources & quotes (the citation registry — the only path into Works Cited)
-# ---------------------------------------------------------------------------
-
-
-@router.post(
-    "/projects/{project_id}/sources", response_model=SourceResponse, status_code=201
-)
+@router.post("/projects/{project_id}/sources", response_model=SourceResponse, status_code=201)
 async def create_source(
     project_id: UUID,
     body: SourceCreate,
     current_user: CurrentUser,
     db: AsyncSession = Depends(get_db),
 ) -> Source:
-    """Add a registry source to the project."""
     project = await fetch_owned_project(db, project_id, current_user.id)
+    now = datetime.now(timezone.utc) if body.verified else None
     source = Source(
         project_id=project.id,
         user_id=current_user.id,
         kind=body.kind,
         fields=body.fields,
+        raw_entry=body.raw_entry,
+        parse_status=body.parse_status,
+        identifiers=body.identifiers,
         verified=body.verified,
         verify_note=body.verify_note,
+        verified_at=now,
+        verified_by=current_user.id if body.verified else None,
+        verification_method=body.verification_method or ("manual" if body.verified else None),
         consulted_flag=body.consulted_flag,
     )
     db.add(source)
+    project.document_version += 1
     await db.commit()
     await db.refresh(source)
     return source
@@ -211,15 +213,16 @@ async def list_sources(
     current_user: CurrentUser,
     db: AsyncSession = Depends(get_db),
 ) -> list[Source]:
-    """List the project's registry sources."""
     await fetch_owned_project(db, project_id, current_user.id)
-    result = await db.execute(
-        select(Source)
-        .where(Source.project_id == project_id)
-        .where(Source.user_id == current_user.id)
-        .order_by(Source.created_at.asc())
+    return list(
+        (
+            await db.execute(
+                select(Source)
+                .where(Source.project_id == project_id, Source.user_id == current_user.id)
+                .order_by(Source.created_at.asc())
+            )
+        ).scalars()
     )
-    return list(result.scalars().all())
 
 
 @router.delete(
@@ -233,20 +236,22 @@ async def delete_source(
     current_user: CurrentUser,
     db: AsyncSession = Depends(get_db),
 ) -> Response:
-    """Remove a source (and, via cascade, its quotes)."""
-    await fetch_owned_project(db, project_id, current_user.id)
-    result = await db.execute(
-        select(Source)
-        .where(Source.id == source_id)
-        .where(Source.project_id == project_id)
-        .where(Source.user_id == current_user.id)
-    )
-    source = result.scalar_one_or_none()
+    project = await fetch_owned_project(db, project_id, current_user.id)
+    source = (
+        await db.execute(
+            select(Source).where(
+                Source.id == source_id,
+                Source.project_id == project_id,
+                Source.user_id == current_user.id,
+            )
+        )
+    ).scalar_one_or_none()
     if source is None:
         raise HTTPException(status_code=404, detail="Source not found")
     await db.delete(source)
+    project.document_version += 1
     await db.commit()
-    return Response(status_code=status.HTTP_204_NO_CONTENT)
+    return Response(status_code=204)
 
 
 @router.post(
@@ -261,17 +266,17 @@ async def create_quote(
     current_user: CurrentUser,
     db: AsyncSession = Depends(get_db),
 ) -> Quote:
-    """Register a quotation against a source (registry rule: no other path)."""
-    await fetch_owned_project(db, project_id, current_user.id)
-    src = (
+    project = await fetch_owned_project(db, project_id, current_user.id)
+    source = (
         await db.execute(
-            select(Source)
-            .where(Source.id == source_id)
-            .where(Source.project_id == project_id)
-            .where(Source.user_id == current_user.id)
+            select(Source).where(
+                Source.id == source_id,
+                Source.project_id == project_id,
+                Source.user_id == current_user.id,
+            )
         )
     ).scalar_one_or_none()
-    if src is None:
+    if source is None:
         raise HTTPException(status_code=404, detail="Source not found")
     quote = Quote(
         source_id=source_id,
@@ -281,8 +286,13 @@ async def create_quote(
         text=body.text,
         verified=body.verified,
         method=body.method,
+        evidence_snapshot=body.evidence_snapshot,
+        verified_at=datetime.now(timezone.utc) if body.verified else None,
+        verified_by=current_user.id if body.verified else None,
+        verification_method=body.verification_method or ("manual" if body.verified else None),
     )
     db.add(quote)
+    project.document_version += 1
     await db.commit()
     await db.refresh(quote)
     return quote
@@ -294,20 +304,16 @@ async def list_quotes(
     current_user: CurrentUser,
     db: AsyncSession = Depends(get_db),
 ) -> list[Quote]:
-    """List all registered quotes for the project."""
     await fetch_owned_project(db, project_id, current_user.id)
-    result = await db.execute(
-        select(Quote)
-        .where(Quote.project_id == project_id)
-        .where(Quote.user_id == current_user.id)
-        .order_by(Quote.created_at.asc())
+    return list(
+        (
+            await db.execute(
+                select(Quote)
+                .where(Quote.project_id == project_id, Quote.user_id == current_user.id)
+                .order_by(Quote.created_at.asc())
+            )
+        ).scalars()
     )
-    return list(result.scalars().all())
-
-
-# ---------------------------------------------------------------------------
-# Exports (Gate G4 + background render + download)
-# ---------------------------------------------------------------------------
 
 
 @router.post(
@@ -318,80 +324,98 @@ async def list_quotes(
 async def trigger_exports(
     project_id: UUID,
     body: ExportRequest,
-    background_tasks: BackgroundTasks,
     current_user: CurrentUser,
     db: AsyncSession = Depends(get_db),
 ) -> list[Export]:
-    """Start background exports for the requested formats.
-
-    Gate G4: `acknowledge` must be true (operator/student attests authorship
-    responsibility). 409 when the project has no chapters or a requested
-    format is already running.
-    """
     project = await fetch_owned_project(db, project_id, current_user.id)
-
+    _assert_version(project, body.expected_version)
     if not body.acknowledge:
         raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=(
-                "Export requires acknowledgment (Gate G4): the author attests"
-                " responsibility for the document's claims."
-            ),
-        )
-    if not project.chapters:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Nothing to export — the project has no chapters yet.",
+            status_code=409,
+            detail="Export requires authorship and citation responsibility acknowledgment.",
         )
 
-    formats = list(EXPORT_FORMATS) if body.formats == "all" else list(body.formats)
-    unknown = [f for f in formats if f not in EXPORT_FORMATS]
+    formats = list(EXPORT_FORMATS) if body.formats == "all" else list(dict.fromkeys(body.formats))
+    unknown = [fmt for fmt in formats if fmt not in EXPORT_FORMATS]
     if unknown:
+        raise HTTPException(status_code=422, detail=f"Unknown export formats: {', '.join(unknown)}")
+
+    verification = await verify_project(db, project)
+    if not verification["pass"] and not body.allow_review_export:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"Unknown export formats: {', '.join(unknown)}",
+            status_code=409,
+            detail={
+                "message": "Final export is blocked until verification issues are resolved.",
+                "verification": verification,
+            },
         )
 
-    running = {
+    active = {
         row.format
         for row in (
             await db.execute(
-                select(Export)
-                .where(Export.project_id == project.id)
-                .where(Export.status == "running")
+                select(Export).where(
+                    Export.project_id == project.id,
+                    Export.status.in_(("queued", "running")),
+                )
             )
         ).scalars()
     }
-
-    db.add(Event(
-        project_id=project.id,
-        user_id=current_user.id,
-        kind="export_acknowledged",
-        data={"formats": formats},
-    ))
-
     created: list[Export] = []
     for fmt in formats:
-        if fmt in running:
+        if fmt in active:
             continue
         export = Export(
             project_id=project.id,
             user_id=current_user.id,
             format=fmt,
-            status="running",
+            status="queued",
+            document_version=project.document_version,
+            manuscript_revision_id=project.active_revision_id,
+            profile_version=f"builtin:{project.format_profile}",
+            report=verification,
+            manifest={
+                "state": "final" if verification["pass"] else "review",
+                "project_id": str(project.id),
+                "document_version": project.document_version,
+                "manuscript_revision_id": str(project.active_revision_id) if project.active_revision_id else None,
+                "format_profile": project.format_profile,
+                "verification_counts": verification["counts"],
+                "authorship_acknowledged": True,
+            },
         )
         db.add(export)
+        await db.flush()
+        await enqueue_job(
+            db,
+            kind="export",
+            user_id=current_user.id,
+            project_id=project.id,
+            payload={
+                "export_id": str(export.id),
+                "project_id": str(project.id),
+                "user_id": str(current_user.id),
+            },
+        )
         created.append(export)
+
+    if not created:
+        raise HTTPException(status_code=409, detail="All requested formats are already queued or running.")
+    db.add(
+        Event(
+            project_id=project.id,
+            user_id=current_user.id,
+            kind="export_acknowledged",
+            data={
+                "formats": formats,
+                "document_version": project.document_version,
+                "review_export": not verification["pass"],
+            },
+        )
+    )
     await db.commit()
     for export in created:
         await db.refresh(export)
-        background_tasks.add_task(run_export, export.id, project.id, current_user.id)
-
-    if not created:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="All requested formats are already exporting.",
-        )
     return created
 
 
@@ -401,47 +425,79 @@ async def list_exports(
     current_user: CurrentUser,
     db: AsyncSession = Depends(get_db),
 ) -> list[Export]:
-    """List export jobs for the project, newest first."""
     await fetch_owned_project(db, project_id, current_user.id)
-    result = await db.execute(
-        select(Export)
-        .where(Export.project_id == project_id)
-        .where(Export.user_id == current_user.id)
-        .order_by(Export.created_at.desc())
+    return list(
+        (
+            await db.execute(
+                select(Export)
+                .where(Export.project_id == project_id, Export.user_id == current_user.id)
+                .order_by(Export.created_at.desc())
+            )
+        ).scalars()
     )
-    return list(result.scalars().all())
+
+
+@router.get("/exports/{export_id}/manifest")
+async def export_manifest(
+    export_id: UUID,
+    current_user: CurrentUser,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    export = (
+        await db.execute(
+            select(Export).where(Export.id == export_id, Export.user_id == current_user.id)
+        )
+    ).scalar_one_or_none()
+    if export is None:
+        raise HTTPException(status_code=404, detail="Export not found")
+    return {
+        "export_id": str(export.id),
+        "status": export.status,
+        "checksum": export.checksum,
+        "report": export.report,
+        "manifest": export.manifest,
+    }
 
 
 @router.get("/exports/{export_id}/download", response_model=None)
 async def download_export(
     export_id: UUID,
     current_user: CurrentUser,
+    allow_stale: bool = Query(False),
     db: AsyncSession = Depends(get_db),
-) -> RedirectResponse | FileDownloadResponse:
-    """Download a ready export (presigned redirect or direct file bytes)."""
+):
     export = (
         await db.execute(
-            select(Export)
-            .where(Export.id == export_id)
-            .where(Export.user_id == current_user.id)
+            select(Export).where(Export.id == export_id, Export.user_id == current_user.id)
         )
     ).scalar_one_or_none()
     if export is None:
         raise HTTPException(status_code=404, detail="Export not found")
     if export.status != "ready":
         raise HTTPException(status_code=409, detail="Export is not ready.")
-
     project = await fetch_owned_project(db, export.project_id, current_user.id)
-    safe_title = re.sub(r"[^A-Za-z0-9_-]+", "_", project.title)[:60] or "Thesis"
-    filename = f"{safe_title}.{export.format}"
+    stale = export.document_version != project.document_version
+    if stale and not allow_stale:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "message": "This export is stale because the project changed.",
+                "export_document_version": export.document_version,
+                "current_document_version": project.document_version,
+                "download_with_allow_stale": True,
+            },
+        )
 
+    safe_title = re.sub(r"[^A-Za-z0-9_-]+", "_", project.title)[:60] or "Thesis"
+    state = (export.manifest or {}).get("state")
+    prefix = "REVIEW_" if state == "review" else ("STALE_" if stale else "")
+    filename = f"{prefix}{safe_title}.{export.format}"
     storage = get_storage_service()
     url = await storage.presigned_download_url(export.storage_key, filename)
     if url:
-        return RedirectResponse(url, status_code=status.HTTP_307_TEMPORARY_REDIRECT)
-    local_path = await storage.open_local_path(export.storage_key)
+        return RedirectResponse(url, status_code=307)
     return FileDownloadResponse(
-        local_path,
+        await storage.open_local_path(export.storage_key),
         filename=filename,
         media_type=MEDIA_TYPES.get(export.format, "application/octet-stream"),
     )
