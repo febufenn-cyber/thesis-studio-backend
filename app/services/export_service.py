@@ -25,7 +25,8 @@ from app.models.style_profile import StyleProfile
 from app.renderers.docx_renderer import RenderError, render_docx
 from app.renderers.md_renderer import render_md
 from app.renderers.pdf_renderer import PdfConversionError, SofficeUnavailableError, convert_to_pdf
-from app.renderers.profiles import ResolvedProfile, resolve_profile
+from app.renderers.phase1_profiles import resolve_phase1_profile
+from app.renderers.profiles import ResolvedProfile
 from app.renderers.txt_renderer import render_txt
 from app.renderers.works_cited import MissingCitationField
 from app.services.storage_service import get_storage_service
@@ -75,7 +76,7 @@ async def _resolve_project_profile(
     db: AsyncSession, project: Project
 ) -> tuple[ResolvedProfile, str]:
     override = None
-    version = f"builtin:{project.format_profile}"
+    style_version: str | None = None
     if project.style_profile_id:
         row = (
             await db.execute(
@@ -84,8 +85,9 @@ async def _resolve_project_profile(
         ).scalar_one_or_none()
         if row:
             override = row.data
-            version = f"style:{row.id}:{row.created_at.isoformat()}"
-    return resolve_profile(project.format_profile, override), version
+            style_version = f"style:{row.id}:{row.created_at.isoformat()}"
+    profile, governed_version = resolve_phase1_profile(project.format_profile, override)
+    return profile, style_version or governed_version
 
 
 async def run_export(export_id: UUID, project_id: UUID, user_id: UUID) -> None:
@@ -153,9 +155,13 @@ async def run_export(export_id: UUID, project_id: UUID, user_id: UUID) -> None:
                 await asyncio.to_thread(render_docx, document, sources, profile, docx_path)
                 output_path = await asyncio.to_thread(convert_to_pdf, docx_path, temp_dir)
             elif fmt == "md":
-                await asyncio.to_thread(_write_text, output_path, render_md(document, sources, profile))
+                await asyncio.to_thread(
+                    _write_text, output_path, render_md(document, sources, profile)
+                )
             elif fmt == "txt":
-                await asyncio.to_thread(_write_text, output_path, render_txt(document, sources, profile))
+                await asyncio.to_thread(
+                    _write_text, output_path, render_txt(document, sources, profile)
+                )
             else:
                 raise ValueError(f"Unknown export format {fmt!r}")
 
@@ -197,13 +203,19 @@ async def run_export(export_id: UUID, project_id: UUID, user_id: UUID) -> None:
                     "original_checksum_sha256": revision.checksum if revision else None,
                     "parser_version": revision.parser_version if revision else None,
                     "canonical_schema_version": (
-                        revision.canonical_schema_version if revision else document.schema_version
+                        revision.canonical_schema_version
+                        if revision
+                        else document.schema_version
                     ),
                     "format_profile_version": profile_version,
                     "sources_total": len(source_rows),
-                    "sources_verified": sum(1 for source in source_rows if source.verified),
+                    "sources_verified": sum(
+                        1 for source in source_rows if source.verified
+                    ),
                     "quotations_total": len(quote_rows),
-                    "quotations_verified": sum(1 for quote in quote_rows if quote.verified),
+                    "quotations_verified": sum(
+                        1 for quote in quote_rows if quote.verified
+                    ),
                     "verification_passed": bool(report.get("pass")),
                     "verification_counts": report.get("counts", {}),
                     "ai_involvement": "none_recorded_in_phase1",
