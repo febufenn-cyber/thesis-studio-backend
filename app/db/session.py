@@ -1,24 +1,36 @@
 """Database session and engine setup.
 
-This module creates the async SQLAlchemy engine and session factory.
-Routes get sessions via the `get_db` dependency in `app.db.deps`.
+This module creates the async SQLAlchemy engine and session factory. A deterministic
+naming convention keeps metadata-created constraints reversible in tests and makes
+future institutional migrations auditable.
 """
 
 from __future__ import annotations
 
+from sqlalchemy import MetaData
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 
 from app.core.config import get_settings
 
 
+_NAMING_CONVENTION = {
+    "ix": "ix_%(column_0_label)s",
+    "uq": "uq_%(table_name)s_%(column_0_name)s",
+    "ck": "ck_%(table_name)s_%(constraint_name)s",
+    "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
+    "pk": "pk_%(table_name)s",
+}
+
+
 class Base(DeclarativeBase):
-    """SQLAlchemy declarative base. All ORM models inherit from this."""
+    """Declarative base shared by all phases and institutional tables."""
+
+    metadata = MetaData(naming_convention=_NAMING_CONVENTION)
 
 
 settings = get_settings()
 
-# Engine: holds the connection pool. One per process.
 engine = create_async_engine(
     settings.DATABASE_URL,
     echo=settings.DEBUG,
@@ -27,10 +39,9 @@ engine = create_async_engine(
     max_overflow=20,
 )
 
-# Session factory: creates new AsyncSession instances on demand.
 AsyncSessionLocal = async_sessionmaker(
     engine,
     class_=AsyncSession,
-    expire_on_commit=False,  # don't lazy-load after commit; fine for our use
+    expire_on_commit=False,
     autoflush=False,
 )

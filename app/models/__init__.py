@@ -14,44 +14,63 @@ from app.models.event import Event
 from app.models.export import Export
 from app.models.file import File
 from app.models.institution import Institution
+from app.models.institutional_governance import (
+    ExternalReviewGrant,
+    InstitutionalPolicyVersion,
+    InstitutionalProfileVersion,
+    OfficialTemplateVersion,
+    RetentionPolicy,
+    SubmissionPackage,
+)
 from app.models.job import Job
 from app.models.manuscript_revision import ManuscriptRevision
 from app.models.message import Message
+from app.models.presence import ProjectPresence
 from app.models.project import Project
 from app.models.quote import Quote
 from app.models.research_candidate import ResearchCandidate
+from app.models.review_collaboration import (
+    ApprovalRecord,
+    Attestation,
+    CollaborationComment,
+    HumanSuggestion,
+    ReviewCycle,
+    SupervisorInstruction,
+)
 from app.models.review_item import ReviewItem
 from app.models.session import ThesisSession
 from app.models.source import Source
 from app.models.style_profile import StyleProfile
+from app.models.tenancy import (
+    DataLifecycleRequest,
+    Department,
+    MembershipInvitation,
+    Notification,
+    NotificationPreference,
+    OrganizationMembership,
+    ProjectHandoff,
+    ProjectMembership,
+    ReviewAssignment,
+    SupportAccessGrant,
+)
 from app.models.usage_event import UsageEvent
 from app.models.user import User
 
+# Register transaction-local Phase 4 governance hooks.
+from app.collaboration import editor_hooks as _editor_hooks  # noqa: E402,F401
+from app.collaboration import sealed_guard as _sealed_guard  # noqa: E402,F401
+
 __all__ = [
-    "AIMemory",
-    "AIMessage",
-    "AIProposal",
-    "AIRun",
-    "AIThread",
-    "AuthToken",
-    "CitationResolution",
-    "DocumentCommand",
-    "DocumentPreview",
-    "DocumentSnapshot",
-    "Event",
-    "Export",
-    "File",
-    "Institution",
-    "Job",
-    "ManuscriptRevision",
-    "Message",
-    "Project",
-    "Quote",
-    "ResearchCandidate",
-    "ReviewItem",
-    "ThesisSession",
-    "Source",
-    "StyleProfile",
-    "UsageEvent",
-    "User",
+    "AIMemory", "AIMessage", "AIProposal", "AIRun", "AIThread", "AuthToken",
+    "CitationResolution", "DocumentCommand", "DocumentPreview", "DocumentSnapshot",
+    "Event", "Export", "File", "Institution", "Job", "ManuscriptRevision", "Message",
+    "ProjectPresence", "Project", "Quote", "ResearchCandidate", "ReviewItem",
+    "ThesisSession", "Source", "StyleProfile", "UsageEvent", "User", "Department",
+    "OrganizationMembership", "ProjectMembership", "MembershipInvitation",
+    "ReviewAssignment", "ProjectHandoff", "Notification", "NotificationPreference",
+    "DataLifecycleRequest", "SupportAccessGrant", "ReviewCycle",
+    "CollaborationComment", "HumanSuggestion", "ApprovalRecord",
+    "SupervisorInstruction", "Attestation", "InstitutionalPolicyVersion",
+    "InstitutionalProfileVersion", "OfficialTemplateVersion", "RetentionPolicy",
+    "SubmissionPackage", "ExternalReviewGrant",
 ]

@@ -1,0 +1,104 @@
+name: Phase 4 CI
+
+on:
+  push:
+    branches:
+      - agent/phase-4-collaborative-workspace
+  pull_request:
+
+jobs:
+  phase4:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: thesis
+          POSTGRES_PASSWORD: thesis
+          POSTGRES_DB: thesis_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U thesis -d thesis_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      ENV: development
+      DEBUG: "false"
+      DATABASE_URL: postgresql+asyncpg://thesis:thesis@127.0.0.1:5432/thesis_test
+      JWT_SECRET: test-secret-at-least-32-characters-long
+      JWT_ALGORITHM: HS256
+      JWT_EXPIRY_DAYS: "1"
+      ANTHROPIC_API_KEY: test-key-placeholder
+      FRONTEND_URL: http://localhost:8000
+      CORS_ORIGINS: http://localhost:8000
+      DEFAULT_INSTITUTION_SHORT_NAME: TU
+      STORAGE_BACKEND: local
+      LOCAL_STORAGE_DIR: /tmp/thesis-phase4-ci-storage
+      LOG_LEVEL: WARNING
+      AI_GLOBAL_ENABLED: "true"
+      AI_MAX_CONTEXT_CHARS: "60000"
+      AI_USER_CONCURRENT_LIMIT: "1"
+      AI_PROJECT_QUEUE_LIMIT: "3"
+      AI_DAILY_RUN_LIMIT: "30"
+      AI_DAILY_STRONG_RUN_LIMIT: "5"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Compile Python and import app
+        run: |
+          python -m compileall -q app tests
+          python -c "from app.main import app; print(app.version)"
+      - name: Validate workspace JavaScript
+        run: |
+          node --check app/static/phase2-core.js
+          node --check app/static/phase2-editor.js
+          node --check app/static/phase2-review.js
+          node --check app/static/phase2-integrity.js
+          node --check app/static/phase3-ai.js
+          node --check app/static/phase4-collaboration.js
+      - name: Validate Phase 4 migration round trip
+        shell: bash
+        run: |
+          set -o pipefail
+          alembic upgrade head 2>&1 | tee /tmp/phase4-migration.log
+          alembic downgrade 0011 2>&1 | tee -a /tmp/phase4-migration.log
+          alembic upgrade head 2>&1 | tee -a /tmp/phase4-migration.log
+      - name: Phase 4 capability and workflow invariants
+        shell: bash
+        run: |
+          set -o pipefail
+          pytest -q tests/test_phase4_unit.py 2>&1 | tee /tmp/phase4-unit.log
+      - name: Phase 4 tenant isolation and operations
+        shell: bash
+        run: |
+          set -o pipefail
+          pytest -q tests/test_phase4_api.py tests/test_phase4_operations.py 2>&1 | tee /tmp/phase4-api.log
+      - name: Phase 4 end-to-end institutional acceptance
+        shell: bash
+        run: |
+          set -o pipefail
+          pytest -q tests/test_phase4_acceptance.py 2>&1 | tee /tmp/phase4-acceptance.log
+      - name: Complete regression suite
+        shell: bash
+        run: |
+          set -o pipefail
+          pytest -q 2>&1 | tee /tmp/phase4-full.log
+      - name: Upload diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase4-ci-diagnostics
+          path: |
+            /tmp/phase4-migration.log
+            /tmp/phase4-unit.log
+            /tmp/phase4-api.log
+            /tmp/phase4-acceptance.log
+            /tmp/phase4-full.log
+          if-no-files-found: warn
