@@ -15,6 +15,9 @@ x-app: &app
     - no-new-privileges:true
   cap_drop:
     - ALL
+  depends_on:
+    clamav:
+      condition: service_healthy
   logging:
     driver: json-file
     options:
@@ -22,6 +25,24 @@ x-app: &app
       max-file: "5"
 
 services:
+  clamav:
+    image: ${CLAMAV_IMAGE:?Set CLAMAV_IMAGE to a pinned ClamAV image digest}
+    restart: unless-stopped
+    init: true
+    volumes:
+      - clamav-db:/var/lib/clamav
+    healthcheck:
+      test: ["CMD-SHELL", "clamdscan --ping 1 >/dev/null 2>&1"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 120s
+    logging:
+      driver: json-file
+      options:
+        max-size: 20m
+        max-file: "5"
+
   web-a:
     <<: *app
     command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips=*"]
@@ -98,7 +119,9 @@ services:
 
 volumes:
   runtime-var:
+  clamav-db:
 
-# PostgreSQL and object storage are intentionally absent. Production must use an
-# isolated/managed PostgreSQL service and Cloudflare R2. Place web-a/web-b behind
-# Cloudflare or an internal reverse proxy with health-aware failover.
+# PostgreSQL and object storage are intentionally absent. Staging and production
+# must use an isolated PostgreSQL service and Cloudflare R2. web-a/web-b belong
+# behind a health-aware reverse proxy. CLAMAV_IMAGE and ROBOFOX_IMAGE must be
+# pinned to immutable digests by the release environment.
