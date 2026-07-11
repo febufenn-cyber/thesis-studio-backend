@@ -14,6 +14,7 @@ from app.db.session import Base
 
 class ResearchCandidate(Base):
     __tablename__ = "research_candidates"
+    __mapper_args__ = {"eager_defaults": True}
 
     id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
     project_id: Mapped[UUID] = mapped_column(
