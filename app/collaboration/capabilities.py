@@ -50,7 +50,7 @@ ROLE_CAPABILITIES: dict[str, set[str]] = {
     "institution_admin": {
         "project.read_metadata", "membership.manage_institution", "assignment.manage",
         "queue.department", "profile.manage_institution", "template.manage",
-        "policy.manage", "retention.manage", "audit.read_metadata",
+        "policy.manage", "policy.read", "retention.manage", "audit.read_metadata",
         "analytics.read_aggregate", "support.manage", "institution.onboard",
         "project.transition_submission",
     },
@@ -106,10 +106,12 @@ async def organization_membership(
 async def resolve_project_access(
     db: AsyncSession,
     project_id: UUID,
-    user: User,
+    user: User | None,
     *,
     include_archived: bool = False,
 ) -> ProjectAccess | None:
+    if user is None:
+        return None
     project = (
         await db.execute(
             select(Project).where(
@@ -133,8 +135,9 @@ async def resolve_project_access(
             ai_history_access=True,
         )
 
-    institution_id = project.institution_id or user.institution_id
-    org = await organization_membership(db, institution_id, user.id)
+    if project.institution_id is None:
+        return None
+    org = await organization_membership(db, project.institution_id, user.id)
     now = datetime.now(timezone.utc)
     membership = (
         await db.execute(
@@ -150,9 +153,7 @@ async def resolve_project_access(
         capabilities = set(ROLE_CAPABILITIES.get(membership.role, set()))
         capabilities.update(str(value) for value in membership.capabilities or [])
         if not membership.content_access:
-            capabilities.difference_update(
-                {value for value in capabilities if value.startswith("project.read_content")}
-            )
+            capabilities.discard("project.read_content")
             capabilities.difference_update({"project.edit_content", "project.edit_structure", "project.edit_metadata"})
         if not membership.source_access:
             capabilities.discard("project.read_sources")
@@ -270,4 +271,28 @@ async def accessible_project_ids(db: AsyncSession, user: User, capability: str) 
         caps = set(ROLE_CAPABILITIES.get(membership.role, set())) | set(membership.capabilities or [])
         if capability in caps:
             result.add(membership.project_id)
+
+    orgs = list(
+        (
+            await db.execute(
+                select(OrganizationMembership).where(
+                    OrganizationMembership.user_id == user.id,
+                    OrganizationMembership.status == "active",
+                    OrganizationMembership.affiliation_status.in_(_VERIFIED_AFFILIATIONS),
+                    OrganizationMembership.role.in_(("department_admin", "institution_admin")),
+                )
+            )
+        ).scalars()
+    )
+    for org in orgs:
+        caps = _apply_overrides(ROLE_CAPABILITIES.get(org.role, set()), org.capability_overrides)
+        if capability not in caps:
+            continue
+        query = select(Project.id).where(
+            Project.institution_id == org.institution_id,
+            Project.archived.is_(False),
+        )
+        if org.role == "department_admin" and org.department_id is not None:
+            query = query.where(Project.department_id == org.department_id)
+        result.update((await db.execute(query)).scalars())
     return sorted(result, key=str)
