@@ -1,4 +1,4 @@
-"""Capability resolution for institutional and project collaboration.
+"""Capability resolution for institutional, project and commercial operations.
 
 Cross-tenant and unauthorized reads deliberately return 404 so identifiers cannot
 be enumerated. Existing project owners retain student-author compatibility, while
@@ -25,7 +25,8 @@ STUDENT_CAPABILITIES = {
     "project.edit_content", "project.comment", "project.suggest", "project.submit_review",
     "project.respond_review", "project.accept_suggestion", "project.request_final_approval",
     "project.export_draft", "project.read_ai_history", "source.add", "quote.add",
-    "ai.use", "membership.invite_reviewer", "submission.attest",
+    "ai.use", "membership.invite_reviewer", "submission.attest", "data.export_self",
+    "data.request_deletion_self", "session.manage_self",
 }
 
 ROLE_CAPABILITIES: dict[str, set[str]] = {
@@ -34,28 +35,37 @@ ROLE_CAPABILITIES: dict[str, set[str]] = {
         "project.read_metadata", "project.read_content", "project.read_sources",
         "project.comment", "project.suggest", "project.approve_chapter",
         "project.approve_academic", "project.issue_instruction", "review.manage",
-        "queue.review", "submission.attest",
+        "queue.review", "submission.attest", "session.manage_self",
     },
     "operator": {
         "project.read_metadata", "project.read_content", "project.read_sources",
         "project.comment", "project.edit_structure", "project.edit_metadata",
         "project.prepare_export", "project.approve_formatting", "queue.formatting",
-        "submission.attest",
+        "submission.attest", "session.manage_self",
     },
     "department_admin": {
         "project.read_metadata", "membership.manage_department", "assignment.manage",
         "queue.department", "profile.manage_department", "policy.read",
         "project.transition_submission", "analytics.read_aggregate", "audit.read_metadata",
+        "entitlement.read", "usage.read_aggregate", "reliability.read",
+        "support.request", "session.manage_self",
     },
     "institution_admin": {
         "project.read_metadata", "membership.manage_institution", "assignment.manage",
         "queue.department", "profile.manage_institution", "template.manage",
         "policy.manage", "policy.read", "retention.manage", "audit.read_metadata",
         "analytics.read_aggregate", "support.manage", "institution.onboard",
-        "project.transition_submission",
+        "project.transition_submission", "billing.manage", "billing.read",
+        "entitlement.manage", "entitlement.read", "usage.read_aggregate",
+        "budget.manage", "reliability.read", "reliability.manage", "incident.manage",
+        "privacy.manage", "privacy.read", "security.read", "feature.manage",
+        "session.revoke_member", "session.manage_self", "support.request",
     },
     "external_reviewer": {"sealed.read_metadata", "sealed.read_content"},
-    "support": {"project.read_metadata"},
+    "support": {
+        "project.read_metadata", "support.console", "support.retry_job",
+        "support.diagnostic", "session.revoke_support", "reliability.read",
+    },
 }
 
 _VERIFIED_AFFILIATIONS = {"domain_verified", "admin_verified"}
@@ -106,12 +116,10 @@ async def organization_membership(
 async def resolve_project_access(
     db: AsyncSession,
     project_id: UUID,
-    user: User | None,
+    user: User,
     *,
     include_archived: bool = False,
 ) -> ProjectAccess | None:
-    if user is None:
-        return None
     project = (
         await db.execute(
             select(Project).where(
@@ -135,9 +143,8 @@ async def resolve_project_access(
             ai_history_access=True,
         )
 
-    if project.institution_id is None:
-        return None
-    org = await organization_membership(db, project.institution_id, user.id)
+    institution_id = project.institution_id or user.institution_id
+    org = await organization_membership(db, institution_id, user.id)
     now = datetime.now(timezone.utc)
     membership = (
         await db.execute(
@@ -153,7 +160,9 @@ async def resolve_project_access(
         capabilities = set(ROLE_CAPABILITIES.get(membership.role, set()))
         capabilities.update(str(value) for value in membership.capabilities or [])
         if not membership.content_access:
-            capabilities.discard("project.read_content")
+            capabilities.difference_update(
+                {value for value in capabilities if value.startswith("project.read_content")}
+            )
             capabilities.difference_update({"project.edit_content", "project.edit_structure", "project.edit_metadata"})
         if not membership.source_access:
             capabilities.discard("project.read_sources")
@@ -171,8 +180,6 @@ async def resolve_project_access(
             ai_history_access=membership.ai_history_access,
         )
 
-    # Institution/department administrators can operate on workflow metadata, but
-    # they receive no manuscript-content access without a project membership.
     if org is not None:
         department_match = org.department_id is None or org.department_id == project.department_id
         if department_match and org.role in {"department_admin", "institution_admin"}:
@@ -271,28 +278,4 @@ async def accessible_project_ids(db: AsyncSession, user: User, capability: str) 
         caps = set(ROLE_CAPABILITIES.get(membership.role, set())) | set(membership.capabilities or [])
         if capability in caps:
             result.add(membership.project_id)
-
-    orgs = list(
-        (
-            await db.execute(
-                select(OrganizationMembership).where(
-                    OrganizationMembership.user_id == user.id,
-                    OrganizationMembership.status == "active",
-                    OrganizationMembership.affiliation_status.in_(_VERIFIED_AFFILIATIONS),
-                    OrganizationMembership.role.in_(("department_admin", "institution_admin")),
-                )
-            )
-        ).scalars()
-    )
-    for org in orgs:
-        caps = _apply_overrides(ROLE_CAPABILITIES.get(org.role, set()), org.capability_overrides)
-        if capability not in caps:
-            continue
-        query = select(Project.id).where(
-            Project.institution_id == org.institution_id,
-            Project.archived.is_(False),
-        )
-        if org.role == "department_admin" and org.department_id is not None:
-            query = query.where(Project.department_id == org.department_id)
-        result.update((await db.execute(query)).scalars())
     return sorted(result, key=str)

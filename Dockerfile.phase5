@@ -1,0 +1,38 @@
+FROM python:3.11-slim-bookworm
+
+ARG RELEASE_SHA=development
+ARG BUILD_TIME
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    RELEASE_SHA=${RELEASE_SHA} \
+    BUILD_TIME=${BUILD_TIME} \
+    PATH=/home/robofox/.local/bin:${PATH}
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      ca-certificates \
+      curl \
+      libreoffice-core-nogui \
+      libreoffice-writer-nogui \
+      fonts-liberation \
+      fontconfig \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN useradd --create-home --uid 10001 --shell /usr/sbin/nologin robofox
+WORKDIR /app
+
+COPY requirements.txt ./
+RUN python -m pip install --upgrade pip \
+    && python -m pip install --requirement requirements.txt
+
+COPY --chown=robofox:robofox . .
+RUN mkdir -p /tmp/robofox /app/var \
+    && chown -R robofox:robofox /tmp/robofox /app/var
+
+USER robofox
+EXPOSE 8000
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+  CMD curl --fail --silent http://127.0.0.1:8000/healthz >/dev/null || exit 1
+
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips=*"]

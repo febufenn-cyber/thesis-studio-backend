@@ -1,0 +1,53 @@
+name: Phase 5 Security
+
+on:
+  pull_request:
+  push:
+    branches:
+      - agent/phase-5-commercial-reliability
+      - main
+  schedule:
+    - cron: "17 2 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install application and security scanners
+        run: |
+          pip install -r requirements.txt
+          pip install pip-audit bandit
+      - name: Dependency vulnerability audit
+        run: pip-audit -r requirements.txt --strict
+      - name: Static application security scan
+        run: bandit -r app -x tests -ll -ii
+      - name: Secret pattern check
+        shell: bash
+        run: |
+          set -o pipefail
+          ! git grep -nE '(sk-[A-Za-z0-9_-]{20,}|AKIA[0-9A-Z]{16}|BEGIN (RSA|OPENSSH|EC) PRIVATE KEY|R2_SECRET_ACCESS_KEY=[^$<{])' -- ':!*.md' ':!.env.example'
+      - name: Production configuration safety test
+        shell: bash
+        env:
+          ENV: production
+          DATABASE_URL: postgresql+asyncpg://service:password@managed-db.example.invalid:5432/thesis?ssl=require
+          JWT_SECRET: 0123456789abcdef0123456789abcdef
+          RELEASE_SHA: 0123456789abcdef0123456789abcdef01234567
+          BUILD_TIME: 2026-07-12T00:00:00+00:00
+          STORAGE_BACKEND: r2
+          R2_ACCOUNT_ID: test-account
+          R2_ACCESS_KEY_ID: test-access-key
+          R2_SECRET_ACCESS_KEY: test-secret-key
+          R2_BUCKET_NAME: test-bucket
+          BILLING_WEBHOOK_SECRET: test-webhook-secret-at-least-24
+        run: python scripts/verify_phase5_environment.py
