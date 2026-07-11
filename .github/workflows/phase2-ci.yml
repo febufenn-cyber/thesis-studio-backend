@@ -1,0 +1,74 @@
+name: Phase 2 CI
+
+on:
+  push:
+    branches:
+      - agent/phase-2-human-review
+  pull_request:
+
+jobs:
+  phase2:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: thesis
+          POSTGRES_PASSWORD: thesis
+          POSTGRES_DB: thesis_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U thesis -d thesis_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      ENV: development
+      DEBUG: "false"
+      DATABASE_URL: postgresql+asyncpg://thesis:thesis@127.0.0.1:5432/thesis_test
+      JWT_SECRET: test-secret-at-least-32-characters-long
+      JWT_ALGORITHM: HS256
+      JWT_EXPIRY_DAYS: "1"
+      ANTHROPIC_API_KEY: test-key-placeholder
+      FRONTEND_URL: http://localhost:8000
+      CORS_ORIGINS: http://localhost:8000
+      DEFAULT_INSTITUTION_SHORT_NAME: TU
+      STORAGE_BACKEND: local
+      LOCAL_STORAGE_DIR: /tmp/thesis-phase2-ci-storage
+      LOG_LEVEL: WARNING
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Compile Python
+        run: python -m compileall -q app tests
+      - name: Validate Phase 2 frontend JavaScript
+        run: |
+          node --check app/static/phase2-core.js
+          node --check app/static/phase2-editor.js
+          node --check app/static/phase2-review.js
+      - name: Validate Phase 2 migration round trip
+        shell: bash
+        run: |
+          set -o pipefail
+          alembic upgrade head 2>&1 | tee /tmp/phase2-migration.log
+          alembic downgrade 0008 2>&1 | tee -a /tmp/phase2-migration.log
+          alembic upgrade head 2>&1 | tee -a /tmp/phase2-migration.log
+      - name: Phase 2 unit invariants
+        run: pytest -q tests/test_phase2_unit.py
+      - name: Phase 2 API workflow
+        run: pytest -q tests/test_phase2_api.py
+      - name: Full regression suite
+        run: pytest -q
+      - name: Upload diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase2-ci-diagnostics
+          path: /tmp/phase2-migration.log
+          if-no-files-found: ignore
