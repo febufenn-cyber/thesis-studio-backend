@@ -115,12 +115,20 @@ def test_prose_operations_cannot_smuggle_long_direct_quotations() -> None:
     with pytest.raises(ValidationError, match="Direct quotation text"):
         AIOperation.model_validate(data)
 
+    semantic_payload = {
+        "block_id": str(uuid4()),
+        "runs": [
+            {
+                "text": "The critic argues, “This long quotation bypassed ordinary schema construction.”"
+            }
+        ],
+    }
     operation = AIOperation.model_construct(
         kind="replace_runs",
         label="Add evidence",
         reason="Support the claim",
         risk="medium",
-        payload=data["payload"],
+        payload=semantic_payload,
     )
     with pytest.raises(ProposalValidationError, match="verified quote_id"):
         _reject_unregistered_direct_quote(operation)
