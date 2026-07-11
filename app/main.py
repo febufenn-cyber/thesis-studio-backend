@@ -39,6 +39,7 @@ from app.api import review_workspace as review_workspace_router
 from app.api import sessions as sessions_router
 from app.api import submissions as submissions_router
 from app.api import support_console as support_console_router
+from app.commercial.guards import CommercialGuardMiddleware
 from app.commercial.observability import JourneyTracingMiddleware, release_identity
 from app.core.config import get_settings
 from app.core.exceptions import register_exception_handlers
@@ -165,6 +166,7 @@ def create_app() -> FastAPI:
         redoc_url=None,
     )
     app.add_middleware(JourneyTracingMiddleware)
+    app.add_middleware(CommercialGuardMiddleware)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins_list,
