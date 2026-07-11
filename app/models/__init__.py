@@ -1,10 +1,12 @@
-"""ORM models. Importing this module registers all tables on the Base metadata."""
+"""ORM models. Importing this module registers all tables on Base metadata."""
 
 from app.models.auth_token import AuthToken
 from app.models.event import Event
 from app.models.export import Export
 from app.models.file import File
 from app.models.institution import Institution
+from app.models.job import Job
+from app.models.manuscript_revision import ManuscriptRevision
 from app.models.message import Message
 from app.models.project import Project
 from app.models.quote import Quote
@@ -20,6 +22,8 @@ __all__ = [
     "Export",
     "File",
     "Institution",
+    "Job",
+    "ManuscriptRevision",
     "Message",
     "Project",
     "Quote",
