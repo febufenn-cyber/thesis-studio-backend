@@ -18,8 +18,10 @@ class Project(Base):
     ``document_version`` is incremented on every canonical mutation and is used
     for optimistic concurrency, stale-export detection and later review anchors.
     ``active_revision_id`` points to the immutable upload currently applied to
-    the canonical document; it intentionally has no FK to avoid a circular DDL
-    dependency with manuscript_revisions.
+    the canonical document. The named ``use_alter`` foreign key lets SQLAlchemy
+    create and drop metadata safely despite the intentional Project ↔ Revision
+    cycle, while Alembic migration 0008 enforces the same constraint in
+    production.
     """
 
     __tablename__ = "projects"
@@ -38,7 +40,16 @@ class Project(Base):
     style_profile_id: Mapped[UUID | None] = mapped_column(
         PG_UUID(as_uuid=True), ForeignKey("style_profiles.id", ondelete="SET NULL"), nullable=True
     )
-    active_revision_id: Mapped[UUID | None] = mapped_column(PG_UUID(as_uuid=True), nullable=True)
+    active_revision_id: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey(
+            "manuscript_revisions.id",
+            name="fk_projects_active_revision",
+            ondelete="SET NULL",
+            use_alter=True,
+        ),
+        nullable=True,
+    )
     document_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
 
     meta: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
