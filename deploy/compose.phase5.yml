@@ -1,0 +1,104 @@
+name: robofox-thesis-phase5
+
+x-app: &app
+  image: ${ROBOFOX_IMAGE:?Set ROBOFOX_IMAGE to an immutable release digest}
+  env_file:
+    - ${ROBOFOX_ENV_FILE:-.env.production}
+  restart: unless-stopped
+  init: true
+  read_only: true
+  tmpfs:
+    - /tmp:size=512m,mode=1777
+  volumes:
+    - runtime-var:/app/var
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+  logging:
+    driver: json-file
+    options:
+      max-size: 20m
+      max-file: "5"
+
+services:
+  web-a:
+    <<: *app
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips=*"]
+    environment:
+      PROCESS_ROLE: web
+    ports:
+      - "127.0.0.1:${WEB_A_PORT:-8101}:8000"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:8000/readyz"]
+      interval: 20s
+      timeout: 5s
+      retries: 3
+      start_period: 45s
+
+  web-b:
+    <<: *app
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips=*"]
+    environment:
+      PROCESS_ROLE: web
+    ports:
+      - "127.0.0.1:${WEB_B_PORT:-8102}:8000"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:8000/readyz"]
+      interval: 20s
+      timeout: 5s
+      retries: 3
+      start_period: 45s
+
+  worker-general:
+    <<: *app
+    command: ["python", "-m", "app.services.job_queue"]
+    environment:
+      PROCESS_ROLE: worker
+      WORKER_QUEUE: general
+      WORKER_ID: ${HOSTNAME:-phase5}-general
+    healthcheck:
+      disable: true
+
+  worker-ai:
+    <<: *app
+    command: ["python", "-m", "app.services.job_queue"]
+    environment:
+      PROCESS_ROLE: worker
+      WORKER_QUEUE: ai
+      WORKER_ID: ${HOSTNAME:-phase5}-ai
+    healthcheck:
+      disable: true
+
+  worker-pdf:
+    <<: *app
+    command: ["python", "-m", "app.services.job_queue"]
+    environment:
+      PROCESS_ROLE: worker
+      WORKER_QUEUE: pdf
+      WORKER_ID: ${HOSTNAME:-phase5}-pdf
+    tmpfs:
+      - /tmp:size=2g,mode=1777
+    deploy:
+      resources:
+        limits:
+          memory: 3g
+    healthcheck:
+      disable: true
+
+  maintenance:
+    <<: *app
+    command: ["python", "-m", "app.services.job_queue"]
+    environment:
+      PROCESS_ROLE: maintenance
+      WORKER_QUEUE: maintenance
+      WORKER_ID: ${HOSTNAME:-phase5}-maintenance
+    healthcheck:
+      disable: true
+
+volumes:
+  runtime-var:
+
+# PostgreSQL and object storage are intentionally absent. Production must use an
+# isolated/managed PostgreSQL service and Cloudflare R2. Place web-a/web-b behind
+# Cloudflare or an internal reverse proxy with health-aware failover.
