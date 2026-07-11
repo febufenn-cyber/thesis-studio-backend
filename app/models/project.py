@@ -16,12 +16,9 @@ class Project(Base):
     """A formatting/research project belonging to one user.
 
     ``document_version`` is incremented on every canonical mutation and is used
-    for optimistic concurrency, stale-export detection and later review anchors.
-    ``active_revision_id`` points to the immutable upload currently applied to
-    the canonical document. The named ``use_alter`` foreign key lets SQLAlchemy
-    create and drop metadata safely despite the intentional Project ↔ Revision
-    cycle, while Alembic migration 0008 enforces the same constraint in
-    production.
+    for optimistic concurrency, stale-export detection and review anchors.
+    ``canonical_schema_version`` tracks JSONB data migrations independently from
+    relational Alembic migrations.
     """
 
     __tablename__ = "projects"
@@ -51,6 +48,7 @@ class Project(Base):
         nullable=True,
     )
     document_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    canonical_schema_version: Mapped[int] = mapped_column(Integer, nullable=False, default=3)
 
     meta: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
     front_matter: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
