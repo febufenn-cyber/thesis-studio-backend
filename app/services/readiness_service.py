@@ -12,9 +12,9 @@ from app.core.config import get_settings
 from app.db.session import AsyncSessionLocal
 from app.models.job import Job
 from app.renderers.pdf_renderer import check_pdf_stack
+from app.services.malware_service import malware_scanner_ready
 
 
-EXPECTED_MIGRATION = "0007"
 MIN_FREE_DISK_BYTES = 500 * 1024 * 1024
 
 
@@ -30,9 +30,9 @@ async def readiness_report() -> dict:
                 await db.execute(text("SELECT version_num FROM alembic_version LIMIT 1"))
             ).scalar_one_or_none()
             checks["migration"] = {
-                "ok": migration == EXPECTED_MIGRATION,
+                "ok": migration == settings.SCHEMA_VERSION,
                 "current": migration,
-                "expected": EXPECTED_MIGRATION,
+                "expected": settings.SCHEMA_VERSION,
             }
             now = datetime.now(timezone.utc)
             queued = (
@@ -74,7 +74,7 @@ async def readiness_report() -> dict:
             }
     except Exception as exc:
         checks["database"] = {"ok": False, "error": type(exc).__name__}
-        checks["migration"] = {"ok": False}
+        checks["migration"] = {"ok": False, "expected": settings.SCHEMA_VERSION}
         checks["worker"] = {"ok": False}
 
     pdf = check_pdf_stack()
@@ -118,5 +118,10 @@ async def readiness_report() -> dict:
         "ok": bool(settings.RESEND_API_KEY) or settings.ENV == "development",
         "configured": bool(settings.RESEND_API_KEY),
     }
+    checks["malware_scanner"] = await malware_scanner_ready()
     overall = all(check.get("ok", False) for check in checks.values())
-    return {"status": "ready" if overall else "not_ready", "checks": checks}
+    return {
+        "status": "ready" if overall else "not_ready",
+        "checks": checks,
+        "schema_version": settings.SCHEMA_VERSION,
+    }
