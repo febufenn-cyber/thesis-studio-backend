@@ -13,7 +13,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.export import Export
 from app.models.institution import Institution
 from app.models.project import Project
-from app.models.review_collaboration import ApprovalRecord, ReviewCycle
 from app.models.tenancy import Department, OrganizationMembership, ProjectMembership
 from app.models.user import User
 from tests.conftest import auth_cookie
@@ -97,12 +96,18 @@ async def test_full_collaborative_thesis_submission_flow(
 
     created = await client.post(
         "/projects",
-        json={"title": "Memory as Narrative Resistance", "mode": "student", "format_profile": "mla_strict"},
+        json={
+            "title": "Memory as Narrative Resistance",
+            "mode": "student",
+            "format_profile": "mla_strict",
+        },
         cookies=auth_cookie(user_a),
     )
     assert created.status_code == 201
     project_id = created.json()["id"]
-    project_row = (await db_session.execute(select(Project).where(Project.id == project_id))).scalar_one()
+    project_row = (
+        await db_session.execute(select(Project).where(Project.id == project_id))
+    ).scalar_one()
     project_row.institution_id = test_institution.id
     project_row.department_id = department.id
     project_row.workflow_state = "student_review"
@@ -122,7 +127,10 @@ async def test_full_collaborative_thesis_submission_flow(
                             "type": "paragraph",
                             "runs": [
                                 {
-                                    "text": "The house is described as a place of memory, but the paragraph does not yet explain its argumentative function."
+                                    "text": (
+                                        "The house is described as a place of memory, but the "
+                                        "paragraph does not yet explain its argumentative function."
+                                    )
                                 }
                             ],
                         }
@@ -155,7 +163,6 @@ async def test_full_collaborative_thesis_submission_flow(
         user_a,
         "operator",
     )
-    # Department administrator deliberately has metadata authority without content access.
     db_session.add(
         OrganizationMembership(
             institution_id=test_institution.id,
@@ -170,7 +177,6 @@ async def test_full_collaborative_thesis_submission_flow(
     )
     await db_session.commit()
 
-    # Student submits an immutable Chapter III snapshot.
     first_submit = await client.post(
         f"/projects/{project_id}/review-cycles",
         json={
@@ -184,7 +190,6 @@ async def test_full_collaborative_thesis_submission_flow(
     assert first_submit.status_code == 201
     first_cycle = first_submit.json()
 
-    # Supervisor comments and proposes a structured change; neither mutates the thesis.
     selected = "described as a place of memory"
     paragraph = block["runs"][0]["text"]
     start = paragraph.index(selected)
@@ -237,19 +242,22 @@ async def test_full_collaborative_thesis_submission_flow(
     assert accepted.json()["status"] == "accepted"
     assert accepted.json()["applied_command_id"]
 
-    # The first decision remains attached to the reviewed snapshot, not the edited draft.
     old_decision = await client.post(
         f"/projects/{project_id}/review-cycles/{first_cycle['id']}/decision",
-        json={"decision": "approved", "note": "The submitted snapshot was academically sound."},
+        json={
+            "decision": "approved",
+            "note": "The submitted snapshot was academically sound.",
+        },
         cookies=auth_cookie(supervisor),
     )
     assert old_decision.status_code == 200
     assert old_decision.json()["approval"]["status"] == "snapshot_only"
 
-    current_project = await client.get(f"/projects/{project_id}", cookies=auth_cookie(user_a))
+    current_project = await client.get(
+        f"/projects/{project_id}", cookies=auth_cookie(user_a)
+    )
     assert current_project.status_code == 200
 
-    # Student resubmits the current version; this approval applies to the live thesis.
     second_submit = await client.post(
         f"/projects/{project_id}/review-cycles",
         json={
@@ -276,14 +284,16 @@ async def test_full_collaborative_thesis_submission_flow(
 
     current_approval = await client.post(
         f"/projects/{project_id}/review-cycles/{second_cycle['id']}/decision",
-        json={"decision": "approved", "note": "Academic content approved for formatting."},
+        json={
+            "decision": "approved",
+            "note": "Academic content approved for formatting.",
+        },
         cookies=auth_cookie(supervisor),
     )
     assert current_approval.status_code == 200
     assert current_approval.json()["approval"]["status"] == "active"
     assert current_approval.json()["workflow_state"] == "academically_approved"
 
-    # Operator cannot rewrite prose, but can make a metadata correction.
     blocked_rewrite = await client.post(
         f"/projects/{project_id}/collaboration/commands",
         json={
@@ -348,13 +358,14 @@ async def test_full_collaborative_thesis_submission_flow(
             "dimension": "institutional",
             "scope_type": "project",
             "decision": "approved",
-            "note": "Workflow approval recorded; this is not represented as a legal signature.",
+            "note": (
+                "Workflow approval recorded; this is not represented as a legal signature."
+            ),
         },
         cookies=auth_cookie(admin),
     )
     assert institutional_approval.status_code == 201
 
-    # Student and supervisor acknowledge the exact final version.
     student_attestation = await client.post(
         f"/projects/{project_id}/attestations",
         json={
@@ -371,14 +382,18 @@ async def test_full_collaborative_thesis_submission_flow(
         json={
             "attestation_type": "supervisor_workflow_approval",
             "statement_version": "2026.1",
-            "statement_text": "I reviewed and approved the recorded academic submission workflow.",
+            "statement_text": (
+                "I reviewed and approved the recorded academic submission workflow."
+            ),
             "accepted": True,
         },
         cookies=auth_cookie(supervisor),
     )
     assert supervisor_attestation.status_code == 201
 
-    final_project = (await db_session.execute(select(Project).where(Project.id == project_id))).scalar_one()
+    final_project = (
+        await db_session.execute(select(Project).where(Project.id == project_id))
+    ).scalar_one()
     for fmt in ("docx", "pdf"):
         db_session.add(
             Export(
@@ -392,7 +407,10 @@ async def test_full_collaborative_thesis_submission_flow(
                 size_bytes=2048,
                 status="ready",
                 report={"pass": True},
-                manifest={"state": "final", "document_version": final_project.document_version},
+                manifest={
+                    "state": "final",
+                    "document_version": final_project.document_version,
+                },
             )
         )
     await db_session.commit()
@@ -413,7 +431,9 @@ async def test_full_collaborative_thesis_submission_flow(
     package = sealed.json()
     assert package["state"] == "sealed"
     assert package["package_checksum"]
-    assert package["manifest"]["signature_claim"].startswith("Authenticated workflow approval")
+    assert package["manifest"]["signature_claim"].startswith(
+        "Authenticated workflow approval"
+    )
 
     external = await client.post(
         f"/projects/{project_id}/submission-packages/{package['id']}/external-review",
@@ -429,15 +449,24 @@ async def test_full_collaborative_thesis_submission_flow(
     assert external.status_code == 201
     token = external.json()["access_token"]
 
+    wrong_recipient = await client.post(
+        "/external-review/access",
+        json={"token": token, "recipient_email": "other@example.edu"},
+    )
+    assert wrong_recipient.status_code == 404
+
     external_view = await client.post(
         "/external-review/access",
-        json={"token": token},
+        json={"token": token, "recipient_email": "examiner@example.edu"},
     )
     assert external_view.status_code == 200
     assert external_view.json()["grant"]["download_allowed"] is False
     assert external_view.json()["canonical_document"]["chapters"]
+    assert all(
+        "storage_key" not in item
+        for item in external_view.json()["submission"]["manifest"]["exports"]
+    )
 
-    # Sealing freezes this package; later changes require withdrawal/new revision.
     locked_edit = await client.post(
         f"/projects/{project_id}/collaboration/commands",
         json={
@@ -455,9 +484,12 @@ async def test_full_collaborative_thesis_submission_flow(
     )
     assert timeline.status_code == 200
     kinds = {row["kind"] for row in timeline.json()}
-    assert {"review_cycle_submitted", "human_suggestion_decided", "submission_package_sealed"}.issubset(kinds)
+    assert {
+        "review_cycle_submitted",
+        "human_suggestion_decided",
+        "submission_package_sealed",
+    }.issubset(kinds)
 
-    # Department sees operational readiness without being granted private AI history.
     admin_access = await client.get(
         f"/projects/{project_id}/collaboration/access",
         cookies=auth_cookie(admin),
