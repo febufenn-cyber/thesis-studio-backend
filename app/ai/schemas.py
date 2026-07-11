@@ -131,6 +131,7 @@ class GroundedAIOutput(BaseModel):
 class ProposalDecision(BaseModel):
     action: Literal["accept_selected", "accept_all", "reject", "supersede"]
     selected_operation_indexes: list[int] = Field(default_factory=list, max_length=20)
+    operation_overrides: dict[int, AIOperation] = Field(default_factory=dict)
     expected_document_version: int = Field(..., ge=1)
     decision_note: str | None = Field(None, max_length=4000)
     rejection_reason: Literal[
@@ -147,4 +148,6 @@ class ProposalDecision(BaseModel):
             raise ValueError("accept_selected requires at least one operation index")
         if self.action == "reject" and not self.rejection_reason:
             raise ValueError("rejection_reason is required when rejecting a proposal")
+        if self.operation_overrides and self.action not in {"accept_selected", "accept_all"}:
+            raise ValueError("operation overrides are valid only while accepting a proposal")
         return self
