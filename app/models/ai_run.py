@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String, Text, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -28,6 +28,7 @@ class AIRun(Base):
     request_message_id: Mapped[UUID | None] = mapped_column(
         PG_UUID(as_uuid=True), ForeignKey("ai_messages.id", ondelete="SET NULL"), nullable=True
     )
+    client_request_id: Mapped[str | None] = mapped_column(String(120), nullable=True)
     task_mode: Mapped[str] = mapped_column(String(40), nullable=False)
     result_type: Mapped[str] = mapped_column(String(30), nullable=False, default="conversation")
     risk_level: Mapped[str] = mapped_column(String(20), nullable=False, default="low")
@@ -50,6 +51,7 @@ class AIRun(Base):
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     __table_args__ = (
+        UniqueConstraint("project_id", "client_request_id", name="uq_ai_run_client_request"),
         Index("ix_ai_runs_project_status", "project_id", "status"),
         Index("ix_ai_runs_thread_created", "thread_id", "created_at"),
         Index("ix_ai_runs_user_status", "user_id", "status"),
