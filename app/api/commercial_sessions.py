@@ -12,7 +12,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import CurrentApplicationSession, CurrentUser
 from app.collaboration.capabilities import require_institution_capability
-from app.commercial.sessions import mark_reauthenticated, revoke_all_sessions, revoke_session
+from app.commercial.sessions import (
+    mark_reauthenticated,
+    require_recent_reauthentication,
+    revoke_all_sessions,
+    revoke_session,
+)
 from app.core.config import get_settings
 from app.core.security import hash_magic_link_token
 from app.db.deps import get_db
@@ -90,12 +95,7 @@ async def revoke_device_session(
     ).scalar_one_or_none()
     if row is None:
         raise HTTPException(status_code=404, detail="Session not found")
-    await revoke_session(
-        db,
-        row,
-        actor_id=current_user.id,
-        reason="User revoked this device session.",
-    )
+    await revoke_session(db, row, actor_id=current_user.id, reason="User revoked this device session.")
     await db.commit()
     if row.id == current_session.id:
         response.delete_cookie(get_settings().SESSION_COOKIE_NAME)
@@ -152,11 +152,7 @@ async def reauthenticate_session(
     token.used_at = now
     await mark_reauthenticated(db, current_session, current_user.id)
     await db.commit()
-    return {
-        "ok": True,
-        "session_id": current_session.id,
-        "reauthenticated_at": current_session.reauthenticated_at,
-    }
+    return {"ok": True, "session_id": current_session.id, "reauthenticated_at": current_session.reauthenticated_at}
 
 
 @router.post("/institutions/{institution_id}/members/{user_id}/revoke-sessions")
@@ -168,18 +164,10 @@ async def administrator_revoke_member_sessions(
     current_session: CurrentApplicationSession,
     db: AsyncSession = Depends(get_db),
 ) -> dict:
-    await require_institution_capability(
-        db,
-        institution_id,
-        current_user,
-        "membership.manage_institution",
-    )
-    if current_user.id == user_id:
-        await mark_reauthenticated(db, current_session, current_user.id)
+    await require_institution_capability(db, institution_id, current_user, "session.revoke_member")
+    await require_recent_reauthentication(current_session)
     target = (
-        await db.execute(
-            select(User).where(User.id == user_id, User.institution_id == institution_id)
-        )
+        await db.execute(select(User).where(User.id == user_id, User.institution_id == institution_id))
     ).scalar_one_or_none()
     if target is None:
         raise HTTPException(status_code=404, detail="Institution member not found")
