@@ -1,0 +1,88 @@
+name: Main Validation Attestation
+
+on:
+  workflow_run:
+    workflows: ['Main Release Candidate']
+    types: [completed]
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  attest:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.event == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download exact-main validation artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          VALIDATED_SHA: ${{ github.event.workflow_run.head_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          artifact_id=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}/artifacts" \
+            --jq ".artifacts[] | select(.name == \"main-release-candidate-${VALIDATED_SHA}\") | .id" | head -n1)
+          test -n "$artifact_id"
+          gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" > /tmp/main-rc.zip
+          mkdir -p /tmp/main-rc
+          unzip -q /tmp/main-rc.zip -d /tmp/main-rc
+          test -f /tmp/main-rc/main-release-candidate.json
+      - name: Verify and enrich attestation
+        env:
+          VALIDATED_SHA: ${{ github.event.workflow_run.head_sha }}
+          VALIDATION_RUN_URL: ${{ github.event.workflow_run.html_url }}
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          source = Path('/tmp/main-rc/main-release-candidate.json')
+          report = json.loads(source.read_text())
+          assert report['sha'] == os.environ['VALIDATED_SHA']
+          assert report['failures'] == 0 and report['errors'] == 0
+          assert report['deployment_triggered'] is False
+          report['attestation_schema'] = 'robofox.main-validation-attestation.v1'
+          report['validation_run_url'] = os.environ['VALIDATION_RUN_URL']
+          report['attested_at'] = datetime.now(timezone.utc).isoformat()
+          report['production_approved'] = False
+          report['external_evidence_complete'] = False
+          Path('/tmp/attestation.json').write_text(json.dumps(report, indent=2, sort_keys=True) + '\n')
+          PY
+      - name: Commit durable release-candidate evidence
+        uses: actions/github-script@v7
+        env:
+          VALIDATED_SHA: ${{ github.event.workflow_run.head_sha }}
+        with:
+          script: |
+            const fs = require('fs');
+            const path = `release-candidates/${process.env.VALIDATED_SHA}.json`;
+            const content = Buffer.from(fs.readFileSync('/tmp/attestation.json', 'utf8')).toString('base64');
+            let sha;
+            try {
+              const existing = await github.rest.repos.getContent({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                path,
+                ref: 'main',
+              });
+              sha = existing.data.sha;
+            } catch (error) {
+              if (error.status !== 404) throw error;
+            }
+            await github.rest.repos.createOrUpdateFileContents({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              path,
+              branch: 'main',
+              message: `ci: attest release candidate ${process.env.VALIDATED_SHA} [skip ci]`,
+              content,
+              sha,
+            });
