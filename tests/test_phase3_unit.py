@@ -130,7 +130,10 @@ def test_task_registry_routes_risk_and_permissions_server_side() -> None:
     coherence = get_task("coherence")
     assert coherence.model_tier == "strong"
     assert coherence.allowed_operations == ()
-    assert "memory_refresh" not in {item["mode"] for item in public_task_catalog()}
+    memory = get_task("memory_refresh")
+    assert memory.result_type == "memory"
+    assert memory.allowed_operations == ()
+    assert "memory_refresh" in {item["mode"] for item in public_task_catalog()}
 
 
 def test_block_scope_manifest_hashes_only_examined_block() -> None:
