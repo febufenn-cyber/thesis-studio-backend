@@ -2,7 +2,7 @@
 
 Jobs are claimed with ``FOR UPDATE SKIP LOCKED`` so multiple workers can be
 added later without Redis. The initial deployment runs one worker, serialising
-memory-heavy ingestion, preview and export conversions on the shared VM.
+memory-heavy ingestion, preview, export and grounded-AI work on the shared VM.
 """
 
 from __future__ import annotations
@@ -18,6 +18,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import AsyncSessionLocal
+from app.models.ai_run import AIRun
 from app.models.document_preview import DocumentPreview
 from app.models.export import Export
 from app.models.job import Job
@@ -134,6 +135,13 @@ async def _already_completed(kind: str, payload: dict) -> bool:
                 and preview.storage_key
                 and preview.checksum
             )
+        if kind == "ai_run":
+            run = (
+                await db.execute(
+                    select(AIRun).where(AIRun.id == UUID(payload["run_id"]))
+                )
+            ).scalar_one_or_none()
+            return bool(run and run.status in {"succeeded", "cancelled", "stale"})
     return False
 
 
@@ -169,6 +177,11 @@ async def _dispatch(job: Job) -> None:
             UUID(payload["project_id"]),
             UUID(payload["user_id"]),
         )
+        return
+    if job.kind == "ai_run":
+        from app.ai.orchestrator import run_grounded_ai
+
+        await run_grounded_ai(UUID(payload["run_id"]))
         return
     raise ValueError(f"Unknown job kind: {job.kind}")
 

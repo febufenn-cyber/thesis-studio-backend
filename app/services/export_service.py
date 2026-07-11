@@ -14,6 +14,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.ai.disclosure import ai_disclosure_summary
 from app.canonical.model import ThesisDocument
 from app.db.session import AsyncSessionLocal
 from app.models.export import Export
@@ -74,12 +75,7 @@ def _user_facing_error(exc: Exception) -> str:
 
 
 def _is_review_export(export_row: Export) -> bool:
-    """Return whether this artifact is intentionally non-final.
-
-    Explicit manifest state wins. Older v2 callers may have created export rows
-    without a verification report or manifest; those are treated conservatively
-    as review artifacts, never silently promoted to final outputs.
-    """
+    """Return whether this artifact is intentionally non-final."""
 
     manifest = export_row.manifest or {}
     if manifest.get("state") == "final":
@@ -90,16 +86,10 @@ def _is_review_export(export_row: Export) -> bool:
 
 
 def _apply_review_qa_policy(post_qa: dict, review_export: bool) -> dict:
-    """Allow visible unresolved markers only in clearly labelled review files.
-
-    Structural corruption, invalid containers, margin failures, and missing TOC
-    fields remain blocking in every mode. Only the explicit unresolved-marker
-    finding is downgraded for a review artifact. Final exports remain strict.
-    """
+    """Allow visible unresolved markers only in clearly labelled review files."""
 
     if not review_export:
         return post_qa
-
     blocking: list[dict] = []
     for finding in post_qa.get("violations", []):
         if finding.get("rule") == "unresolved_marker_rendered":
@@ -234,6 +224,10 @@ async def run_export(export_id: UUID, project_id: UUID, user_id: UUID) -> None:
 
             report = dict(export_row.report or {})
             report["post_render"] = post_qa
+            disclosure = await ai_disclosure_summary(
+                db, project, document_version=export_row.document_version
+            )
+            report["ai_disclosure"] = disclosure
             manifest = dict(export_row.manifest or {})
             manifest.setdefault("state", "review" if review_export else "final")
             manifest.update(
@@ -258,16 +252,12 @@ async def run_export(export_id: UUID, project_id: UUID, user_id: UUID) -> None:
                     ),
                     "format_profile_version": profile_version,
                     "sources_total": len(source_rows),
-                    "sources_verified": sum(
-                        1 for source in source_rows if source.verified
-                    ),
+                    "sources_verified": sum(1 for source in source_rows if source.verified),
                     "quotations_total": len(quote_rows),
-                    "quotations_verified": sum(
-                        1 for quote in quote_rows if quote.verified
-                    ),
+                    "quotations_verified": sum(1 for quote in quote_rows if quote.verified),
                     "verification_passed": bool(report.get("pass")),
                     "verification_counts": report.get("counts", {}),
-                    "ai_involvement": "none_recorded_in_phase1",
+                    "ai_involvement": disclosure,
                 }
             )
             export_row.storage_key = key

@@ -12,13 +12,24 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.db.session import Base
 
 
+_DEFAULT_AI_POLICY = {
+    "allowed_modes": ["understand", "diagnose", "plan", "transform", "challenge", "research", "coherence", "viva"],
+    "external_research": False,
+    "private_threads": True,
+    "supervisor_constraints": [],
+    "disclosure_required": True,
+}
+
+
 class Project(Base):
     """A formatting/research project belonging to one user.
 
     ``document_version`` is incremented on every canonical mutation and is used
     for optimistic concurrency, stale-export detection and review anchors.
     ``canonical_schema_version`` tracks JSONB data migrations independently from
-    relational Alembic migrations.
+    relational Alembic migrations. The canonical project is also the sole
+    source of truth for Phase 3 AI context; legacy session fields are historical
+    inputs only.
     """
 
     __tablename__ = "projects"
@@ -54,6 +65,9 @@ class Project(Base):
     front_matter: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
     chapters: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
     works_cited: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+
+    ai_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    ai_policy: Mapped[dict] = mapped_column(JSONB, nullable=False, default=lambda: dict(_DEFAULT_AI_POLICY))
 
     archived: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(

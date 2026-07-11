@@ -4,8 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="color-scheme" content="dark light">
-  <title>Robofox Thesis Studio — Human Review Workspace</title>
+  <title>Robofox Thesis Studio — Grounded AI Workspace</title>
   <link rel="stylesheet" href="/static/phase2.css">
+  <link rel="stylesheet" href="/static/phase3.css">
 </head>
 <body>
 <a class="skip-link" href="#mainWorkspace">Skip to thesis workspace</a>
@@ -17,12 +18,12 @@
 
 <main id="app">
   <section id="loginView" class="auth-view">
-    <div class="auth-copy"><p class="eyebrow">Phase 2 · Human review workspace</p><h1>Correct the thesis without losing control of it.</h1><p>Review structure, compare every imported block with its original, resolve evidence problems, and preview the exact institutional output.</p></div>
+    <div class="auth-copy"><p class="eyebrow">Grounded AI thesis partner</p><h1>AI proposes. You remain the author.</h1><p>Review structure, compare imported evidence, ask scoped scholarly questions, and accept only the operations you choose.</p></div>
     <div class="panel auth-card"><h2>Secure sign in</h2><p class="muted">Use your email and six-digit verification code.</p><form id="emailForm"><label>Email<input id="emailInput" type="email" autocomplete="email" required placeholder="you@example.com"></label><button class="button primary">Email code</button></form><form id="otpForm" hidden><label>Verification code<input id="otpInput" inputmode="numeric" autocomplete="one-time-code" maxlength="6" required></label><button class="button primary">Verify</button><button id="changeEmailBtn" class="button ghost" type="button">Use another email</button></form><div id="authNotice" class="notice" hidden role="alert"></div></div>
   </section>
 
   <section id="projectsView" class="page" hidden>
-    <div class="page-head"><div><p class="eyebrow">Your thesis workspace</p><h1>Projects</h1><p class="muted">Every project retains immutable uploads, edit history, snapshots, and version-bound exports.</p></div><button id="newProjectBtn" class="button primary">New project</button></div>
+    <div class="page-head"><div><p class="eyebrow">Your thesis workspace</p><h1>Projects</h1><p class="muted">Every project retains immutable uploads, edit history, AI provenance, snapshots, and version-bound exports.</p></div><button id="newProjectBtn" class="button primary">New project</button></div>
     <form id="newProjectForm" class="panel create-project" hidden><label>Project title<input id="newProjectTitle" required placeholder="Candidate — thesis title"></label><label>Document type<select id="newProjectType"><option value="ma_dissertation">MA dissertation</option><option value="mphil_dissertation">MPhil dissertation</option><option value="phd_thesis">PhD thesis</option><option value="project_report">Project report</option></select></label><label>Format profile<select id="newProjectProfile"><option value="mcc_ma_english_2026">MCC MA English 2026</option><option value="tn_university">Generic Tamil Nadu — confirm rules</option><option value="mla_strict">MLA strict</option></select></label><div class="form-actions"><button class="button primary">Create</button><button id="cancelProjectBtn" type="button" class="button ghost">Cancel</button></div></form>
     <div id="projectGrid" class="project-grid"></div><div id="projectEmpty" class="empty-state" hidden>No projects yet.</div>
   </section>
@@ -33,7 +34,7 @@
       <div class="toolbar-actions"><button id="uploadOpenBtn" class="button">Upload revision</button><button id="checkpointBtn" class="button">Checkpoint</button><button id="undoBtn" class="button" disabled aria-keyshortcuts="Control+Z Meta+Z">Undo</button><button id="redoBtn" class="button" disabled aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z">Redo</button></div>
     </div>
     <nav id="modeTabs" class="mode-tabs" aria-label="Workspace sections">
-      <button data-mode="editor" class="active">Editor</button><button data-mode="review">Review inbox <span id="reviewTabCount" class="count"></span></button><button data-mode="metadata">Front matter</button><button data-mode="registry">Sources</button><button data-mode="preview">Preview</button><button data-mode="history">History</button>
+      <button data-mode="editor" class="active">Editor</button><button data-mode="review">Review inbox <span id="reviewTabCount" class="count"></span></button><button data-mode="metadata">Front matter</button><button data-mode="registry">Sources</button><button data-mode="ai">Robofox Scholar <span id="aiRunCount" class="count"></span></button><button data-mode="preview">Preview</button><button data-mode="history">History</button>
     </nav>
     <div id="studioNotice" class="notice" hidden role="alert"></div>
 
@@ -69,6 +70,19 @@
           <div class="registry-columns"><section><div class="content-head"><div><p class="eyebrow">Bibliography</p><h2>Source registry</h2></div><button id="addSourceBtn" class="button">Add source</button></div><div id="sourceList" class="registry-list"></div></section><section><div class="content-head"><div><p class="eyebrow">Evidence</p><h2>Quotation registry</h2></div></div><div id="quoteList" class="registry-list"></div></section></div>
         </section>
 
+        <section id="aiMode" class="mode-panel" hidden>
+          <div class="ai-topline panel"><div><p class="eyebrow">Kasparov-style centaur workflow</p><h2>Grounded AI thesis partner</h2><p class="muted">Robofox can inspect, challenge and propose. It cannot silently edit, verify, approve, browse or export.</p></div><div id="aiHealth" class="ai-health" aria-live="polite"></div></div>
+          <div class="ai-layout">
+            <aside class="panel ai-threads"><div class="content-head"><h3>Private threads</h3><button id="newAiThreadBtn" class="button ghost">New</button></div><div id="aiThreadList" class="ai-thread-list"></div><hr><h3>Project memory</h3><div id="aiMemoryList" class="ai-memory-list"></div><hr><h3>Research candidates</h3><div id="researchCandidateList" class="ai-candidate-list"></div></aside>
+            <div class="ai-conversation">
+              <div class="panel ai-scope-card"><div><p class="eyebrow">Robofox is reviewing</p><h3 id="aiScopeTitle">Choose a chapter or block</h3><p id="aiScopeDetail" class="muted"></p></div><button id="aiUseCurrentBtn" class="button ghost">Use current selection</button></div>
+              <div id="aiMessageList" class="ai-message-list" aria-live="polite"></div>
+              <form id="aiPromptForm" class="panel ai-composer"><div class="ai-composer-grid"><label>Task mode<select id="aiTaskMode"></select></label><label>Thread<select id="aiThreadSelect"></select></label></div><label>What should Robofox examine?<textarea id="aiPrompt" rows="5" required placeholder="Challenge the reasoning in this paragraph. Show me what evidence is missing, but do not rewrite it yet."></textarea></label><div class="form-actions"><button id="runAiBtn" class="button primary">Run grounded analysis</button><button id="cancelAiBtn" type="button" class="button ghost" hidden>Cancel current run</button><span id="aiRunStatus" class="muted"></span></div><p class="muted small">No external browsing is available. Source discovery produces search strategies and unverified candidates only.</p></form>
+            </div>
+            <aside class="ai-proposals"><div class="content-head"><div><p class="eyebrow">Human decision required</p><h3>Proposals</h3></div></div><div id="aiProposalList" class="ai-proposal-list"></div><div class="panel"><p class="eyebrow">Truth boundary</p><p class="muted">Traceability does not prove universal truth, originality, credibility or intellectual validity. You remain responsible for every accepted claim.</p></div></aside>
+          </div>
+        </section>
+
         <section id="previewMode" class="mode-panel" hidden>
           <div class="preview-toolbar"><div><p class="eyebrow">Authoritative output preview</p><h2>Rendered PDF</h2><p class="muted">Generated through the same DOCX and LibreOffice pipeline used for final output.</p></div><button id="generatePreviewBtn" class="button primary">Generate preview</button></div>
           <div id="previewStatus" class="panel"></div><iframe id="previewFrame" title="Authoritative thesis PDF preview" hidden></iframe>
@@ -84,7 +98,7 @@
 
       <aside id="contextPane" class="sidebar context-sidebar" aria-label="Selected item context">
         <div class="sidebar-head"><h2>Context</h2><button id="closeContextBtn" class="icon-button" aria-label="Close context">×</button></div>
-        <div id="contextEmpty" class="empty-state">Select a block or review issue to see its original text, sources, quotation record, and change history.</div>
+        <div id="contextEmpty" class="empty-state">Select a block, review issue or AI proposal to see its original evidence, provenance and change history.</div>
         <div id="contextContent" hidden></div>
       </aside>
     </div>
@@ -97,5 +111,6 @@
 <script src="/static/phase2-editor.js"></script>
 <script src="/static/phase2-review.js"></script>
 <script src="/static/phase2-integrity.js"></script>
+<script src="/static/phase3-ai.js"></script>
 </body>
 </html>
