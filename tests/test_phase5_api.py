@@ -15,7 +15,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.commercial.sessions import issue_session
 from app.core.config import get_settings
-from app.models.commercial import EditionVersion, ProductEdition, Subscription
+from app.models.commercial import (
+    EditionVersion,
+    EntitlementDefinition,
+    ProductEdition,
+    Subscription,
+)
 from app.models.tenancy import OrganizationMembership
 from app.models.user import User
 
@@ -123,6 +128,18 @@ async def test_admin_can_grant_entitlement_after_recent_reauthentication(
     test_institution,
     user_a: User,
 ) -> None:
+    db_session.add(
+        EntitlementDefinition(
+            key="export.pdf",
+            value_type="boolean",
+            unit=None,
+            description="Generate verified PDF exports.",
+            customer_visible=True,
+            metered=False,
+            reset_period=None,
+        )
+    )
+    await db_session.commit()
     cookies = await _admin_session(db_session, test_institution, user_a)
     response = await client.post(
         f"/institutions/{test_institution.id}/commercial/entitlement-grants",
