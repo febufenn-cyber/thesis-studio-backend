@@ -2,7 +2,7 @@
 
 Phase 1 correctness contract:
 - every structural object has a stable UUID;
-- imported blocks preserve their source paragraph/revision provenance;
+- imported structures preserve source paragraph/revision provenance;
 - unresolved or unsupported content is explicit and export-blocking;
 - older JSON remains readable because all new identity fields have defaults.
 """
@@ -19,30 +19,22 @@ CANONICAL_SCHEMA_VERSION = 2
 
 
 class Run(BaseModel):
-    """A contiguous span of text with optional italic emphasis."""
-
     text: str
     italic: bool = False
 
 
 class BlockIdentity(BaseModel):
-    """Stable identity and import provenance shared by all canonical blocks."""
-
     id: UUID = Field(default_factory=uuid4)
     source_revision_id: UUID | None = None
     source_paragraph_index: int | None = None
 
 
 class ParagraphBlock(BlockIdentity):
-    """A body paragraph composed of one or more styled runs."""
-
     type: Literal["paragraph"] = "paragraph"
     runs: list[Run]
 
 
 class BlockQuoteBlock(BlockIdentity):
-    """A prose quotation longer than four typed lines."""
-
     type: Literal["block_quote"] = "block_quote"
     text: str
     citation: str = ""
@@ -50,8 +42,6 @@ class BlockQuoteBlock(BlockIdentity):
 
 
 class VerseQuoteBlock(BlockIdentity):
-    """A verse quotation whose original lineation is preserved."""
-
     type: Literal["verse_quote"] = "verse_quote"
     lines: list[str]
     citation: str = ""
@@ -59,49 +49,31 @@ class VerseQuoteBlock(BlockIdentity):
 
 
 class HeadingBlock(BlockIdentity):
-    """A level-2 or level-3 heading inside a chapter."""
-
     type: Literal["heading"] = "heading"
     level: Literal[2, 3]
     text: str
 
 
 class MarkerBlock(BlockIdentity):
-    """An explicit unresolved item that blocks a final export.
-
-    ``UNSUPPORTED`` is used when the original DOCX contains an object the
-    canonical model cannot safely reconstruct. ``REVIEW_REQUIRED`` is used for
-    low-confidence structural decisions. The original upload remains immutable,
-    so no content is silently discarded.
-    """
+    """Explicit unresolved item; all marker kinds block a final export."""
 
     type: Literal["marker"] = "marker"
-    kind: Literal[
-        "QUOTE_NEEDED",
-        "VERIFY",
-        "UNSUPPORTED",
-        "REVIEW_REQUIRED",
-    ]
+    kind: Literal["QUOTE_NEEDED", "VERIFY", "UNSUPPORTED", "REVIEW_REQUIRED"]
     note: str
     evidence: dict = Field(default_factory=dict)
 
 
 Block = Annotated[
-    Union[
-        ParagraphBlock,
-        BlockQuoteBlock,
-        VerseQuoteBlock,
-        HeadingBlock,
-        MarkerBlock,
-    ],
+    Union[ParagraphBlock, BlockQuoteBlock, VerseQuoteBlock, HeadingBlock, MarkerBlock],
     Field(discriminator="type"),
 ]
 
 
 class ChapterDoc(BaseModel):
-    """One chapter represented as an ordered list of stable blocks."""
-
     id: UUID = Field(default_factory=uuid4)
+    source_revision_id: UUID | None = None
+    source_paragraph_index: int | None = None
+    title_source_paragraph_index: int | None = None
     number: int
     title: str
     status: Literal["draft", "review", "approved"] = "draft"
@@ -109,9 +81,9 @@ class ChapterDoc(BaseModel):
 
 
 class FrontMatterEntry(BaseModel):
-    """One front-matter section in canonical order."""
-
     id: UUID = Field(default_factory=uuid4)
+    source_revision_id: UUID | None = None
+    source_paragraph_index: int | None = None
     kind: Literal[
         "title_page",
         "certificate",
@@ -153,11 +125,7 @@ class AiDisclosure(BaseModel):
 
 
 class ThesisMeta(BaseModel):
-    """Complete metadata block for a thesis project.
-
-    Fields remain optional while drafting. The export gate applies the selected
-    profile's required-field policy before rendering.
-    """
+    """Metadata may be incomplete during editing; export validation is strict."""
 
     doc_type: Literal[
         "ma_dissertation",
@@ -182,8 +150,6 @@ class WorksCitedRef(BaseModel):
 
 
 class ThesisDocument(BaseModel):
-    """The canonical representation consumed by every renderer."""
-
     schema_version: int = CANONICAL_SCHEMA_VERSION
     meta: ThesisMeta = Field(default_factory=ThesisMeta)
     style_profile_id: UUID | None = None
