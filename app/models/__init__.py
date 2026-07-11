@@ -25,6 +25,7 @@ from app.models.institutional_governance import (
 from app.models.job import Job
 from app.models.manuscript_revision import ManuscriptRevision
 from app.models.message import Message
+from app.models.presence import ProjectPresence
 from app.models.project import Project
 from app.models.quote import Quote
 from app.models.research_candidate import ResearchCandidate
@@ -62,11 +63,12 @@ __all__ = [
     "AIMemory", "AIMessage", "AIProposal", "AIRun", "AIThread", "AuthToken",
     "CitationResolution", "DocumentCommand", "DocumentPreview", "DocumentSnapshot",
     "Event", "Export", "File", "Institution", "Job", "ManuscriptRevision", "Message",
-    "Project", "Quote", "ResearchCandidate", "ReviewItem", "ThesisSession", "Source",
-    "StyleProfile", "UsageEvent", "User", "Department", "OrganizationMembership",
-    "ProjectMembership", "MembershipInvitation", "ReviewAssignment", "ProjectHandoff",
-    "Notification", "NotificationPreference", "DataLifecycleRequest", "SupportAccessGrant",
-    "ReviewCycle", "CollaborationComment", "HumanSuggestion", "ApprovalRecord",
+    "ProjectPresence", "Project", "Quote", "ResearchCandidate", "ReviewItem",
+    "ThesisSession", "Source", "StyleProfile", "UsageEvent", "User", "Department",
+    "OrganizationMembership", "ProjectMembership", "MembershipInvitation",
+    "ReviewAssignment", "ProjectHandoff", "Notification", "NotificationPreference",
+    "DataLifecycleRequest", "SupportAccessGrant", "ReviewCycle",
+    "CollaborationComment", "HumanSuggestion", "ApprovalRecord",
     "SupervisorInstruction", "Attestation", "InstitutionalPolicyVersion",
     "InstitutionalProfileVersion", "OfficialTemplateVersion", "RetentionPolicy",
     "SubmissionPackage", "ExternalReviewGrant",
