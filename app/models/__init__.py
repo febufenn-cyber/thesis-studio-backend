@@ -56,8 +56,9 @@ from app.models.tenancy import (
 from app.models.usage_event import UsageEvent
 from app.models.user import User
 
-# Register transaction-local approval invalidation after every Phase 2 command.
+# Register transaction-local Phase 4 governance hooks.
 from app.collaboration import editor_hooks as _editor_hooks  # noqa: E402,F401
+from app.collaboration import sealed_guard as _sealed_guard  # noqa: E402,F401
 
 __all__ = [
     "AIMemory", "AIMessage", "AIProposal", "AIRun", "AIThread", "AuthToken",
