@@ -36,6 +36,7 @@ class AIProposal(Base):
     rationale: Mapped[str] = mapped_column(Text, nullable=False, default="")
     explanation: Mapped[str] = mapped_column(Text, nullable=False, default="")
     operations: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+    human_edited_operations: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
     evidence: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
     assumptions: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
     unresolved_requirements: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
