@@ -9,6 +9,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response
+from fastapi.staticfiles import StaticFiles
 
 from app.api import auth as auth_router
 from app.api import chat as chat_router
@@ -94,6 +95,7 @@ def create_app() -> FastAPI:
         allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
         allow_headers=["*"],
     )
+    app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
     app.include_router(auth_router.router)
     app.include_router(sessions_router.router)
