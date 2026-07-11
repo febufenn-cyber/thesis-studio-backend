@@ -13,9 +13,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai.safety import scan_untrusted_text, system_safety_policy, wrap_untrusted
 from app.ai.schemas import AIScope, GroundedAIOutput
+from app.ai.settings import get_ai_settings
 from app.ai.task_registry import TaskSpec
 from app.canonical.model import ThesisDocument
-from app.core.config import get_settings
 from app.models.ai_memory import AIMemory
 from app.models.ai_message import AIMessage
 from app.models.project import Project
@@ -149,7 +149,6 @@ def _selected_document_context(document: ThesisDocument, scope: AIScope) -> tupl
             )
         return {"selection": slices}, [str(ch.id) for ch in selected_chapters], selected_blocks
     else:
-        # Review/source/quote scopes get their exact object below and a compact chapter map here.
         return {
             "chapter_map": [_chapter_payload(chapter, include_blocks=False) for chapter in document.chapters]
         }, [], []
@@ -179,7 +178,7 @@ async def compile_context(
     scope: AIScope,
     user_request: str,
 ) -> CompiledContext:
-    settings = get_settings()
+    settings = get_ai_settings()
     document = ThesisDocument.model_validate(
         {
             "schema_version": project.canonical_schema_version,
@@ -230,13 +229,20 @@ async def compile_context(
     if scope.type == "review" and not reviews:
         raise ContextError("The selected review item no longer exists or is no longer open.")
 
-    memory_query = select(AIMemory).where(
-        AIMemory.project_id == project.id,
-        AIMemory.user_id == user_id,
-        AIMemory.stale.is_(False),
+    memories = list(
+        (
+            await db.execute(
+                select(AIMemory)
+                .where(
+                    AIMemory.project_id == project.id,
+                    AIMemory.user_id == user_id,
+                    AIMemory.stale.is_(False),
+                )
+                .order_by(AIMemory.updated_at.desc())
+                .limit(30)
+            )
+        ).scalars()
     )
-    memories = list((await db.execute(memory_query.order_by(AIMemory.updated_at.desc()).limit(30))).scalars())
-
     recent_messages = list(
         (
             await db.execute(
@@ -247,7 +253,7 @@ async def compile_context(
                     AIMessage.user_id == user_id,
                 )
                 .order_by(AIMessage.created_at.desc())
-                .limit(settings.AI_RECENT_THREAD_MESSAGES)
+                .limit(settings.recent_thread_messages)
             )
         ).scalars()
     )
@@ -312,7 +318,7 @@ async def compile_context(
         ("recent_local_thread", _json(conversation_payload)),
     ]
     injection_findings: list[dict[str, Any]] = []
-    remaining = settings.AI_MAX_CONTEXT_CHARS
+    remaining = settings.max_context_chars
     rendered_sections: list[str] = []
     omitted: list[str] = []
     truncated: list[str] = []
