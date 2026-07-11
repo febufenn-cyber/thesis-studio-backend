@@ -1,4 +1,4 @@
-"""Pydantic schemas for v2 projects, sources, quotes, and exports."""
+"""Pydantic schemas for projects, manuscript revisions, registry and exports."""
 
 from __future__ import annotations
 
@@ -8,46 +8,25 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
-from app.canonical.model import (
-    ChapterDoc,
-    FrontMatterEntry,
-    ThesisMeta,
-    WorksCitedRef,
-)
-
-
-# ---------------------------------------------------------------------------
-# Project schemas
-# ---------------------------------------------------------------------------
+from app.canonical.model import ChapterDoc, FrontMatterEntry, ThesisMeta, WorksCitedRef
 
 
 class ProjectCreate(BaseModel):
-    """POST /projects body."""
-
     title: str = Field(..., min_length=1, max_length=300)
     mode: Literal["student", "operator"] = "operator"
-    doc_type: str = Field(
-        "ma_dissertation",
-        description=(
-            "ma_dissertation | mphil_dissertation | phd_thesis"
-            " | project_report | research_paper"
-        ),
-    )
-    format_profile: str = Field(
-        "tn_university",
-        description="tn_university | mla_strict",
-    )
+    doc_type: str = "ma_dissertation"
+    format_profile: str = "tn_university"
 
 
 class ProjectResponse(BaseModel):
-    """Summary view returned by list and create endpoints."""
-
     id: UUID
     title: str
     mode: str
     doc_type: str
     status: str
     format_profile: str
+    document_version: int
+    active_revision_id: UUID | None
     archived: bool
     created_at: datetime
     updated_at: datetime
@@ -57,76 +36,81 @@ class ProjectResponse(BaseModel):
 
 
 class ProjectDetailResponse(ProjectResponse):
-    """Full view returned by the single-project GET endpoint.
-
-    ``meta``, ``front_matter``, ``chapters``, and ``works_cited`` are the raw
-    JSONB values; callers may pass them to ThesisMeta.model_validate() etc.
-    """
-
     meta: dict
     front_matter: list
     chapters: list
     works_cited: list
 
 
-class MetaUpdate(BaseModel):
-    """PATCH /projects/{id}/meta body — replaces the full ThesisMeta block.
+class VersionedMutation(BaseModel):
+    """Optimistic concurrency token.
 
-    Validated against ThesisMeta so callers know the shape is correct before
-    it is serialised to JSONB.
+    Optional only for the legacy v2 JSON console during migration. The field is
+    excluded from ``model_dump`` so it can never be mistaken for ORM content.
     """
 
+    expected_version: int | None = Field(None, ge=1, exclude=True)
+
+
+class MetaUpdate(VersionedMutation):
     meta: ThesisMeta
 
 
-class ChaptersUpdate(BaseModel):
-    """PATCH /projects/{id}/chapters body — replaces the full chapters list."""
-
+class ChaptersUpdate(VersionedMutation):
     chapters: list[ChapterDoc]
 
 
-class FrontMatterUpdate(BaseModel):
-    """PATCH /projects/{id}/front_matter body."""
-
+class FrontMatterUpdate(VersionedMutation):
     front_matter: list[FrontMatterEntry]
 
 
-class WorksCitedUpdate(BaseModel):
-    """PATCH /projects/{id}/works_cited body."""
-
+class WorksCitedUpdate(VersionedMutation):
     works_cited: list[WorksCitedRef]
 
 
-# ---------------------------------------------------------------------------
-# Source schemas
-# ---------------------------------------------------------------------------
-
-
-class SourceCreate(BaseModel):
-    """POST /projects/{id}/sources body."""
-
-    kind: str = Field(
-        ...,
-        description=(
-            "book | translated_book | chapter_in_collection"
-            " | journal | journal_db | web | film"
-        ),
+class SourceCreate(VersionedMutation):
+    kind: str
+    fields: dict = Field(default_factory=dict)
+    raw_entry: str | None = None
+    parse_status: Literal["fully_structured", "structured_with_review", "preserved_raw"] = (
+        "structured_with_review"
     )
-    fields: dict = Field(default_factory=dict, description="Kind-specific bibliographic fields.")
+    identifiers: dict = Field(default_factory=dict)
     verified: bool = False
     verify_note: str | None = None
+    verification_method: str | None = None
     consulted_flag: bool = False
 
 
-class SourceResponse(BaseModel):
-    """Single source returned by the API."""
+class SourceUpdate(VersionedMutation):
+    kind: str | None = None
+    fields: dict | None = None
+    raw_entry: str | None = None
+    parse_status: Literal["fully_structured", "structured_with_review", "preserved_raw"] | None = None
+    identifiers: dict | None = None
+    verified: bool | None = None
+    verify_note: str | None = None
+    verification_method: str | None = None
+    consulted_flag: bool | None = None
 
+
+class SourceResponse(BaseModel):
     id: UUID
     project_id: UUID
     kind: str
     fields: dict
+    raw_entry: str | None
+    parse_status: str
+    source_paragraph_index: int | None
+    import_revision_id: UUID | None
+    parser_confidence: float | None
+    parser_version: str | None
+    identifiers: dict
     verified: bool
     verify_note: str | None
+    verified_at: datetime | None
+    verified_by: UUID | None
+    verification_method: str | None
     consulted_flag: bool
     created_at: datetime
 
@@ -134,23 +118,16 @@ class SourceResponse(BaseModel):
         from_attributes = True
 
 
-# ---------------------------------------------------------------------------
-# Quote schemas
-# ---------------------------------------------------------------------------
-
-
-class QuoteCreate(BaseModel):
-    """POST /projects/{id}/sources/{source_id}/quotes body."""
-
-    page_or_loc: str = Field("", max_length=50)
+class QuoteCreate(VersionedMutation):
+    page_or_loc: str = Field("", max_length=100)
     text: str = Field(..., min_length=1)
     verified: bool = False
     method: Literal["pasted", "extracted", "web_retrieved"] = "pasted"
+    verification_method: str | None = None
+    evidence_snapshot: dict = Field(default_factory=dict)
 
 
 class QuoteResponse(BaseModel):
-    """Single quote returned by the API."""
-
     id: UUID
     source_id: UUID
     project_id: UUID
@@ -158,47 +135,89 @@ class QuoteResponse(BaseModel):
     text: str
     verified: bool
     method: str
+    import_revision_id: UUID | None
+    source_paragraph_index: int | None
+    evidence_snapshot: dict
+    verified_at: datetime | None
+    verified_by: UUID | None
+    verification_method: str | None
     created_at: datetime
 
     class Config:
         from_attributes = True
 
 
-# ---------------------------------------------------------------------------
-# Export schemas
-# ---------------------------------------------------------------------------
+class ManuscriptRevisionResponse(BaseModel):
+    id: UUID
+    project_id: UUID
+    revision_number: int
+    supersedes_revision_id: UUID | None
+    original_filename: str
+    mime_type: str
+    size_bytes: int
+    checksum: str
+    parser_version: str
+    canonical_schema_version: int
+    import_report: dict | None
+    status: str
+    error_message: str | None
+    applied: bool
+    applied_at: datetime | None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
 
 
-class ExportRequest(BaseModel):
-    """POST /projects/{id}/exports body.
+class ManuscriptUploadResponse(BaseModel):
+    revision: ManuscriptRevisionResponse
+    job_id: UUID
+    duplicate_of_revision_id: UUID | None = None
 
-    ``formats`` is a list of format strings or the literal ``"all"``.
-    ``acknowledge`` must be True for the G4 gate to pass (student has read and
-    accepts authorship responsibility).
-    """
 
-    formats: list[str] | Literal["all"] = Field(
-        "all",
-        description='List of formats (docx, pdf, md, txt) or "all".',
-    )
-    acknowledge: bool = Field(
-        False,
-        description=(
-            "Must be True to pass Gate G4: student attests authorship"
-            " responsibility and AI-disclosure compliance."
-        ),
-    )
+class RevisionApplyRequest(BaseModel):
+    expected_version: int = Field(..., ge=1)
+
+
+class VerificationResponse(BaseModel):
+    document_version: int
+    manuscript_revision_id: UUID | None
+    passed: bool
+    report: dict
+
+
+class ExportRequest(VersionedMutation):
+    formats: list[str] | Literal["all"] = "all"
+    acknowledge: bool = False
+    allow_review_export: bool = False
 
 
 class ExportResponse(BaseModel):
-    """Single export job returned by the API."""
-
     id: UUID
     format: str
     status: str
+    document_version: int
+    manuscript_revision_id: UUID | None
+    profile_version: str
     error_message: str | None
     size_bytes: int | None
+    report: dict | None
+    manifest: dict | None
     created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class JobResponse(BaseModel):
+    id: UUID
+    kind: str
+    project_id: UUID | None
+    status: str
+    attempts: int
+    error_message: str | None
+    created_at: datetime
+    updated_at: datetime
 
     class Config:
         from_attributes = True

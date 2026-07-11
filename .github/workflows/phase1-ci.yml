@@ -1,0 +1,68 @@
+name: Phase 1 CI
+
+on:
+  push:
+    branches:
+      - agent/phase-1-trusted-conversion
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: thesis
+          POSTGRES_PASSWORD: thesis
+          POSTGRES_DB: thesis_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U thesis -d thesis_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      ENV: development
+      DEBUG: "false"
+      DATABASE_URL: postgresql+asyncpg://thesis:thesis@127.0.0.1:5432/thesis_test
+      JWT_SECRET: test-secret-at-least-32-characters-long
+      JWT_ALGORITHM: HS256
+      JWT_EXPIRY_DAYS: "1"
+      ANTHROPIC_API_KEY: test-key-placeholder
+      FRONTEND_URL: http://localhost:8000
+      CORS_ORIGINS: http://localhost:8000
+      DEFAULT_INSTITUTION_SHORT_NAME: TU
+      STORAGE_BACKEND: local
+      LOCAL_STORAGE_DIR: /tmp/thesis-ci-storage
+      LOG_LEVEL: WARNING
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Compile Python
+        run: python -m compileall -q app tests
+      - name: Validate frontend JavaScript
+        run: |
+          node --check app/static/phase1-core.js
+          node --check app/static/phase1-workspace.js
+      - name: Upgrade schema
+        shell: bash
+        run: |
+          set -o pipefail
+          alembic upgrade head 2>&1 | tee /tmp/alembic-upgrade.log
+      - name: Upload migration diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: alembic-upgrade-log
+          path: /tmp/alembic-upgrade.log
+          if-no-files-found: ignore
+      - name: Phase 1 unit tests
+        run: pytest -q tests/test_phase1_unit.py
+      - name: Full regression suite
+        run: pytest -q
