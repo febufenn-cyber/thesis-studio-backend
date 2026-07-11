@@ -1,8 +1,8 @@
 """Project, canonical document, registry and export API.
 
-All resources are isolated by user_id. Canonical writes use optimistic
-concurrency. Final exports pass the deterministic Phase 1 verifier and run on
-the durable PostgreSQL worker.
+All resources are isolated by user_id. The trusted UI sends optimistic
+concurrency tokens for every mutation; missing tokens remain temporarily
+accepted only for the legacy v2 JSON console.
 """
 
 from __future__ import annotations
@@ -48,7 +48,11 @@ from app.services.verification_service import verify_project
 router = APIRouter(tags=["projects"])
 
 
-def _assert_version(project: Project, expected: int) -> None:
+def _assert_version(project: Project, expected: int | None) -> None:
+    """Reject stale writes; tolerate omitted tokens only during legacy migration."""
+
+    if expected is None:
+        return
     if project.document_version != expected:
         raise HTTPException(
             status_code=409,
@@ -184,6 +188,7 @@ async def create_source(
     db: AsyncSession = Depends(get_db),
 ) -> Source:
     project = await fetch_owned_project(db, project_id, current_user.id)
+    _assert_version(project, body.expected_version)
     now = datetime.now(timezone.utc) if body.verified else None
     source = Source(
         project_id=project.id,
@@ -234,9 +239,11 @@ async def delete_source(
     project_id: UUID,
     source_id: UUID,
     current_user: CurrentUser,
+    expected_version: int | None = Query(None, ge=1),
     db: AsyncSession = Depends(get_db),
 ) -> Response:
     project = await fetch_owned_project(db, project_id, current_user.id)
+    _assert_version(project, expected_version)
     source = (
         await db.execute(
             select(Source).where(
@@ -267,6 +274,7 @@ async def create_quote(
     db: AsyncSession = Depends(get_db),
 ) -> Quote:
     project = await fetch_owned_project(db, project_id, current_user.id)
+    _assert_version(project, body.expected_version)
     source = (
         await db.execute(
             select(Source).where(
@@ -372,7 +380,7 @@ async def trigger_exports(
             status="queued",
             document_version=project.document_version,
             manuscript_revision_id=project.active_revision_id,
-            profile_version=f"builtin:{project.format_profile}",
+            profile_version=verification.get("profile_version", f"builtin:{project.format_profile}"),
             report=verification,
             manifest={
                 "state": "final" if verification["pass"] else "review",
@@ -380,6 +388,7 @@ async def trigger_exports(
                 "document_version": project.document_version,
                 "manuscript_revision_id": str(project.active_revision_id) if project.active_revision_id else None,
                 "format_profile": project.format_profile,
+                "format_profile_version": verification.get("profile_version"),
                 "verification_counts": verification["counts"],
                 "authorship_acknowledged": True,
             },
