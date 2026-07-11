@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from copy import deepcopy
 from types import SimpleNamespace
 from uuid import uuid4
 
@@ -14,7 +15,9 @@ from app.ingest.docx_extract import ExtractedPara, ExtractedRun
 from app.ingest.preflight import ManuscriptValidationError, inspect_docx
 from app.ingest.structure import parse_manuscript
 from app.ingest.verifier import verify
+from app.models.project import Project
 from app.renderers.phase1_profiles import resolve_phase1_profile
+from app.services.export_service import _apply_review_qa_policy
 
 
 def test_canonical_blocks_receive_stable_ids_and_provenance() -> None:
@@ -128,3 +131,48 @@ def test_generic_tn_profile_is_explicitly_unverified() -> None:
     assert profile.toc.native_word_field is True
     assert "not institution-certified" in profile.notes
     assert "unverified" in version
+
+
+def test_active_revision_fk_is_named_and_breaks_metadata_cycle() -> None:
+    foreign_key = next(iter(Project.__table__.c.active_revision_id.foreign_keys))
+    assert foreign_key.target_fullname == "manuscript_revisions.id"
+    assert foreign_key.constraint.name == "fk_projects_active_revision"
+    assert foreign_key.constraint.use_alter is True
+
+
+def test_review_export_downgrades_only_visible_markers() -> None:
+    marker = {
+        "rule": "unresolved_marker_rendered",
+        "severity": "block",
+        "found": "[QUOTE_NEEDED:",
+        "expected": "no unresolved marker in final output",
+        "location": {"section": "rendered_output"},
+    }
+    final_result = _apply_review_qa_policy(
+        {"pass": False, "violations": [deepcopy(marker)]},
+        review_export=False,
+    )
+    assert final_result["pass"] is False
+    assert final_result["violations"][0]["severity"] == "block"
+
+    review_result = _apply_review_qa_policy(
+        {"pass": False, "violations": [deepcopy(marker)]},
+        review_export=True,
+    )
+    assert review_result["pass"] is True
+    assert review_result["review_export"] is True
+    assert review_result["violations"][0]["severity"] == "warn"
+
+    structural = {
+        "rule": "margin_mismatch",
+        "severity": "block",
+        "found": "1.0",
+        "expected": "1.5",
+        "location": {"section": "rendered_output"},
+    }
+    mixed = _apply_review_qa_policy(
+        {"pass": False, "violations": [deepcopy(marker), structural]},
+        review_export=True,
+    )
+    assert mixed["pass"] is False
+    assert structural in mixed["violations"]
