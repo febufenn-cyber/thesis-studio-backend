@@ -11,6 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
+from app.api import active_registry as active_registry_router
 from app.api import auth as auth_router
 from app.api import chat as chat_router
 from app.api import compile as compile_router
@@ -104,6 +105,7 @@ def create_app() -> FastAPI:
     app.include_router(projects_router.router)
     app.include_router(manuscripts_router.router)
     app.include_router(resolutions_router.router)
+    app.include_router(active_registry_router.router)
 
     @app.get("/healthz", tags=["meta"])
     async def health() -> dict:
