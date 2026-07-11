@@ -25,10 +25,6 @@ from app.core.config import get_settings
 from app.core.exceptions import register_exception_handlers
 
 
-# ---------------------------------------------------------------------------
-# Logging configuration
-# ---------------------------------------------------------------------------
-
 def _configure_logging() -> None:
     settings = get_settings()
     logging.basicConfig(
@@ -37,17 +33,8 @@ def _configure_logging() -> None:
     )
 
 
-# ---------------------------------------------------------------------------
-# Lifespan: startup / shutdown hooks
-# ---------------------------------------------------------------------------
-
 async def _sweep_orphaned_compiles() -> None:
-    """Mark files stuck in 'compiling' as failed.
-
-    Compile jobs run via BackgroundTasks and die with the process; any row
-    still 'compiling' at startup belongs to a job killed by a restart and
-    would otherwise block that session's compiles forever (409 guard).
-    """
+    """Mark files stuck in 'compiling' as failed after a process restart."""
     from sqlalchemy import update
 
     from app.db.session import AsyncSessionLocal
@@ -84,56 +71,61 @@ async def lifespan(app: FastAPI):
     log.info("Robofox Thesis Studio API shutting down")
 
 
-# ---------------------------------------------------------------------------
-# App factory
-# ---------------------------------------------------------------------------
+def _serve_frontend(path: Path, label: str) -> Response:
+    """Serve a frontend file, returning a useful 404 if it is missing."""
+    if not path.exists():
+        return JSONResponse(
+            status_code=404,
+            content={"detail": f"{label} frontend build not found."},
+        )
+    return FileResponse(path)
+
 
 def create_app() -> FastAPI:
     settings = get_settings()
-    static_index = Path(__file__).parent / "static" / "index.html"
+    static_dir = Path(__file__).parent / "static"
+    v2_index = static_dir / "v2.html"
+    legacy_index = static_dir / "index.html"
 
     app = FastAPI(
         title="Robofox Thesis Studio API",
         description="Backend for the AI-guided MA thesis writing platform.",
-        version="0.1.0",
+        version="0.2.0",
         lifespan=lifespan,
         docs_url="/docs" if settings.DEBUG else None,
         redoc_url=None,
     )
 
-    # CORS — frontend origins from settings.
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins_list,
-        allow_credentials=True,  # required for cookies
+        allow_credentials=True,
         allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
         allow_headers=["*"],
     )
 
-    # Routers
     app.include_router(auth_router.router)
     app.include_router(sessions_router.router)
-    app.include_router(chat_router.router)  # registers POST /sessions/{id}/messages
+    app.include_router(chat_router.router)
     app.include_router(compile_router.router)
-    app.include_router(projects_router.router)  # v2: projects, registry, exports
+    app.include_router(projects_router.router)
 
     @app.get("/healthz", tags=["meta"])
     async def health() -> dict:
         """Liveness probe."""
-        return {"status": "ok"}
+        return {"status": "ok", "frontend": "v2"}
 
     @app.get("/", include_in_schema=False)
-    async def frontend() -> Response:
-        """Serve the embedded frontend app, or 404 if the build is missing."""
-        if not static_index.exists():
-            return JSONResponse(
-                status_code=404,
-                content={"detail": "Frontend build not found."},
-            )
-        return FileResponse(static_index)
+    async def frontend_v2() -> Response:
+        """Serve the v2 Formatting Studio as the default application."""
+        return _serve_frontend(v2_index, "v2")
+
+    @app.get("/legacy", include_in_schema=False)
+    async def frontend_legacy() -> Response:
+        """Preserve the original thesis-coaching UI for rollback and access."""
+        return _serve_frontend(legacy_index, "legacy")
 
     register_exception_handlers(app)
-
     return app
 
 
