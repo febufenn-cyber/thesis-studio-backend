@@ -1,0 +1,193 @@
+name: Phase 5 Final Validation
+
+on:
+  push:
+    branches:
+      - agent/phase-5-commercial-reliability
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: phase5-final-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: thesis
+          POSTGRES_PASSWORD: thesis
+          POSTGRES_DB: thesis_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U thesis -d thesis_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      ENV: development
+      DEBUG: "false"
+      DATABASE_URL: postgresql+asyncpg://thesis:thesis@127.0.0.1:5432/thesis_test
+      JWT_SECRET: final-validation-secret-at-least-32-characters
+      JWT_ALGORITHM: HS256
+      JWT_EXPIRY_DAYS: "1"
+      ANTHROPIC_API_KEY: test-key-placeholder
+      FRONTEND_URL: http://localhost:8000
+      CORS_ORIGINS: http://localhost:8000
+      DEFAULT_INSTITUTION_SHORT_NAME: TU
+      STORAGE_BACKEND: local
+      LOCAL_STORAGE_DIR: /tmp/thesis-phase5-final-storage
+      LOG_LEVEL: WARNING
+      RELEASE_SHA: ${{ github.sha }}
+      BUILD_TIME: 2026-07-12T00:00:00+00:00
+      SCHEMA_VERSION: "0017"
+      BILLING_PROVIDER: test
+      BILLING_WEBHOOK_SECRET: phase5-final-webhook-test-secret
+      SESSION_IDLE_MINUTES: "60"
+      SESSION_ABSOLUTE_DAYS: "1"
+      SESSION_REAUTH_MINUTES: "15"
+      AI_GLOBAL_ENABLED: "true"
+      AI_MAX_CONTEXT_CHARS: "60000"
+      AI_USER_CONCURRENT_LIMIT: "1"
+      AI_PROJECT_QUEUE_LIMIT: "3"
+      AI_DAILY_RUN_LIMIT: "30"
+      AI_DAILY_STRONG_RUN_LIMIT: "5"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install application and verification tools
+        run: |
+          pip install -r requirements.txt
+          pip install pip-audit bandit
+      - name: Compile and import exact head
+        run: |
+          python -m compileall -q app tests
+          python - <<'PY'
+          from app.main import app
+          assert app.version == "0.7.0"
+          print(app.version)
+          PY
+      - name: Validate all workspace JavaScript
+        run: |
+          node --check app/static/phase2-core.js
+          node --check app/static/phase2-editor.js
+          node --check app/static/phase2-review.js
+          node --check app/static/phase2-integrity.js
+          node --check app/static/phase3-ai.js
+          node --check app/static/phase4-collaboration.js
+      - name: Validate migration upgrade rollback upgrade
+        shell: bash
+        run: |
+          set -o pipefail
+          alembic upgrade head 2>&1 | tee /tmp/final-migration.log
+          alembic downgrade 0016 2>&1 | tee -a /tmp/final-migration.log
+          alembic upgrade head 2>&1 | tee -a /tmp/final-migration.log
+      - name: Static security verification
+        shell: bash
+        run: |
+          set -o pipefail
+          pip-audit -r requirements.txt 2>&1 | tee /tmp/final-pip-audit.log
+          bandit -r app -x tests -ll -ii 2>&1 | tee /tmp/final-bandit.log
+          ! git grep -nE '(sk-[A-Za-z0-9_-]{20,}|AKIA[0-9A-Z]{16}|BEGIN (RSA|OPENSSH|EC) PRIVATE KEY|R2_SECRET_ACCESS_KEY=[^$<{])' -- ':!*.md' ':!.env.example'
+      - name: Complete Phase 1–5 regression and acceptance suite
+        shell: bash
+        run: |
+          set -o pipefail
+          pytest -q --junitxml=/tmp/phase5-all.xml 2>&1 | tee /tmp/final-pytest.log
+      - name: Build validation report
+        id: report
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import xml.etree.ElementTree as ET
+          root = ET.parse('/tmp/phase5-all.xml').getroot()
+          suite = root if root.tag == 'testsuite' else root.find('testsuite')
+          report = {
+              'sha': os.environ['GITHUB_SHA'],
+              'tests': int(suite.attrib.get('tests', 0)),
+              'failures': int(suite.attrib.get('failures', 0)),
+              'errors': int(suite.attrib.get('errors', 0)),
+              'skipped': int(suite.attrib.get('skipped', 0)),
+              'migration': 'head → 0016 → head passed',
+              'security': 'pip-audit, Bandit and secret-pattern gates passed',
+              'deployment_triggered': False,
+          }
+          with open('/tmp/phase5-validation.json', 'w') as f:
+              json.dump(report, f, indent=2)
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              for key in ('tests', 'failures', 'errors', 'skipped'):
+                  f.write(f"{key}={report[key]}\n")
+          print(json.dumps(report, indent=2))
+          PY
+      - name: Publish exact-head PR validation comment
+        uses: actions/github-script@v7
+        env:
+          TESTS: ${{ steps.report.outputs.tests }}
+          FAILURES: ${{ steps.report.outputs.failures }}
+          ERRORS: ${{ steps.report.outputs.errors }}
+          SKIPPED: ${{ steps.report.outputs.skipped }}
+        with:
+          script: |
+            const marker = '<!-- phase5-final-validation -->';
+            const body = `${marker}
+            ## Phase 5 exact-head validation
+
+            **Commit:** \`${context.sha}\`
+
+            - Python tests: **${process.env.TESTS}**
+            - Failures: **${process.env.FAILURES}**
+            - Errors: **${process.env.ERRORS}**
+            - Skipped: **${process.env.SKIPPED}**
+            - Migration: **head → 0016 → head passed**
+            - JavaScript syntax: **passed**
+            - Dependency/static/secret security gates: **passed**
+            - Production deployment: **not triggered**
+
+            This report is generated only after all Phase 1–5 regression and acceptance gates succeed.`;
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: 5,
+              per_page: 100,
+            });
+            const previous = comments.find(c => c.body && c.body.includes(marker));
+            if (previous) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: previous.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: 5,
+                body,
+              });
+            }
+      - name: Upload exact-head diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase5-final-validation-${{ github.sha }}
+          path: |
+            /tmp/final-migration.log
+            /tmp/final-pip-audit.log
+            /tmp/final-bandit.log
+            /tmp/final-pytest.log
+            /tmp/phase5-all.xml
+            /tmp/phase5-validation.json
+          if-no-files-found: warn
