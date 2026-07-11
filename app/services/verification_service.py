@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.canonical.model import CANONICAL_SCHEMA_VERSION, ThesisDocument
 from app.ingest.verifier import verify as verify_academic
+from app.models.citation_resolution import CitationResolution
 from app.models.manuscript_revision import ManuscriptRevision
 from app.models.project import Project
 from app.models.quote import Quote
@@ -195,6 +196,20 @@ async def verify_project(db: AsyncSession, project: Project) -> dict:
             )
         ).scalars()
     )
+    resolution_rows = list(
+        (
+            await db.execute(
+                select(CitationResolution).where(
+                    CitationResolution.project_id == project.id,
+                    CitationResolution.user_id == project.user_id,
+                )
+            )
+        ).scalars()
+    )
+    resolution_map = {
+        (str(row.block_id), row.raw_citation): row.source_id for row in resolution_rows
+    }
+
     revision = None
     if project.active_revision_id:
         revision = (
@@ -225,6 +240,7 @@ async def verify_project(db: AsyncSession, project: Project) -> dict:
         document,
         {source.id: source for source in source_rows},
         {quote.id: quote for quote in quote_rows},
+        resolution_map,
     ).as_dict()
     format_violations = _format_violations(document, project, profile, revision)
     combined = list(academic["violations"]) + format_violations
@@ -243,6 +259,7 @@ async def verify_project(db: AsyncSession, project: Project) -> dict:
         "counts": counts,
         "violations": combined,
         "academic": academic,
+        "citation_resolutions": len(resolution_rows),
         "import_report": revision.import_report if revision else None,
     }
 
