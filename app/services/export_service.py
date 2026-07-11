@@ -73,6 +73,47 @@ def _user_facing_error(exc: Exception) -> str:
     return "Export failed unexpectedly. Please retry."
 
 
+def _is_review_export(export_row: Export) -> bool:
+    """Return whether this artifact is intentionally non-final.
+
+    Explicit manifest state wins. Older v2 callers may have created export rows
+    without a verification report or manifest; those are treated conservatively
+    as review artifacts, never silently promoted to final outputs.
+    """
+
+    manifest = export_row.manifest or {}
+    if manifest.get("state") == "final":
+        return False
+    if manifest.get("state") == "review":
+        return True
+    return not bool((export_row.report or {}).get("pass"))
+
+
+def _apply_review_qa_policy(post_qa: dict, review_export: bool) -> dict:
+    """Allow visible unresolved markers only in clearly labelled review files.
+
+    Structural corruption, invalid containers, margin failures, and missing TOC
+    fields remain blocking in every mode. Only the explicit unresolved-marker
+    finding is downgraded for a review artifact. Final exports remain strict.
+    """
+
+    if not review_export:
+        return post_qa
+
+    blocking: list[dict] = []
+    for finding in post_qa.get("violations", []):
+        if finding.get("rule") == "unresolved_marker_rendered":
+            finding["severity"] = "warn"
+            finding["expected"] = (
+                "review exports may retain visible markers; resolve them before final export"
+            )
+        else:
+            blocking.append(finding)
+    post_qa["pass"] = not blocking
+    post_qa["review_export"] = True
+    return post_qa
+
+
 async def _resolve_project_profile(
     db: AsyncSession, project: Project
 ) -> tuple[ResolvedProfile, str]:
@@ -122,6 +163,7 @@ async def run_export(export_id: UUID, project_id: UUID, user_id: UUID) -> None:
                     "The active manuscript revision changed after export was queued."
                 )
 
+            review_export = _is_review_export(export_row)
             document = build_thesis_document(project)
             profile, profile_version = await _resolve_project_profile(db, project)
             export_row.profile_version = profile_version
@@ -171,10 +213,13 @@ async def run_export(export_id: UUID, project_id: UUID, user_id: UUID) -> None:
             post_qa = await asyncio.to_thread(
                 post_render_qa, output_path, fmt, document, profile
             )
+            post_qa = _apply_review_qa_policy(post_qa, review_export)
             if not post_qa["pass"]:
                 raise RenderError(
                     "; ".join(
-                        violation["rule"] for violation in post_qa["violations"]
+                        violation["rule"]
+                        for violation in post_qa["violations"]
+                        if violation.get("severity", "block") == "block"
                     )
                 )
 
@@ -190,6 +235,7 @@ async def run_export(export_id: UUID, project_id: UUID, user_id: UUID) -> None:
             report = dict(export_row.report or {})
             report["post_render"] = post_qa
             manifest = dict(export_row.manifest or {})
+            manifest.setdefault("state", "review" if review_export else "final")
             manifest.update(
                 {
                     "export_id": str(export_row.id),
@@ -231,7 +277,13 @@ async def run_export(export_id: UUID, project_id: UUID, user_id: UUID) -> None:
             export_row.manifest = manifest
             export_row.status = "ready"
             await db.commit()
-            log.info("export ready id=%s fmt=%s size=%d", export_id, fmt, size)
+            log.info(
+                "export ready id=%s fmt=%s size=%d state=%s",
+                export_id,
+                fmt,
+                size,
+                manifest["state"],
+            )
         except Exception as exc:
             caught = exc
             log.exception("export failed id=%s", export_id)
