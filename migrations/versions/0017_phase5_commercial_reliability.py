@@ -21,42 +21,16 @@ depends_on = None
 
 
 _TABLES_IN_ORDER = [
-    "product_editions",
-    "edition_versions",
-    "entitlement_definitions",
-    "entitlement_grants",
-    "usage_ledger",
-    "cost_ledger",
-    "billing_customers",
-    "subscriptions",
-    "subscription_items",
-    "invoices",
-    "payments",
-    "billing_events",
-    "tenant_budgets",
-    "platform_budget_controls",
-    "application_sessions",
-    "ai_providers",
-    "ai_provider_health",
-    "feature_flags",
-    "rollout_assignments",
-    "release_records",
-    "deployment_records",
-    "service_components",
-    "service_incidents",
-    "slo_definitions",
-    "sli_measurements",
-    "recovery_policies",
-    "backup_records",
-    "restore_drills",
-    "privacy_notice_versions",
-    "consent_records",
-    "processing_purposes",
-    "data_inventory_records",
-    "subprocessor_records",
-    "security_requirement_evidence",
-    "support_actions",
-    "data_lifecycle_jobs",
+    "product_editions", "edition_versions", "entitlement_definitions",
+    "entitlement_grants", "usage_ledger", "cost_ledger", "billing_customers",
+    "subscriptions", "subscription_items", "invoices", "payments", "billing_events",
+    "tenant_budgets", "platform_budget_controls", "application_sessions",
+    "ai_providers", "ai_provider_health", "feature_flags", "rollout_assignments",
+    "release_records", "deployment_records", "service_components", "service_incidents",
+    "slo_definitions", "sli_measurements", "recovery_policies", "backup_records",
+    "restore_drills", "privacy_notice_versions", "consent_records", "processing_purposes",
+    "data_inventory_records", "subprocessor_records", "security_requirement_evidence",
+    "support_actions", "data_lifecycle_jobs",
 ]
 
 
@@ -85,14 +59,21 @@ def upgrade() -> None:
     op.create_unique_constraint("uq_jobs_idempotency_key", "jobs", ["idempotency_key"])
     op.drop_index("ix_jobs_claim", table_name="jobs")
     op.create_index(
-        "ix_jobs_claim",
-        "jobs",
+        "ix_jobs_claim", "jobs",
         ["queue_name", "status", "priority", "available_at", "created_at"],
     )
     op.create_index("ix_jobs_lease", "jobs", ["status", "lease_expires_at", "heartbeat_at"])
 
-    # Customer-facing entitlement definitions. Values live in edition versions and
-    # time-bounded grants; definitions only provide stable semantics and units.
+    op.add_column("ai_runs", sa.Column("provider_id", postgresql.UUID(as_uuid=True), nullable=True))
+    op.add_column("ai_runs", sa.Column("provider_slug", sa.String(80), nullable=True))
+    op.add_column("ai_runs", sa.Column("provider_adapter", sa.String(50), nullable=True))
+    op.add_column("ai_runs", sa.Column("queue_deadline_at", sa.DateTime(timezone=True), nullable=True))
+    op.create_foreign_key(
+        "fk_ai_runs_provider_id_ai_providers", "ai_runs", "ai_providers",
+        ["provider_id"], ["id"], ondelete="SET NULL",
+    )
+    op.create_index("ix_ai_runs_provider_status", "ai_runs", ["provider_id", "status", "created_at"])
+
     op.execute(
         """
         INSERT INTO entitlement_definitions
@@ -116,7 +97,6 @@ def upgrade() -> None:
         ON CONFLICT (key) DO NOTHING
         """
     )
-
     op.execute(
         """
         INSERT INTO product_editions (id, slug, audience, name, description, state)
@@ -127,7 +107,6 @@ def upgrade() -> None:
         ON CONFLICT (slug) DO NOTHING
         """
     )
-
     op.execute(
         """
         INSERT INTO service_components (id, key, name, description, public_status, state)
@@ -146,6 +125,13 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    op.drop_index("ix_ai_runs_provider_status", table_name="ai_runs")
+    op.drop_constraint("fk_ai_runs_provider_id_ai_providers", "ai_runs", type_="foreignkey")
+    op.drop_column("ai_runs", "queue_deadline_at")
+    op.drop_column("ai_runs", "provider_adapter")
+    op.drop_column("ai_runs", "provider_slug")
+    op.drop_column("ai_runs", "provider_id")
+
     op.drop_index("ix_jobs_lease", table_name="jobs")
     op.drop_index("ix_jobs_claim", table_name="jobs")
     op.create_index("ix_jobs_claim", "jobs", ["status", "available_at", "created_at"])
