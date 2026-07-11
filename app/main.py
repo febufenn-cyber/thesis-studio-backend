@@ -23,6 +23,7 @@ from app.api import compile as compile_router
 from app.api import editor as editor_router
 from app.api import institutional as institutional_router
 from app.api import manuscripts as manuscripts_router
+from app.api import presence as presence_router
 from app.api import previews as previews_router
 from app.api import projects as projects_router
 from app.api import resolutions as resolutions_router
@@ -127,6 +128,7 @@ def create_app() -> FastAPI:
     app.include_router(collaboration_router.router)
     app.include_router(collaboration_commands_router.router)
     app.include_router(collaboration_read_router.router)
+    app.include_router(presence_router.router)
     app.include_router(institutional_router.router)
     app.include_router(submissions_router.router)
 
