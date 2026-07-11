@@ -24,7 +24,7 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     env:
-      ENV: test
+      ENV: development
       DEBUG: "false"
       DATABASE_URL: postgresql+asyncpg://thesis:thesis@127.0.0.1:5432/thesis_test
       JWT_SECRET: test-secret-at-least-32-characters-long
