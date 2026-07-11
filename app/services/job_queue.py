@@ -46,6 +46,7 @@ async def enqueue_job(
     max_attempts: int = 3,
     queue_name: str | None = None,
     priority: int = 100,
+    available_at: datetime | None = None,
     deadline_at: datetime | None = None,
     idempotency_key: str | None = None,
 ) -> Job:
@@ -64,6 +65,7 @@ async def enqueue_job(
         payload=payload,
         status="queued",
         max_attempts=max_attempts,
+        available_at=available_at or datetime.now(timezone.utc),
         deadline_at=deadline_at,
         idempotency_key=idempotency_key,
         release_sha=get_settings().RELEASE_SHA or None,
