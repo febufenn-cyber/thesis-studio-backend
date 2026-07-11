@@ -17,6 +17,7 @@ from app.api import auth as auth_router
 from app.api import chat as chat_router
 from app.api import citation_schema as citation_schema_router
 from app.api import collaboration as collaboration_router
+from app.api import collaboration_commands as collaboration_commands_router
 from app.api import compile as compile_router
 from app.api import editor as editor_router
 from app.api import institutional as institutional_router
@@ -123,6 +124,7 @@ def create_app() -> FastAPI:
     app.include_router(previews_router.router)
     app.include_router(ai_partner_router.router)
     app.include_router(collaboration_router.router)
+    app.include_router(collaboration_commands_router.router)
     app.include_router(institutional_router.router)
     app.include_router(submissions_router.router)
 
