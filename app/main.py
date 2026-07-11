@@ -19,6 +19,7 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 from app.api import auth as auth_router
 from app.api import chat as chat_router
 from app.api import compile as compile_router
+from app.api import projects as projects_router
 from app.api import sessions as sessions_router
 from app.core.config import get_settings
 from app.core.exceptions import register_exception_handlers
@@ -114,6 +115,7 @@ def create_app() -> FastAPI:
     app.include_router(sessions_router.router)
     app.include_router(chat_router.router)  # registers POST /sessions/{id}/messages
     app.include_router(compile_router.router)
+    app.include_router(projects_router.router)  # v2: projects, registry, exports
 
     @app.get("/healthz", tags=["meta"])
     async def health() -> dict:

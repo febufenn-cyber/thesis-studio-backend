@@ -188,6 +188,19 @@ See `.env.example` for the full list. Required for the app to boot:
 - `FRONTEND_URL` — for CORS and magic-link redirects
 - `DEFAULT_INSTITUTION_SHORT_NAME` — fallback institution for emails not matching any institution's `email_domains` (e.g. `MCC`). Open signup is enabled; domain match is a hint, not a requirement.
 
+
+## v2 (M1+M2) — canonical model & format engine
+
+Additive on top of v1 (formatter still locked). Key pieces:
+
+- **Canonical model**: `app/canonical/model.py` — `ThesisDocument` (DESIGN.md §4); all v2 renderers consume it.
+- **Schema**: migration 0005 — `projects` (document JSONB on the row), `sources`/`quotes` (citation registry), `style_profiles`, `exports`, `events`.
+- **Renderers** (`app/renderers/`): `profiles` (tn_university/mla_strict + StyleProfile merge), `pagination` (raw-XML page-number fields), `works_cited` (MLA 9 templates, never guesses fields), `docx_renderer`, `md_renderer`, `txt_renderer`, `pdf_renderer` (LibreOffice, availability-gated).
+- **Export flow**: `POST /projects/{id}/exports` (Gate G4 `acknowledge` required) → 202 → background render per format → `GET /projects/{id}/exports` poll → `GET /exports/{id}/download`.
+- **Deviations from files/DESIGN.md** (deliberate): BackgroundTasks + exports table instead of Redis/arq (956MB VM); chapters as JSONB on projects until Mode A per-chapter gates (M5); Contents page uses the native Word TOC field (DESIGN's sanctioned v1 fallback).
+
+v2 milestones: M0 ✓ (pre-existing) · M1 ✓ · M2 ✓ (skeleton; format-QA lints + golden fixture expansion pending) · M3 Mode B ingestion — next · M4–M6 pending.
+
 ## When in doubt
 
 Ask before:

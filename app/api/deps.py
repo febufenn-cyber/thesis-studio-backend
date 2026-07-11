@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import decode_access_token
 from app.db.deps import get_db
+from app.models.project import Project
 from app.models.session import ThesisSession
 from app.models.user import User
 
@@ -95,3 +96,21 @@ async def fetch_owned_session(
     if session is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
     return session
+
+
+async def fetch_owned_project(
+    db: AsyncSession,
+    project_id: UUID,
+    user_id: UUID,
+) -> Project:
+    """Fetch a v2 project, verifying ownership. 404 (never 403) otherwise."""
+    result = await db.execute(
+        select(Project)
+        .where(Project.id == project_id)
+        .where(Project.user_id == user_id)
+        .where(Project.archived.is_(False))
+    )
+    project = result.scalar_one_or_none()
+    if project is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+    return project
