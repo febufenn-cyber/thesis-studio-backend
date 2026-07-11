@@ -69,7 +69,7 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          pytest -q tests/test_phase2_api.py 2>&1 | tee /tmp/phase2-api.log
+          pytest -q tests/test_phase2_api.py tests/test_phase2_citation_api.py 2>&1 | tee /tmp/phase2-api.log
       - name: Full regression suite
         shell: bash
         run: |
