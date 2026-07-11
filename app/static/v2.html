@@ -1,42 +1,100 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Robofox Thesis Studio — Trusted Conversion</title>
-<link rel="stylesheet" href="/static/phase1.css">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <title>Robofox Thesis Studio — Human Review Workspace</title>
+  <link rel="stylesheet" href="/static/phase2.css">
 </head>
 <body>
-<header class="top"><div class="brand">Robofox <b>Trusted Conversion</b></div><div class="top-actions"><span id="user" class="user"></span><button id="legacyBtn" class="btn small" hidden>Legacy coach</button><button id="logoutBtn" class="btn small" hidden>Sign out</button></div></header>
-<main class="wrap">
-<section id="loginView">
-  <div class="hero"><div><div class="eyebrow">Phase 1 · Academic document infrastructure</div><h1>Convert a messy thesis without losing what matters.</h1><p>Preserve the original manuscript, expose every uncertain or unsupported element, verify citations and quotations, then produce a traceable institution-ready document.</p></div>
-  <div class="card loginbox"><div class="eyebrow">Secure access</div><h2>Sign in</h2><p class="muted">Enter your email and verify the six-digit code.</p><form id="emailForm"><input id="email" type="email" required placeholder="you@example.com"><button class="btn primary">Email code</button></form><form id="otpForm" hidden><input id="otp" inputmode="numeric" maxlength="6" placeholder="6-digit code" style="letter-spacing:6px;text-align:center"><button class="btn primary">Verify</button><button id="backEmail" class="btn" type="button">Use another email</button></form><div id="loginNotice" class="notice" hidden></div></div></div>
-</section>
-<section id="projectsView" hidden>
-  <div class="head"><div><div class="eyebrow">Operator workspace</div><h1>Projects</h1><div class="muted">Each project preserves immutable manuscript revisions and exact export provenance.</div></div><button id="newProjectBtn" class="btn primary">+ New project</button></div>
-  <div id="createCard" class="card section" hidden><div class="section-head"><h2>Create project</h2><button id="closeCreateBtn" class="btn">Close</button></div><form id="createForm" class="create-grid"><label class="label">Project title<input id="createTitle" required placeholder="Candidate — thesis title"></label><label class="label">Document<select id="createType"><option value="ma_dissertation">MA dissertation</option><option value="mphil_dissertation">MPhil dissertation</option><option value="phd_thesis">PhD thesis</option><option value="project_report">Project report</option></select></label><label class="label">Format profile<select id="createProfile"><option value="mcc_ma_english_2026">MCC MA English 2026</option><option value="tn_university">Generic TN — confirm rules</option><option value="mla_strict">MLA 9 strict</option></select></label><button class="btn primary">Create</button></form></div>
-  <div id="projectGrid" class="project-grid"></div><div id="projectsEmpty" class="card empty" hidden>No projects yet. Create one to upload a manuscript.</div>
-</section>
-<section id="workspaceView" hidden>
-  <button id="backProjectsBtn" class="btn small">← Projects</button>
-  <div class="workspace-head"><div><div class="eyebrow">Trusted manuscript conversion</div><h1 id="projectTitle"></h1><div id="projectBadges" class="workspace-meta"></div></div><button id="archiveBtn" class="btn bad">Archive project</button></div>
-  <nav id="steps" class="steps"><button class="step active" data-panel="manuscript">1 · Manuscript</button><button class="step" data-panel="review">2 · Review</button><button class="step" data-panel="metadata">3 · Metadata</button><button class="step" data-panel="registry">4 · Registry</button><button class="step" data-panel="verify">5 · Verify & export</button><button class="step" data-panel="advanced">Advanced</button></nav>
-  <div id="globalNotice" class="notice section" hidden></div>
-  <section id="manuscriptPanel">
-    <div class="stats"><div class="card stat"><strong id="revisionCount">0</strong><span class="muted">Revisions</span></div><div class="card stat"><strong id="chapterCount">0</strong><span class="muted">Chapters</span></div><div class="card stat"><strong id="sourceCount">0</strong><span class="muted">Sources</span></div><div class="card stat"><strong id="issueCount">0</strong><span class="muted">Open issues</span></div><div class="card stat"><strong id="coverageCount">—</strong><span class="muted">Preservation</span></div></div>
-    <div class="card section"><div class="section-head"><div><h2>Upload manuscript</h2><div class="muted">DOCX only · maximum 15 MB · original preserved immutably</div></div></div><form id="uploadForm" class="drop"><input id="manuscriptFile" type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" required><p class="muted">Preflight detects tables, figures, notes, comments, tracked changes, embedded objects and unsafe ZIP packages before parsing.</p><label class="checks" style="justify-content:center"><span><input id="applyUpload" type="checkbox" checked> Apply automatically when ready</span></label><button id="uploadBtn" class="btn primary">Upload and inspect</button></form></div>
-    <div class="card section"><div class="section-head"><h2>Immutable revisions</h2><button id="refreshBtn" class="btn small">Refresh</button></div><div class="table-wrap"><table class="table"><thead><tr><th>Revision</th><th>Original</th><th>Checksum</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead><tbody id="revisionRows"></tbody></table></div></div>
-    <div class="card"><div class="section-head"><h2>Background jobs</h2></div><div id="jobList"></div></div>
+<a class="skip-link" href="#mainWorkspace">Skip to thesis workspace</a>
+<header class="appbar">
+  <button id="homeBtn" class="brand" aria-label="Robofox Thesis Studio home">Robofox <strong>Thesis Studio</strong></button>
+  <div class="appbar-center"><span id="projectCrumb"></span><span id="saveState" class="save-state" aria-live="polite"></span></div>
+  <div class="appbar-actions"><span id="userLabel" class="muted"></span><button id="legacyBtn" class="button ghost" hidden>Legacy coach</button><button id="logoutBtn" class="button ghost" hidden>Sign out</button></div>
+</header>
+
+<main id="app">
+  <section id="loginView" class="auth-view">
+    <div class="auth-copy"><p class="eyebrow">Phase 2 · Human review workspace</p><h1>Correct the thesis without losing control of it.</h1><p>Review structure, compare every imported block with its original, resolve evidence problems, and preview the exact institutional output.</p></div>
+    <div class="panel auth-card"><h2>Secure sign in</h2><p class="muted">Use your email and six-digit verification code.</p><form id="emailForm"><label>Email<input id="emailInput" type="email" autocomplete="email" required placeholder="you@example.com"></label><button class="button primary">Email code</button></form><form id="otpForm" hidden><label>Verification code<input id="otpInput" inputmode="numeric" autocomplete="one-time-code" maxlength="6" required></label><button class="button primary">Verify</button><button id="changeEmailBtn" class="button ghost" type="button">Use another email</button></form><div id="authNotice" class="notice" hidden role="alert"></div></div>
   </section>
-  <section id="reviewPanel" hidden><div class="card section"><div class="section-head"><div><h2>Import report</h2><div class="muted">Nothing uncertain is hidden. Resolve every blocking or review item deliberately.</div></div></div><div id="importSummary"></div></div><div class="card"><div class="section-head"><h2>Review inbox</h2><label class="checks"><span><input id="showResolved" type="checkbox"> Show resolved</span></label></div><div id="issueList"></div></div></section>
-  <section id="metadataPanel" hidden><form id="metadataForm" class="card"><div class="section-head"><div><h2>Submission metadata</h2><div class="muted">Final export is blocked when required fields are incomplete.</div></div><button class="btn primary">Save metadata</button></div><div class="form-grid"><label class="label wide">Thesis title<input id="mTitle"></label><label class="label">Candidate name<input id="mCandidate"></label><label class="label">Registration number<input id="mReg"></label><label class="label">Degree<input id="mDegree"></label><label class="label">Department<input id="mDepartment"></label><label class="label">College<input id="mCollege"></label><label class="label">Affiliation / university<input id="mAffiliation"></label><label class="label">City<input id="mCity"></label><label class="label">PIN<input id="mPin"></label><label class="label">Supervisor<input id="mGuide"></label><label class="label">Supervisor designation<input id="mGuideRole"></label><label class="label">Submission month<input id="mMonth"></label><label class="label">Submission year<input id="mYear" type="number" min="1900" max="2200"></label></div></form></section>
-  <section id="registryPanel" hidden><div class="two"><div class="card section"><div class="section-head"><h2>Citation registry</h2><span id="sourceStatus" class="badge"></span></div><div id="sourceList"></div></div><div class="card section"><div class="section-head"><h2>Quotation registry</h2><span id="quoteStatus" class="badge"></span></div><div id="quoteList"></div></div></div></section>
-  <section id="verifyPanel" hidden><div id="verifyBanner" class="verify-banner section"></div><div class="two"><div class="card section"><div class="section-head"><h2>Verification findings</h2><button id="runVerifyBtn" class="btn">Run verification</button></div><div id="violationList"></div></div><div><div class="card section"><div class="section-head"><h2>Export</h2></div><div class="checks"><label><input class="fmt" type="checkbox" value="docx" checked> DOCX</label><label><input class="fmt" type="checkbox" value="pdf"> PDF</label><label><input class="fmt" type="checkbox" value="md"> Markdown</label><label><input class="fmt" type="checkbox" value="txt"> Text</label></div><p><label class="checks"><span><input id="authorshipAck" type="checkbox"> I accept responsibility for claims, citations and disclosure.</span></label></p><p><label class="checks"><span><input id="reviewExport" type="checkbox"> Allow clearly labelled review export when blockers remain</span></label></p><button id="exportBtn" class="btn primary">Queue export</button></div><div class="card"><div class="section-head"><h2>Exports</h2></div><div id="exportList"></div></div></div></div></section>
-  <section id="advancedPanel" hidden><div class="notice section">Advanced recovery console. Stable IDs and provenance fields must be preserved. Normal operators should use the guided workflow.</div><div class="json-grid"><div class="card"><div class="section-head"><h3>Front matter JSON</h3><button id="saveFrontBtn" class="btn small">Save</button></div><textarea id="frontJson"></textarea></div><div class="card"><div class="section-head"><h3>Chapters JSON</h3><button id="saveChaptersBtn" class="btn small">Save</button></div><textarea id="chaptersJson" style="min-height:320px"></textarea></div><div class="card"><div class="section-head"><h3>Works Cited refs JSON</h3><button id="saveWorksBtn" class="btn small">Save</button></div><textarea id="worksJson"></textarea></div></div></section>
-</section>
+
+  <section id="projectsView" class="page" hidden>
+    <div class="page-head"><div><p class="eyebrow">Your thesis workspace</p><h1>Projects</h1><p class="muted">Every project retains immutable uploads, edit history, snapshots, and version-bound exports.</p></div><button id="newProjectBtn" class="button primary">New project</button></div>
+    <form id="newProjectForm" class="panel create-project" hidden><label>Project title<input id="newProjectTitle" required placeholder="Candidate — thesis title"></label><label>Document type<select id="newProjectType"><option value="ma_dissertation">MA dissertation</option><option value="mphil_dissertation">MPhil dissertation</option><option value="phd_thesis">PhD thesis</option><option value="project_report">Project report</option></select></label><label>Format profile<select id="newProjectProfile"><option value="mcc_ma_english_2026">MCC MA English 2026</option><option value="tn_university">Generic Tamil Nadu — confirm rules</option><option value="mla_strict">MLA strict</option></select></label><div class="form-actions"><button class="button primary">Create</button><button id="cancelProjectBtn" type="button" class="button ghost">Cancel</button></div></form>
+    <div id="projectGrid" class="project-grid"></div><div id="projectEmpty" class="empty-state" hidden>No projects yet.</div>
+  </section>
+
+  <section id="studioView" hidden>
+    <div class="studio-toolbar">
+      <div><p class="eyebrow">Structured thesis review</p><h1 id="studioTitle"></h1><div id="studioMeta" class="chip-row"></div></div>
+      <div class="toolbar-actions"><button id="uploadOpenBtn" class="button">Upload revision</button><button id="checkpointBtn" class="button">Checkpoint</button><button id="undoBtn" class="button" disabled aria-keyshortcuts="Control+Z Meta+Z">Undo</button><button id="redoBtn" class="button" disabled aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z">Redo</button></div>
+    </div>
+    <nav id="modeTabs" class="mode-tabs" aria-label="Workspace sections">
+      <button data-mode="editor" class="active">Editor</button><button data-mode="review">Review inbox <span id="reviewTabCount" class="count"></span></button><button data-mode="metadata">Front matter</button><button data-mode="registry">Sources</button><button data-mode="preview">Preview</button><button data-mode="history">History</button>
+    </nav>
+    <div id="studioNotice" class="notice" hidden role="alert"></div>
+
+    <div id="mainWorkspace" class="workspace-grid">
+      <aside id="structurePane" class="sidebar structure-sidebar" aria-label="Document structure">
+        <div class="sidebar-head"><h2>Structure</h2><button id="collapseTreeBtn" class="icon-button" aria-label="Collapse all chapters">−</button></div>
+        <form id="searchForm" class="search-box"><label class="sr-only" for="searchInput">Search thesis</label><input id="searchInput" placeholder="Search or type:quote chapter:3"><button class="icon-button" aria-label="Search">⌕</button></form>
+        <label class="toggle-row"><input id="unresolvedOnly" type="checkbox"> Show unresolved only</label>
+        <div id="structureTree" class="structure-tree" role="tree"></div>
+        <div class="sidebar-foot"><button id="archiveBtn" class="button danger ghost">Archive project</button></div>
+      </aside>
+
+      <section id="contentPane" class="content-pane">
+        <section id="editorMode" class="mode-panel">
+          <header id="chapterHeader" class="content-head"></header>
+          <div id="editorEmpty" class="empty-state">Select a chapter or editable front-matter section.</div>
+          <div id="blockList" class="block-list" aria-label="Structured thesis blocks"></div>
+          <button id="addBlockBtn" class="button add-block" hidden>Add paragraph</button>
+        </section>
+
+        <section id="reviewMode" class="mode-panel" hidden>
+          <div id="readinessPanel" class="readiness-panel"></div>
+          <div class="filter-bar"><label>Severity<select id="reviewSeverity"><option value="">All</option><option value="block">Blocking</option><option value="warn">Warnings</option><option value="info">Information</option></select></label><label>Category<select id="reviewCategory"><option value="">All</option></select></label><label>Status<select id="reviewStatus"><option value="open">Open</option><option value="">All</option><option value="resolved">Resolved</option><option value="acknowledged">Acknowledged</option><option value="superseded">Superseded</option></select></label></div>
+          <div id="reviewList" class="review-list"></div>
+        </section>
+
+        <section id="metadataMode" class="mode-panel" hidden>
+          <div class="panel locked-template"><div><p class="eyebrow">Institution-controlled presentation</p><h2 id="profileTitle">Format profile</h2><p id="profileNotes" class="muted"></p></div><span class="chip">Template locked</span></div>
+          <form id="metadataForm" class="panel form-grid"><h2 class="wide">Submission metadata</h2><label class="wide">Thesis title<input data-meta="title"></label><label>Candidate name<input data-meta="candidate.name"></label><label>Registration number<input data-meta="candidate.reg_no"></label><label>Degree<input data-meta="degree"></label><label>Department<input data-meta="department"></label><label>College<input data-meta="college.name"></label><label>Affiliation<input data-meta="college.affiliation"></label><label>City<input data-meta="college.city"></label><label>PIN<input data-meta="college.pin"></label><label>Supervisor<input data-meta="guide.name"></label><label>Designation<input data-meta="guide.designation"></label><label>Submission month<input data-meta="submission.month"></label><label>Submission year<input data-meta="submission.year" type="number"></label><fieldset class="wide"><legend>AI assistance disclosure</legend><label class="toggle-row"><input id="aiDisclosureEnabled" type="checkbox"> Include disclosure page</label><label>Disclosure wording<textarea data-meta="ai_disclosure.text" rows="4"></textarea></label></fieldset><div class="form-actions wide"><button class="button primary">Save metadata changes</button></div></form>
+        </section>
+
+        <section id="registryMode" class="mode-panel" hidden>
+          <div class="registry-columns"><section><div class="content-head"><div><p class="eyebrow">Bibliography</p><h2>Source registry</h2></div><button id="addSourceBtn" class="button">Add source</button></div><div id="sourceList" class="registry-list"></div></section><section><div class="content-head"><div><p class="eyebrow">Evidence</p><h2>Quotation registry</h2></div></div><div id="quoteList" class="registry-list"></div></section></div>
+        </section>
+
+        <section id="previewMode" class="mode-panel" hidden>
+          <div class="preview-toolbar"><div><p class="eyebrow">Authoritative output preview</p><h2>Rendered PDF</h2><p class="muted">Generated through the same DOCX and LibreOffice pipeline used for final output.</p></div><button id="generatePreviewBtn" class="button primary">Generate preview</button></div>
+          <div id="previewStatus" class="panel"></div><iframe id="previewFrame" title="Authoritative thesis PDF preview" hidden></iframe>
+          <div class="panel"><h3>Fast structural preview</h3><div id="structuralPreview" class="paper-preview"></div></div>
+        </section>
+
+        <section id="historyMode" class="mode-panel" hidden>
+          <div class="history-columns"><section><div class="content-head"><h2>Change history</h2></div><div id="commandList" class="history-list"></div></section><section><div class="content-head"><h2>Checkpoints</h2></div><div id="snapshotList" class="history-list"></div></section></div>
+          <div id="comparisonPanel" class="panel" hidden></div>
+          <div class="panel"><h2>Exports</h2><div id="exportList" class="history-list"></div></div>
+        </section>
+      </section>
+
+      <aside id="contextPane" class="sidebar context-sidebar" aria-label="Selected item context">
+        <div class="sidebar-head"><h2>Context</h2><button id="closeContextBtn" class="icon-button" aria-label="Close context">×</button></div>
+        <div id="contextEmpty" class="empty-state">Select a block or review issue to see its original text, sources, quotation record, and change history.</div>
+        <div id="contextContent" hidden></div>
+      </aside>
+    </div>
+  </section>
 </main>
-<script src="/static/phase1-core.js"></script>
-<script src="/static/phase1-workspace.js"></script>
+
+<div id="uploadDialog" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="uploadTitle"><div class="modal-card"><div class="content-head"><div><p class="eyebrow">Immutable manuscript revision</p><h2 id="uploadTitle">Upload DOCX</h2></div><button class="icon-button modal-close" aria-label="Close">×</button></div><form id="uploadForm"><label>Manuscript<input id="uploadFile" type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" required></label><label class="toggle-row"><input id="uploadApply" type="checkbox" checked> Apply automatically when parsing succeeds</label><p class="muted">The original file and SHA-256 checksum are preserved. Unsupported objects are reported, never silently removed.</p><button class="button primary">Upload and inspect</button></form></div></div>
+<div id="commandMenu" class="popover" hidden></div>
+<script src="/static/phase2-core.js"></script>
+<script src="/static/phase2-editor.js"></script>
+<script src="/static/phase2-review.js"></script>
 </body>
 </html>
