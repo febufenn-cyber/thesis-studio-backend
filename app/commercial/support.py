@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.commercial.observability import release_identity
 from app.models.ai_run import AIRun
-from app.models.commercial import ApplicationSession, SupportAction
+from app.models.commercial import SupportAction
 from app.models.document_preview import DocumentPreview
 from app.models.export import Export
 from app.models.job import Job
@@ -31,6 +31,12 @@ async def diagnostic_bundle(
     justification: str,
 ) -> dict:
     """Return operational state without manuscript text, quotations or private AI prompts."""
+    project_id = project.id
+    project = (
+        await db.execute(select(Project).where(Project.id == project_id))
+    ).scalar_one_or_none()
+    if project is None:
+        raise SupportError("Project no longer exists.")
     jobs = list(
         (
             await db.execute(
@@ -86,12 +92,16 @@ async def diagnostic_bundle(
     }
     review_count = int(
         (
-            await db.execute(select(func.count(ReviewCycle.id)).where(ReviewCycle.project_id == project.id))
+            await db.execute(
+                select(func.count(ReviewCycle.id)).where(ReviewCycle.project_id == project.id)
+            )
         ).scalar_one()
     )
     approval_count = int(
         (
-            await db.execute(select(func.count(ApprovalRecord.id)).where(ApprovalRecord.project_id == project.id))
+            await db.execute(
+                select(func.count(ApprovalRecord.id)).where(ApprovalRecord.project_id == project.id)
+            )
         ).scalar_one()
     )
     bundle = {
@@ -194,7 +204,11 @@ async def diagnostic_bundle(
             action="generate_diagnostic_bundle",
             justification=justification,
             content_accessed=False,
-            result={"job_count": len(jobs), "export_count": len(exports), "preview_count": len(previews)},
+            result={
+                "job_count": len(jobs),
+                "export_count": len(exports),
+                "preview_count": len(previews),
+            },
             release_sha=release_identity()["release_sha"],
         )
     )
