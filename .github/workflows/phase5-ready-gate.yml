@@ -1,0 +1,83 @@
+name: Phase 5 Ready Gate
+
+on:
+  push:
+    branches:
+      - agent/phase-5-commercial-reliability
+
+permissions:
+  actions: read
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: phase5-ready-${{ github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  ready:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for exact-head final validation
+        id: validation
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const workflowName = 'Phase 5 Final Validation';
+            const deadline = Date.now() + 45 * 60 * 1000;
+            while (Date.now() < deadline) {
+              const { data } = await github.rest.actions.listWorkflowRunsForRepo({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                head_sha: context.sha,
+                per_page: 100,
+              });
+              const run = data.workflow_runs.find(r => r.name === workflowName);
+              if (run && run.status === 'completed') {
+                core.info(`Validation run ${run.id}: ${run.conclusion}`);
+                if (run.conclusion !== 'success') {
+                  core.setFailed(`Exact-head validation concluded ${run.conclusion}. PR remains draft.`);
+                  return;
+                }
+                core.setOutput('run_id', String(run.id));
+                core.setOutput('run_url', run.html_url);
+                return;
+              }
+              await new Promise(resolve => setTimeout(resolve, 20000));
+            }
+            core.setFailed('Timed out waiting for exact-head validation. PR remains draft.');
+      - name: Mark PR #5 ready for review
+        uses: actions/github-script@v7
+        env:
+          VALIDATION_URL: ${{ steps.validation.outputs.run_url }}
+        with:
+          script: |
+            const { data: pull } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: 5,
+            });
+            if (pull.head.sha !== context.sha) {
+              core.setFailed(`PR head moved from ${context.sha} to ${pull.head.sha}; refusing readiness transition.`);
+              return;
+            }
+            if (!pull.draft) {
+              core.info('PR is already ready.');
+              return;
+            }
+            const query = `query($owner:String!,$repo:String!,$number:Int!){repository(owner:$owner,name:$repo){pullRequest(number:$number){id}}}`;
+            const data = await github.graphql(query, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              number: 5,
+            });
+            await github.graphql(
+              `mutation($id:ID!){markPullRequestReadyForReview(input:{pullRequestId:$id}){pullRequest{id isDraft}}}`,
+              { id: data.repository.pullRequest.id },
+            );
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: 5,
+              body: `Phase 5 PR marked **Ready for review** after exact-head validation passed for \`${context.sha}\`. Validation: ${process.env.VALIDATION_URL}. No merge or deployment was triggered.`,
+            });
