@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import shutil
 from datetime import datetime, timezone
 from uuid import UUID
@@ -82,7 +83,9 @@ async def enforce_capacity(
         ).scalar_one()
     )
     if daily >= settings.daily_run_limit:
-        raise AICapacityExceeded("Daily AI task allowance reached. Deterministic workspace features remain available.")
+        raise AICapacityExceeded(
+            "Daily AI task allowance reached. Deterministic workspace features remain available."
+        )
 
     if spec.model_tier == "strong":
         strong_models = {get_settings().CLAUDE_COMPILE_MODEL}
@@ -104,7 +107,7 @@ async def enforce_capacity(
 
 def provider_cli_available() -> bool:
     configured = get_settings().CLAUDE_CLI_PATH
-    return bool(shutil.which(configured) or (configured.startswith("/") and shutil.os.path.exists(configured)))
+    return bool(shutil.which(configured) or (configured.startswith("/") and os.path.exists(configured)))
 
 
 async def health_snapshot(db: AsyncSession, project: Project, user_id: UUID) -> dict:
@@ -140,15 +143,16 @@ async def health_snapshot(db: AsyncSession, project: Project, user_id: UUID) -> 
         ).scalar_one()
     )
     enabled = settings.global_enabled and project.ai_enabled
+    provider_available = provider_cli_available()
     return {
         "enabled": enabled,
         "global_enabled": settings.global_enabled,
         "project_enabled": project.ai_enabled,
-        "provider_cli_available": provider_cli_available(),
+        "provider_cli_available": provider_available,
         "running_for_user": active,
         "queued_for_project": queued,
         "failed_runs_total": recent_failures,
-        "degraded_mode": not enabled or not provider_cli_available(),
+        "degraded_mode": not enabled or not provider_available,
         "deterministic_workspace_available": True,
         "limits": {
             "user_concurrent": settings.user_concurrent_limit,
