@@ -62,7 +62,7 @@ jobs:
           node --check app/static/phase2-review.js
           node --check app/static/phase2-integrity.js
           node --check app/static/phase3-ai.js
-          if [ -f app/static/phase4-collaboration.js ]; then node --check app/static/phase4-collaboration.js; fi
+          node --check app/static/phase4-collaboration.js
       - name: Validate Phase 4 migration round trip
         shell: bash
         run: |
@@ -75,11 +75,11 @@ jobs:
         run: |
           set -o pipefail
           pytest -q tests/test_phase4_unit.py 2>&1 | tee /tmp/phase4-unit.log
-      - name: Phase 4 tenant isolation and collaboration API
+      - name: Phase 4 tenant isolation and operations
         shell: bash
         run: |
           set -o pipefail
-          pytest -q tests/test_phase4_api.py 2>&1 | tee /tmp/phase4-api.log
+          pytest -q tests/test_phase4_api.py tests/test_phase4_operations.py 2>&1 | tee /tmp/phase4-api.log
       - name: Phase 4 end-to-end institutional acceptance
         shell: bash
         run: |
