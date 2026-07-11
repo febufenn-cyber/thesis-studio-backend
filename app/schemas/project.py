@@ -43,7 +43,14 @@ class ProjectDetailResponse(ProjectResponse):
 
 
 class VersionedMutation(BaseModel):
-    expected_version: int = Field(..., ge=1)
+    """Optimistic concurrency token.
+
+    It is optional only for the legacy v2 JSON console during the Phase 1
+    migration. The trusted operator UI always sends it; new APIs require it
+    where a revision or issue decision is made.
+    """
+
+    expected_version: int | None = Field(None, ge=1)
 
 
 class MetaUpdate(VersionedMutation):
@@ -62,7 +69,7 @@ class WorksCitedUpdate(VersionedMutation):
     works_cited: list[WorksCitedRef]
 
 
-class SourceCreate(BaseModel):
+class SourceCreate(VersionedMutation):
     kind: str
     fields: dict = Field(default_factory=dict)
     raw_entry: str | None = None
@@ -76,7 +83,7 @@ class SourceCreate(BaseModel):
     consulted_flag: bool = False
 
 
-class SourceUpdate(BaseModel):
+class SourceUpdate(VersionedMutation):
     kind: str | None = None
     fields: dict | None = None
     raw_entry: str | None = None
@@ -112,7 +119,7 @@ class SourceResponse(BaseModel):
         from_attributes = True
 
 
-class QuoteCreate(BaseModel):
+class QuoteCreate(VersionedMutation):
     page_or_loc: str = Field("", max_length=100)
     text: str = Field(..., min_length=1)
     verified: bool = False
@@ -180,10 +187,9 @@ class VerificationResponse(BaseModel):
     report: dict
 
 
-class ExportRequest(BaseModel):
+class ExportRequest(VersionedMutation):
     formats: list[str] | Literal["all"] = "all"
     acknowledge: bool = False
-    expected_version: int = Field(..., ge=1)
     allow_review_export: bool = False
 
 
