@@ -7,8 +7,9 @@ including chapter statuses and target-container ordering.
 
 from __future__ import annotations
 
+import app.editor.commands as _commands_module
 from app.canonical.model import ThesisDocument
-from app.editor.commands import CommandResult, apply_command as _apply_command
+from app.editor.commands import CommandResult, apply_command as _low_level_apply_command
 
 
 def apply_command(
@@ -19,7 +20,7 @@ def apply_command(
     allow_internal: bool = False,
 ) -> CommandResult:
     before = document.model_dump(mode="json")
-    result = _apply_command(
+    result = _low_level_apply_command(
         document,
         command_type,
         payload,
@@ -31,3 +32,9 @@ def apply_command(
             "payload": {"document": before},
         }
     return result
+
+
+# ``app.editor.__init__`` imports this module before services import symbols from
+# ``app.editor.commands``. Replacing the public function there keeps one runtime
+# path without duplicating the large pure implementation.
+_commands_module.apply_command = apply_command
