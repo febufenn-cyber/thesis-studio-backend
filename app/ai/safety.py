@@ -14,7 +14,13 @@ from typing import Any
 
 
 _INJECTION_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
-    ("ignore_previous", re.compile(r"ignore\s+(all\s+)?(previous|prior|above)\s+instructions", re.I)),
+    (
+        "ignore_previous",
+        re.compile(
+            r"ignore\s+(all\s+)?(previous|prior|above)\s+(instructions?|directions?|rules?|prompts?)",
+            re.I,
+        ),
+    ),
     ("system_impersonation", re.compile(r"\b(system|developer)\s+(message|prompt|instruction)s?\b", re.I)),
     ("permission_escalation", re.compile(r"\b(mark|set|declare).{0,40}\b(verified|approved|trusted)\b", re.I | re.S)),
     ("secret_exfiltration", re.compile(r"\b(reveal|print|show).{0,40}\b(system prompt|secret|token|credential)\b", re.I | re.S)),
