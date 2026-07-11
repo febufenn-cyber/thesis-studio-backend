@@ -109,16 +109,17 @@ def upgrade() -> None:
     )
     op.execute(
         """
-        INSERT INTO service_components (id, key, name, description, public_status, state)
+        INSERT INTO service_components
+            (id, key, name, description, public_status, state, metadata)
         VALUES
-            (gen_random_uuid(), 'web', 'Web application', 'Application shell and project navigation.', true, 'operational'),
-            (gen_random_uuid(), 'auth', 'Authentication', 'OTP, identity and revocable sessions.', true, 'operational'),
-            (gen_random_uuid(), 'editing', 'Document editing', 'Canonical document reads and saves.', true, 'operational'),
-            (gen_random_uuid(), 'ai', 'AI assistance', 'Grounded AI queue and provider capacity.', true, 'operational'),
-            (gen_random_uuid(), 'ingestion', 'Manuscript ingestion', 'Upload preflight and deterministic parsing.', true, 'operational'),
-            (gen_random_uuid(), 'pdf', 'Preview and PDF generation', 'Dedicated rendering and conversion workers.', true, 'operational'),
-            (gen_random_uuid(), 'downloads', 'File downloads', 'Verified export and sealed-package downloads.', true, 'operational'),
-            (gen_random_uuid(), 'email', 'Email notifications', 'OTP and workflow notifications.', true, 'operational')
+            (gen_random_uuid(), 'web', 'Web application', 'Application shell and project navigation.', true, 'operational', '{}'::jsonb),
+            (gen_random_uuid(), 'auth', 'Authentication', 'OTP, identity and revocable sessions.', true, 'operational', '{}'::jsonb),
+            (gen_random_uuid(), 'editing', 'Document editing', 'Canonical document reads and saves.', true, 'operational', '{}'::jsonb),
+            (gen_random_uuid(), 'ai', 'AI assistance', 'Grounded AI queue and provider capacity.', true, 'operational', '{}'::jsonb),
+            (gen_random_uuid(), 'ingestion', 'Manuscript ingestion', 'Upload preflight and deterministic parsing.', true, 'operational', '{}'::jsonb),
+            (gen_random_uuid(), 'pdf', 'Preview and PDF generation', 'Dedicated rendering and conversion workers.', true, 'operational', '{}'::jsonb),
+            (gen_random_uuid(), 'downloads', 'File downloads', 'Verified export and sealed-package downloads.', true, 'operational', '{}'::jsonb),
+            (gen_random_uuid(), 'email', 'Email notifications', 'OTP and workflow notifications.', true, 'operational', '{}'::jsonb)
         ON CONFLICT (key) DO NOTHING
         """
     )
