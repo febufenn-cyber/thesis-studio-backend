@@ -1,6 +1,7 @@
 """ORM models. Importing this module registers all tables on Base metadata."""
 
 from app.models.auth_token import AuthToken
+from app.models.citation_resolution import CitationResolution
 from app.models.event import Event
 from app.models.export import Export
 from app.models.file import File
@@ -18,6 +19,7 @@ from app.models.user import User
 
 __all__ = [
     "AuthToken",
+    "CitationResolution",
     "Event",
     "Export",
     "File",
