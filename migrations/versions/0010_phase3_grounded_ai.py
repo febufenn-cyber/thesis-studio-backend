@@ -17,10 +17,10 @@ branch_labels = None
 depends_on = None
 
 
-_DEFAULT_POLICY = sa.text(
-    "'{\"allowed_modes\":[\"understand\",\"diagnose\",\"plan\",\"transform\",\"challenge\",\"research\",\"coherence\",\"viva\"],"
-    "\"external_research\":false,\"private_threads\":true,\"supervisor_constraints\":[],\"disclosure_required\":true}'::jsonb"
-)
+# The richer application default lives in Project. A neutral JSONB default is
+# used here because SQLAlchemy text() treats JSON ``:false``/``:true`` tokens as
+# bind parameters inside a DDL default. Runtime policy reads apply safe fallbacks.
+_DEFAULT_POLICY = sa.text("'{}'::jsonb")
 
 
 def upgrade() -> None:
