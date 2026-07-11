@@ -59,7 +59,7 @@ jobs:
           node --check app/static/phase2-editor.js
           node --check app/static/phase2-review.js
           node --check app/static/phase2-integrity.js
-          if [ -f app/static/phase3-ai.js ]; then node --check app/static/phase3-ai.js; fi
+          node --check app/static/phase3-ai.js
       - name: Validate Phase 3 migration round trip
         shell: bash
         run: |
@@ -72,6 +72,12 @@ jobs:
         run: |
           set -o pipefail
           pytest -q tests/test_phase3_unit.py 2>&1 | tee /tmp/phase3-unit.log
+      - name: Grounded AI safety benchmark
+        shell: bash
+        run: |
+          set -o pipefail
+          python scripts/run_phase3_evals.py --minimum-match-rate 1.0 2>&1 | tee /tmp/phase3-evals.log
+          pytest -q tests/test_phase3_evals.py 2>&1 | tee -a /tmp/phase3-evals.log
       - name: Phase 3 API and proposal workflow
         shell: bash
         run: |
@@ -90,6 +96,7 @@ jobs:
           path: |
             /tmp/phase3-migration.log
             /tmp/phase3-unit.log
+            /tmp/phase3-evals.log
             /tmp/phase3-api.log
             /tmp/phase3-full.log
           if-no-files-found: warn
