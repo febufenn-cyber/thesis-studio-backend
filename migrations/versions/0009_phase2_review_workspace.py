@@ -18,6 +18,11 @@ depends_on = None
 
 
 def upgrade() -> None:
+    op.add_column(
+        "projects",
+        sa.Column("canonical_schema_version", sa.Integer(), nullable=False, server_default="3"),
+    )
+
     op.create_table(
         "document_commands",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
@@ -167,3 +172,4 @@ def downgrade() -> None:
     op.drop_table("review_items")
     op.drop_table("document_snapshots")
     op.drop_table("document_commands")
+    op.drop_column("projects", "canonical_schema_version")
