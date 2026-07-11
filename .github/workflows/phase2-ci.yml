@@ -52,6 +52,7 @@ jobs:
           node --check app/static/phase2-core.js
           node --check app/static/phase2-editor.js
           node --check app/static/phase2-review.js
+          node --check app/static/phase2-integrity.js
       - name: Validate Phase 2 migration round trip
         shell: bash
         run: |
