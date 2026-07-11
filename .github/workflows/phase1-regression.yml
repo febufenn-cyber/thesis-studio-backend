@@ -33,7 +33,7 @@ jobs:
       ANTHROPIC_API_KEY: test-key-placeholder
       FRONTEND_URL: http://localhost:8000
       CORS_ORIGINS: http://localhost:8000
-      DEFAULT_INSTITUTION_SHORT_NAME: MCC
+      DEFAULT_INSTITUTION_SHORT_NAME: TU
       STORAGE_BACKEND: local
       LOCAL_STORAGE_DIR: /tmp/thesis-ci-storage
       LOG_LEVEL: WARNING
