@@ -1,0 +1,118 @@
+name: Phase 5 CI
+
+on:
+  push:
+    branches:
+      - agent/phase-5-commercial-reliability
+  pull_request:
+
+jobs:
+  phase5:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: thesis
+          POSTGRES_PASSWORD: thesis
+          POSTGRES_DB: thesis_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U thesis -d thesis_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      ENV: development
+      DEBUG: "false"
+      DATABASE_URL: postgresql+asyncpg://thesis:thesis@127.0.0.1:5432/thesis_test
+      JWT_SECRET: test-secret-at-least-32-characters-long
+      JWT_ALGORITHM: HS256
+      JWT_EXPIRY_DAYS: "1"
+      ANTHROPIC_API_KEY: test-key-placeholder
+      FRONTEND_URL: http://localhost:8000
+      CORS_ORIGINS: http://localhost:8000
+      DEFAULT_INSTITUTION_SHORT_NAME: TU
+      STORAGE_BACKEND: local
+      LOCAL_STORAGE_DIR: /tmp/thesis-phase5-ci-storage
+      LOG_LEVEL: WARNING
+      RELEASE_SHA: phase5-test-sha
+      BUILD_TIME: 2026-07-12T00:00:00+00:00
+      SCHEMA_VERSION: "0017"
+      BILLING_PROVIDER: test
+      BILLING_WEBHOOK_SECRET: phase5-webhook-test-secret
+      SESSION_IDLE_MINUTES: "60"
+      SESSION_ABSOLUTE_DAYS: "1"
+      SESSION_REAUTH_MINUTES: "15"
+      AI_GLOBAL_ENABLED: "true"
+      AI_MAX_CONTEXT_CHARS: "60000"
+      AI_USER_CONCURRENT_LIMIT: "1"
+      AI_PROJECT_QUEUE_LIMIT: "3"
+      AI_DAILY_RUN_LIMIT: "30"
+      AI_DAILY_STRONG_RUN_LIMIT: "5"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Compile Python and import app
+        run: |
+          python -m compileall -q app tests
+          python -c "from app.main import app; print(app.version)"
+      - name: Validate workspace JavaScript
+        run: |
+          node --check app/static/phase2-core.js
+          node --check app/static/phase2-editor.js
+          node --check app/static/phase2-review.js
+          node --check app/static/phase2-integrity.js
+          node --check app/static/phase3-ai.js
+          node --check app/static/phase4-collaboration.js
+      - name: Validate Phase 5 migration round trip
+        shell: bash
+        run: |
+          set -o pipefail
+          alembic upgrade head 2>&1 | tee /tmp/phase5-migration.log
+          alembic downgrade 0016 2>&1 | tee -a /tmp/phase5-migration.log
+          alembic upgrade head 2>&1 | tee -a /tmp/phase5-migration.log
+      - name: Phase 5 commercial and security invariants
+        shell: bash
+        run: |
+          set -o pipefail
+          if [ -f tests/test_phase5_unit.py ]; then pytest -q tests/test_phase5_unit.py 2>&1 | tee /tmp/phase5-unit.log; else echo 'Phase 5 unit tests pending' | tee /tmp/phase5-unit.log; fi
+      - name: Phase 5 billing, session and entitlement API
+        shell: bash
+        run: |
+          set -o pipefail
+          if [ -f tests/test_phase5_api.py ]; then pytest -q tests/test_phase5_api.py 2>&1 | tee /tmp/phase5-api.log; else echo 'Phase 5 API tests pending' | tee /tmp/phase5-api.log; fi
+      - name: Phase 5 reliability, privacy and recovery
+        shell: bash
+        run: |
+          set -o pipefail
+          if [ -f tests/test_phase5_reliability.py ]; then pytest -q tests/test_phase5_reliability.py 2>&1 | tee /tmp/phase5-reliability.log; else echo 'Phase 5 reliability tests pending' | tee /tmp/phase5-reliability.log; fi
+      - name: Phase 5 commercial acceptance demonstration
+        shell: bash
+        run: |
+          set -o pipefail
+          if [ -f tests/test_phase5_acceptance.py ]; then pytest -q tests/test_phase5_acceptance.py 2>&1 | tee /tmp/phase5-acceptance.log; else echo 'Phase 5 acceptance test pending' | tee /tmp/phase5-acceptance.log; fi
+      - name: Complete regression suite
+        shell: bash
+        run: |
+          set -o pipefail
+          pytest -q 2>&1 | tee /tmp/phase5-full.log
+      - name: Upload diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase5-ci-diagnostics
+          path: |
+            /tmp/phase5-migration.log
+            /tmp/phase5-unit.log
+            /tmp/phase5-api.log
+            /tmp/phase5-reliability.log
+            /tmp/phase5-acceptance.log
+            /tmp/phase5-full.log
+          if-no-files-found: warn
