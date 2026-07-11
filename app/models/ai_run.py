@@ -1,4 +1,4 @@
-"""Durable, cancellable AI work units routed through the Phase 1 job queue."""
+"""Durable, cancellable AI work units routed through provider-independent workers."""
 
 from __future__ import annotations
 
@@ -38,6 +38,12 @@ class AIRun(Base):
     prompt_name: Mapped[str] = mapped_column(String(100), nullable=False)
     prompt_version: Mapped[str] = mapped_column(String(40), nullable=False)
     model: Mapped[str] = mapped_column(String(120), nullable=False)
+    provider_id: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("ai_providers.id", ondelete="SET NULL"), nullable=True
+    )
+    provider_slug: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    provider_adapter: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    queue_deadline_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     context_manifest: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
     context_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
     progress: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
@@ -55,4 +61,5 @@ class AIRun(Base):
         Index("ix_ai_runs_project_status", "project_id", "status"),
         Index("ix_ai_runs_thread_created", "thread_id", "created_at"),
         Index("ix_ai_runs_user_status", "user_id", "status"),
+        Index("ix_ai_runs_provider_status", "provider_id", "status", "created_at"),
     )
