@@ -132,6 +132,28 @@ def upgrade() -> None:
     )
     op.create_index("ix_quotes_import_revision_id", "quotes", ["import_revision_id"])
 
+    op.create_table(
+        "citation_resolutions",
+        sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
+        sa.Column("project_id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("revision_id", postgresql.UUID(as_uuid=True), nullable=True),
+        sa.Column("block_id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("raw_citation", sa.String(300), nullable=False),
+        sa.Column("source_id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("user_id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+        sa.ForeignKeyConstraint(["project_id"], ["projects.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(["revision_id"], ["manuscript_revisions.id"], ondelete="SET NULL"),
+        sa.ForeignKeyConstraint(["source_id"], ["sources.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
+        sa.UniqueConstraint(
+            "project_id", "block_id", "raw_citation", name="uq_citation_resolution_occurrence"
+        ),
+    )
+    op.create_index("ix_citation_resolutions_project_id", "citation_resolutions", ["project_id"])
+    op.create_index("ix_citation_resolutions_revision_id", "citation_resolutions", ["revision_id"])
+    op.create_index("ix_citation_resolutions_source_id", "citation_resolutions", ["source_id"])
+
     op.add_column("exports", sa.Column("document_version", sa.Integer(), nullable=False, server_default="1"))
     op.add_column("exports", sa.Column("manuscript_revision_id", postgresql.UUID(as_uuid=True), nullable=True))
     op.add_column(
@@ -165,6 +187,8 @@ def downgrade() -> None:
     op.drop_column("exports", "profile_version")
     op.drop_column("exports", "manuscript_revision_id")
     op.drop_column("exports", "document_version")
+
+    op.drop_table("citation_resolutions")
 
     op.drop_index("ix_quotes_import_revision_id", table_name="quotes")
     op.drop_constraint("fk_quotes_verified_by", "quotes", type_="foreignkey")
