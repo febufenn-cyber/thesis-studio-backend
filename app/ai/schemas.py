@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any, Literal
 from uuid import UUID
 
@@ -17,6 +18,9 @@ RiskLevel = Literal["low", "medium", "high"]
 OperationKind = Literal[
     "replace_runs", "insert_paragraph", "insert_marker", "move_block", "add_verified_quote"
 ]
+_LONG_DIRECT_QUOTE = re.compile(
+    r'(?:"[^"\n]{20,}"|“[^”\n]{20,}”|‘[^’\n]{20,}’|\'[^\'\n]{20,}\')'
+)
 
 
 class AIScope(BaseModel):
@@ -65,6 +69,24 @@ class AIOperation(BaseModel):
     payload: dict[str, Any] = Field(default_factory=dict)
 
     model_config = {"extra": "forbid"}
+
+    @model_validator(mode="after")
+    def direct_quotes_require_registry_ids(self):
+        if self.kind not in {"replace_runs", "insert_paragraph"}:
+            return self
+        text = str(self.payload.get("text", ""))
+        if isinstance(self.payload.get("runs"), list):
+            text += "".join(
+                str(run.get("text", ""))
+                for run in self.payload["runs"]
+                if isinstance(run, dict)
+            )
+        if _LONG_DIRECT_QUOTE.search(text):
+            raise ValueError(
+                "Direct quotation text cannot be supplied in a prose operation. "
+                "Use add_verified_quote with a human-verified quote_id or insert a marker."
+            )
+        return self
 
 
 class EvidenceSummary(BaseModel):
