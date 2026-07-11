@@ -98,6 +98,13 @@ class Settings(BaseSettings):
     R2_BUCKET_NAME: str = "thesis-studio"
     R2_PUBLIC_URL: str = ""
 
+    # ---- Untrusted-upload malware scanning ----
+    MALWARE_SCAN_MODE: Literal["disabled", "clamav"] = "disabled"
+    PRODUCTION_REQUIRE_MALWARE_SCAN: bool = True
+    CLAMAV_HOST: str = "clamav"
+    CLAMAV_PORT: int = 3310
+    CLAMAV_TIMEOUT_SECONDS: float = 30.0
+
     # ---- Privacy and support ----
     SUPPORT_ACCESS_DEFAULT_MINUTES: int = 60
     DELETION_GRACE_DAYS: int = 30
@@ -137,6 +144,8 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def production_safety(self) -> "Settings":
         if self.ENV == "production":
+            if self.DEBUG:
+                raise ValueError("DEBUG must be false in production")
             if self.PRODUCTION_REQUIRE_R2 and self.STORAGE_BACKEND != "r2":
                 raise ValueError("Production requires STORAGE_BACKEND=r2; local fallback is disabled")
             missing_r2 = [
@@ -155,6 +164,10 @@ class Settings(BaseSettings):
                 raise ValueError("Production deployments must provide RELEASE_SHA")
             if self.SESSION_IDLE_MINUTES <= 0 or self.SESSION_ABSOLUTE_DAYS <= 0:
                 raise ValueError("Production session lifetimes must be positive")
+            if self.PRODUCTION_REQUIRE_MALWARE_SCAN and self.MALWARE_SCAN_MODE != "clamav":
+                raise ValueError("Production requires MALWARE_SCAN_MODE=clamav")
+            if self.MALWARE_SCAN_MODE == "clamav" and not self.CLAMAV_HOST.strip():
+                raise ValueError("CLAMAV_HOST is required when malware scanning is enabled")
         return self
 
 
