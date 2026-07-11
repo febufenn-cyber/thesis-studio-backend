@@ -1,9 +1,10 @@
 """DOCX package safety and preservation preflight.
 
-The scanner runs before python-docx parsing. It validates the ZIP package,
-rejects decompression bombs, and enumerates document objects that the current
-canonical model cannot reconstruct. Unsupported content is never silently
-ignored: it is returned as explicit blocking/review issues in the import report.
+The scanner runs before python-docx parsing. It performs the configured malware
+scan, validates the ZIP package, rejects decompression bombs, and enumerates
+document objects that the current canonical model cannot reconstruct. Unsupported
+content is never silently ignored: it is returned as explicit blocking/review
+issues in the import report.
 """
 
 from __future__ import annotations
@@ -14,6 +15,8 @@ from dataclasses import dataclass, field
 from pathlib import PurePosixPath
 from typing import Literal
 from xml.etree import ElementTree as ET
+
+from app.services.malware_service import scan_file_sync
 
 
 DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
@@ -91,6 +94,7 @@ def _count(root: ET.Element | None, expression: str) -> int:
 def inspect_docx(path: str) -> PreflightReport:
     """Validate and inspect a DOCX package without extracting it to disk."""
 
+    malware = scan_file_sync(path)
     size = os.path.getsize(path)
     if size <= 0:
         raise ManuscriptValidationError("The uploaded manuscript is empty.")
@@ -193,5 +197,9 @@ def inspect_docx(path: str) -> PreflightReport:
                 "uncompressed_bytes": total_uncompressed,
                 "entry_count": len(infos),
                 "max_compression_ratio": round(max_ratio, 2),
+                "malware_scan": {
+                    "status": malware.status,
+                    "engine": malware.engine,
+                },
             },
         )
