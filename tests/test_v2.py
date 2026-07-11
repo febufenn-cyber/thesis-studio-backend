@@ -150,7 +150,8 @@ async def test_render_docx_tn_university(tmp_path) -> None:
     wc = [p.text for p in d.paragraphs if p.style.name == "TS-WorksCited"]
     assert len(wc) == 3 and wc[0].startswith("Aegerter") and wc[1].startswith("Dangarembga")
     # WC hanging indent
-    wcp = [p for p in d.paragraphs if p.style.name == "TS-WorksCited"][0]
+    wcp = [p.text for p in d.paragraphs if p.style.name == "TS-WorksCited"][0]
+    assert wcp
     assert round(d.styles["TS-WorksCited"].paragraph_format.first_line_indent.inches, 2) == -0.5
     # two sections (front matter + body), roman then decimal
     assert len(d.sections) == 2
@@ -267,35 +268,67 @@ async def test_sources_and_quotes_flow(
     assert r.status_code == 404
 
 
-async def test_export_gates(
-    client: AsyncClient, user_a: User, monkeypatch: pytest.MonkeyPatch
-) -> None:
+async def test_export_gates(client: AsyncClient, user_a: User) -> None:
     proj = await _mk_project(client, user_a)
     cookies = auth_cookie(user_a)
-    # G4 acknowledgment required
-    r = await client.post(f"/projects/{proj['id']}/exports",
-                          json={"formats": ["md"], "acknowledge": False}, cookies=cookies)
+
+    # Authorship/citation responsibility acknowledgment remains mandatory.
+    r = await client.post(
+        f"/projects/{proj['id']}/exports",
+        json={"formats": ["md"], "acknowledge": False},
+        cookies=cookies,
+    )
     assert r.status_code == 409 and "acknowledg" in r.json()["detail"].lower()
-    # no chapters
-    r = await client.post(f"/projects/{proj['id']}/exports",
-                          json={"formats": ["md"], "acknowledge": True}, cookies=cookies)
-    assert r.status_code == 409 and "no chapters" in r.json()["detail"]
-    # happy path with stubbed background job
-    await client.patch(f"/projects/{proj['id']}/chapters",
-                       json={"chapters": MINI_DOC["chapters"]}, cookies=cookies)
 
-    async def _noop(*args) -> None:
-        return None
+    # Empty projects are rejected by the combined verifier.
+    r = await client.post(
+        f"/projects/{proj['id']}/exports",
+        json={"formats": ["md"], "acknowledge": True},
+        cookies=cookies,
+    )
+    assert r.status_code == 409
+    verification = r.json()["detail"]["verification"]
+    assert any(v["rule"] == "chapters_missing" for v in verification["violations"])
 
-    monkeypatch.setattr("app.api.projects.run_export", _noop)
-    r = await client.post(f"/projects/{proj['id']}/exports",
-                          json={"formats": ["md", "txt"], "acknowledge": True},
-                          cookies=cookies)
+    # Adding chapters does not silently turn an unverified/manual project into a
+    # final artifact. The caller must explicitly request a labelled review file.
+    patched = await client.patch(
+        f"/projects/{proj['id']}/chapters",
+        json={"chapters": MINI_DOC["chapters"]},
+        cookies=cookies,
+    )
+    assert patched.status_code == 200
+    version = patched.json()["document_version"]
+
+    r = await client.post(
+        f"/projects/{proj['id']}/exports",
+        json={
+            "formats": ["md", "txt"],
+            "acknowledge": True,
+            "expected_version": version,
+        },
+        cookies=cookies,
+    )
+    assert r.status_code == 409
+    assert "Final export is blocked" in r.json()["detail"]["message"]
+
+    r = await client.post(
+        f"/projects/{proj['id']}/exports",
+        json={
+            "formats": ["md", "txt"],
+            "acknowledge": True,
+            "expected_version": version,
+            "allow_review_export": True,
+        },
+        cookies=cookies,
+    )
     assert r.status_code == 202
     rows = r.json()
-    assert {x["format"] for x in rows} == {"md", "txt"}
-    assert all(x["status"] == "running" for x in rows)
-    # download before ready → 409
+    assert {row["format"] for row in rows} == {"md", "txt"}
+    assert all(row["status"] == "queued" for row in rows)
+    assert all(row["manifest"]["state"] == "review" for row in rows)
+
+    # Download is unavailable until the durable worker completes the artifact.
     r = await client.get(f"/exports/{rows[0]['id']}/download", cookies=cookies)
     assert r.status_code == 409
 
@@ -353,8 +386,13 @@ async def test_run_export_end_to_end(tmp_path, monkeypatch: pytest.MonkeyPatch) 
             db.add(Source(id=_UUID(k), project_id=project.id, user_id=user.id,
                           kind=src.kind, fields=src.fields, verified=True))
         for fmt in ("docx", "md"):
-            row = Export(project_id=project.id, user_id=user.id, format=fmt,
-                         status="running")
+            row = Export(
+                project_id=project.id,
+                user_id=user.id,
+                format=fmt,
+                status="queued",
+                manifest={"state": "review"},
+            )
             db.add(row)
             await db.commit()
             await db.refresh(row)
@@ -369,6 +407,7 @@ async def test_run_export_end_to_end(tmp_path, monkeypatch: pytest.MonkeyPatch) 
                     select(Export).where(Export.id == export_id)
                 )).scalar_one()
                 assert row.status == "ready", f"{fmt}: {row.error_message}"
+                assert row.manifest["state"] == "review"
                 assert row.checksum and row.size_bytes > 0
                 path = await storage.open_local_path(row.storage_key)
                 if fmt == "docx":
