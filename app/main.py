@@ -15,9 +15,12 @@ from app.api import active_registry as active_registry_router
 from app.api import auth as auth_router
 from app.api import chat as chat_router
 from app.api import compile as compile_router
+from app.api import editor as editor_router
 from app.api import manuscripts as manuscripts_router
+from app.api import previews as previews_router
 from app.api import projects as projects_router
 from app.api import resolutions as resolutions_router
+from app.api import review_workspace as review_workspace_router
 from app.api import sessions as sessions_router
 from app.core.config import get_settings
 from app.core.exceptions import register_exception_handlers
@@ -83,8 +86,8 @@ def create_app() -> FastAPI:
 
     app = FastAPI(
         title="Robofox Thesis Studio API",
-        description="Integrity-first academic manuscript conversion and thesis workflow.",
-        version="0.3.0",
+        description="Integrity-first academic manuscript conversion, human review and thesis workflow.",
+        version="0.4.0",
         lifespan=lifespan,
         docs_url="/docs" if settings.DEBUG else None,
         redoc_url=None,
@@ -106,10 +109,13 @@ def create_app() -> FastAPI:
     app.include_router(manuscripts_router.router)
     app.include_router(resolutions_router.router)
     app.include_router(active_registry_router.router)
+    app.include_router(editor_router.router)
+    app.include_router(review_workspace_router.router)
+    app.include_router(previews_router.router)
 
     @app.get("/healthz", tags=["meta"])
     async def health() -> dict:
-        return {"status": "ok", "frontend": "v2", "phase": "trusted_conversion"}
+        return {"status": "ok", "frontend": "v2", "phase": "human_review_workspace"}
 
     @app.get("/readyz", tags=["meta"])
     async def ready():
