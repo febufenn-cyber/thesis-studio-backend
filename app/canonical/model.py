@@ -1,10 +1,10 @@
 """Canonical ThesisDocument model — the single source of truth for all renderers.
 
-Phase 1 correctness contract:
-- every structural object has a stable UUID;
-- imported structures preserve source paragraph/revision provenance;
-- unresolved or unsupported content is explicit and export-blocking;
-- older JSON remains readable because all new identity fields have defaults.
+Phase 2 extends the Phase 1 correctness contract:
+- every structural object keeps a stable UUID and import provenance;
+- chapter/front-matter review state is explicit and dependency-aware;
+- old v2 JSON remains readable while project rows track schema version 3;
+- presentation remains profile-driven and never mutates author text.
 """
 
 from __future__ import annotations
@@ -15,7 +15,18 @@ from uuid import UUID, uuid4
 from pydantic import BaseModel, Field
 
 
-CANONICAL_SCHEMA_VERSION = 2
+CANONICAL_SCHEMA_VERSION = 3
+ReviewStatus = Literal[
+    "imported",
+    "needs_review",
+    "in_progress",
+    "reviewed",
+    "approved",
+    "locked",
+    # Phase 1 compatibility aliases. New commands normalise these values.
+    "draft",
+    "review",
+]
 
 
 class Run(BaseModel):
@@ -58,7 +69,7 @@ class MarkerBlock(BlockIdentity):
     """Explicit unresolved item; all marker kinds block a final export."""
 
     type: Literal["marker"] = "marker"
-    kind: Literal["QUOTE_NEEDED", "VERIFY", "UNSUPPORTED", "REVIEW_REQUIRED"]
+    kind: Literal["QUOTE_NEEDED", "VERIFY", "SOURCE_NEEDED", "UNSUPPORTED", "REVIEW_REQUIRED"]
     note: str
     evidence: dict = Field(default_factory=dict)
 
@@ -76,7 +87,7 @@ class ChapterDoc(BaseModel):
     title_source_paragraph_index: int | None = None
     number: int
     title: str
-    status: Literal["draft", "review", "approved"] = "draft"
+    status: ReviewStatus = "imported"
     blocks: list[Block] = Field(default_factory=list)
 
 
@@ -93,6 +104,7 @@ class FrontMatterEntry(BaseModel):
         "contents",
         "abbreviations",
     ]
+    status: ReviewStatus = "imported"
     body_blocks: list[Block] = Field(default_factory=list)
 
 
@@ -122,6 +134,8 @@ class SubmissionMeta(BaseModel):
 class AiDisclosure(BaseModel):
     enabled: bool = False
     text: str = ""
+    tools: list[str] = Field(default_factory=list)
+    assistance_types: list[str] = Field(default_factory=list)
 
 
 class ThesisMeta(BaseModel):

@@ -26,6 +26,7 @@ class ProjectResponse(BaseModel):
     status: str
     format_profile: str
     document_version: int
+    canonical_schema_version: int
     active_revision_id: UUID | None
     archived: bool
     created_at: datetime

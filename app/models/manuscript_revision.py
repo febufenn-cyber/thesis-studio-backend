@@ -36,7 +36,7 @@ class ManuscriptRevision(Base):
     checksum: Mapped[str] = mapped_column(String(64), nullable=False)
 
     parser_version: Mapped[str] = mapped_column(String(50), nullable=False)
-    canonical_schema_version: Mapped[int] = mapped_column(Integer, nullable=False, default=2)
+    canonical_schema_version: Mapped[int] = mapped_column(Integer, nullable=False, default=3)
     canonical_snapshot: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     import_report: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
 

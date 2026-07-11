@@ -1,8 +1,8 @@
 """Durable PostgreSQL job queue and worker.
 
 Jobs are claimed with ``FOR UPDATE SKIP LOCKED`` so multiple workers can be
-added later without Redis. The initial deployment runs one worker, which also
-serialises memory-heavy LibreOffice conversions on the shared Oracle VM.
+added later without Redis. The initial deployment runs one worker, serialising
+memory-heavy ingestion, preview and export conversions on the shared VM.
 """
 
 from __future__ import annotations
@@ -18,6 +18,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import AsyncSessionLocal
+from app.models.document_preview import DocumentPreview
 from app.models.export import Export
 from app.models.job import Job
 from app.models.manuscript_revision import ManuscriptRevision
@@ -119,6 +120,20 @@ async def _already_completed(kind: str, payload: dict) -> bool:
                 and export.storage_key
                 and export.checksum
             )
+        if kind == "preview":
+            preview = (
+                await db.execute(
+                    select(DocumentPreview).where(
+                        DocumentPreview.id == UUID(payload["preview_id"])
+                    )
+                )
+            ).scalar_one_or_none()
+            return bool(
+                preview
+                and preview.status == "ready"
+                and preview.storage_key
+                and preview.checksum
+            )
     return False
 
 
@@ -142,6 +157,15 @@ async def _dispatch(job: Job) -> None:
 
         await run_export(
             UUID(payload["export_id"]),
+            UUID(payload["project_id"]),
+            UUID(payload["user_id"]),
+        )
+        return
+    if job.kind == "preview":
+        from app.services.preview_service import run_preview
+
+        await run_preview(
+            UUID(payload["preview_id"]),
             UUID(payload["project_id"]),
             UUID(payload["user_id"]),
         )
@@ -237,7 +261,7 @@ async def worker_loop() -> None:
     recovered = await recover_stale_jobs()
     if recovered:
         log.warning("recovered %d stale job(s)", recovered)
-    log.info("phase1 worker started id=%s", worker_id)
+    log.info("thesis worker started id=%s", worker_id)
     while True:
         job_id = await _claim_next(worker_id)
         if job_id is None:
