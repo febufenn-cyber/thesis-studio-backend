@@ -36,7 +36,7 @@ class Run(BaseModel):
 class ParagraphBlock(BaseModel):
     """A body paragraph composed of one or more styled runs."""
 
-    type: Literal["paragraph"]
+    type: Literal["paragraph"] = "paragraph"
     runs: list[Run]
 
 
@@ -47,7 +47,7 @@ class BlockQuoteBlock(BaseModel):
     ``quote_id`` must resolve to a verified registry entry before export.
     """
 
-    type: Literal["block_quote"]
+    type: Literal["block_quote"] = "block_quote"
     text: str
     citation: str = ""
     quote_id: UUID | None = None
@@ -60,7 +60,7 @@ class VerseQuoteBlock(BaseModel):
     ``quote_id`` must resolve to a verified registry entry before export.
     """
 
-    type: Literal["verse_quote"]
+    type: Literal["verse_quote"] = "verse_quote"
     lines: list[str]
     citation: str = ""
     quote_id: UUID | None = None
@@ -73,7 +73,7 @@ class HeadingBlock(BaseModel):
     are bold title-case; level-3 are italic title-case.
     """
 
-    type: Literal["heading"]
+    type: Literal["heading"] = "heading"
     level: Literal[2, 3]
     text: str
 
@@ -86,7 +86,7 @@ class MarkerBlock(BaseModel):
     ``VERIFY`` — a source or fact needs confirmation before export.
     """
 
-    type: Literal["marker"]
+    type: Literal["marker"] = "marker"
     kind: Literal["QUOTE_NEEDED", "VERIFY"]
     note: str
 
