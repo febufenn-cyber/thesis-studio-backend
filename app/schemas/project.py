@@ -45,12 +45,11 @@ class ProjectDetailResponse(ProjectResponse):
 class VersionedMutation(BaseModel):
     """Optimistic concurrency token.
 
-    It is optional only for the legacy v2 JSON console during the Phase 1
-    migration. The trusted operator UI always sends it; new APIs require it
-    where a revision or issue decision is made.
+    Optional only for the legacy v2 JSON console during migration. The field is
+    excluded from ``model_dump`` so it can never be mistaken for ORM content.
     """
 
-    expected_version: int | None = Field(None, ge=1)
+    expected_version: int | None = Field(None, ge=1, exclude=True)
 
 
 class MetaUpdate(VersionedMutation):
