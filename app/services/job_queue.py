@@ -18,7 +18,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import AsyncSessionLocal
+from app.models.export import Export
 from app.models.job import Job
+from app.models.manuscript_revision import ManuscriptRevision
 
 
 log = logging.getLogger(__name__)
@@ -87,8 +89,44 @@ async def _heartbeat(job_id: UUID, stop: asyncio.Event) -> None:
                 await db.commit()
 
 
+async def _already_completed(kind: str, payload: dict) -> bool:
+    """Return True when a retried job's durable result already exists."""
+
+    async with AsyncSessionLocal() as db:
+        if kind == "ingest_manuscript":
+            revision = (
+                await db.execute(
+                    select(ManuscriptRevision).where(
+                        ManuscriptRevision.id == UUID(payload["revision_id"])
+                    )
+                )
+            ).scalar_one_or_none()
+            return bool(
+                revision
+                and revision.status == "ready"
+                and revision.canonical_snapshot
+                and revision.import_report
+            )
+        if kind == "export":
+            export = (
+                await db.execute(
+                    select(Export).where(Export.id == UUID(payload["export_id"]))
+                )
+            ).scalar_one_or_none()
+            return bool(
+                export
+                and export.status == "ready"
+                and export.storage_key
+                and export.checksum
+            )
+    return False
+
+
 async def _dispatch(job: Job) -> None:
     payload = job.payload or {}
+    if await _already_completed(job.kind, payload):
+        log.info("job idempotency hit id=%s kind=%s", job.id, job.kind)
+        return
     if job.kind == "ingest_manuscript":
         from app.services.manuscript_service import ingest_revision
 
