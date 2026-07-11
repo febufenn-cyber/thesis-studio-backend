@@ -1,8 +1,7 @@
 """Deterministic academic-integrity verifier.
 
-The verifier never fixes content. It reports stable block/source locations and
-blocks ambiguous citation resolution rather than treating every same-surname
-source as cited.
+The verifier never fixes content. Heuristic matching is used only when no
+human decision exists for the exact stable block and raw citation occurrence.
 """
 
 from __future__ import annotations
@@ -55,9 +54,11 @@ def verify(
     doc: ThesisDocument,
     sources: dict[UUID, Any],
     quotes: dict[UUID, Any],
+    resolutions: dict[tuple[str, str], UUID] | None = None,
 ) -> VerifierReport:
     violations: list[Violation] = []
     cited_refs = {ref.source_id for ref in doc.works_cited}
+    human_resolutions = resolutions or {}
 
     for ref in doc.works_cited:
         source = sources.get(ref.source_id)
@@ -74,7 +75,9 @@ def verify(
             )
             continue
         invalid_fields = [
-            key for key, value in source.fields.items() if not str(value).strip() or VERIFY in str(value)
+            key
+            for key, value in source.fields.items()
+            if not str(value).strip() or VERIFY in str(value)
         ]
         if invalid_fields:
             violations.append(
@@ -121,7 +124,11 @@ def verify(
                         Violation(
                             "quote_missing_id",
                             location,
-                            (block.text if isinstance(block, BlockQuoteBlock) else " / ".join(block.lines))[:80],
+                            (
+                                block.text
+                                if isinstance(block, BlockQuoteBlock)
+                                else " / ".join(block.lines)
+                            )[:80],
                             "a quotation record linked to one source",
                             "block",
                         )
@@ -139,7 +146,11 @@ def verify(
                         )
                     )
                     continue
-                document_text = block.text if isinstance(block, BlockQuoteBlock) else "\n".join(block.lines)
+                document_text = (
+                    block.text
+                    if isinstance(block, BlockQuoteBlock)
+                    else "\n".join(block.lines)
+                )
                 if _normalise(document_text) != _normalise(quote.text):
                     violations.append(
                         Violation(
@@ -164,11 +175,19 @@ def verify(
     in_text: list[InTextCitation] = scan_document(doc)
     used_ids: set[UUID] = set()
     for citation in in_text:
-        resolved_id, candidates, reason = resolve_citation(citation, sources)
+        key = (citation.block_id, citation.raw)
+        human_source_id = human_resolutions.get(key)
+        if human_source_id is not None:
+            resolved_id = human_source_id if human_source_id in sources else None
+            candidates: list[UUID] = [human_source_id]
+            reason = "human_resolution" if resolved_id else "human_resolution_source_missing"
+        else:
+            resolved_id, candidates, reason = resolve_citation(citation, sources)
         location = {
             "chapter": citation.chapter,
             "block_id": citation.block_id,
             "block_index": citation.block_index,
+            "resolution": reason,
         }
         if resolved_id is None:
             rule = "citation_ambiguous_source" if candidates else "citation_without_source"
