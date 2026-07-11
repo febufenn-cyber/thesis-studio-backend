@@ -22,14 +22,13 @@ _DEFAULT_AI_POLICY = {
 
 
 class Project(Base):
-    """A formatting/research project belonging to one user.
+    """Canonical thesis plus its governed institutional workflow.
 
-    ``document_version`` is incremented on every canonical mutation and is used
-    for optimistic concurrency, stale-export detection and review anchors.
-    ``canonical_schema_version`` tracks JSONB data migrations independently from
-    relational Alembic migrations. The canonical project is also the sole
-    source of truth for Phase 3 AI context; legacy session fields are historical
-    inputs only.
+    ``user_id`` remains the visible student-author/legacy owner. Shared access is
+    never inferred from this field: Phase 4 uses verified organization and
+    project memberships with explicit capabilities. ``document_version`` is
+    incremented for every canonical mutation and review/approval records bind to
+    immutable snapshots of a precise version.
     """
 
     __tablename__ = "projects"
@@ -38,15 +37,42 @@ class Project(Base):
     user_id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
+    institution_id: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("institutions.id", ondelete="RESTRICT"), nullable=True, index=True
+    )
+    department_id: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("departments.id", ondelete="SET NULL"), nullable=True, index=True
+    )
 
     mode: Mapped[str] = mapped_column(String(20), nullable=False, default="operator")
     doc_type: Mapped[str] = mapped_column(String(30), nullable=False, default="ma_dissertation")
     title: Mapped[str] = mapped_column(String(300), nullable=False, default="Untitled Project")
     status: Mapped[str] = mapped_column(String(30), nullable=False, default="formatting")
+    workflow_state: Mapped[str] = mapped_column(String(40), nullable=False, default="draft")
     format_profile: Mapped[str] = mapped_column(String(80), nullable=False, default="tn_university")
 
     style_profile_id: Mapped[UUID | None] = mapped_column(
         PG_UUID(as_uuid=True), ForeignKey("style_profiles.id", ondelete="SET NULL"), nullable=True
+    )
+    institutional_profile_version_id: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey(
+            "institutional_profile_versions.id",
+            name="fk_projects_institutional_profile_version",
+            ondelete="SET NULL",
+            use_alter=True,
+        ),
+        nullable=True,
+    )
+    institutional_policy_version_id: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey(
+            "institutional_policy_versions.id",
+            name="fk_projects_institutional_policy_version",
+            ondelete="SET NULL",
+            use_alter=True,
+        ),
+        nullable=True,
     )
     active_revision_id: Mapped[UUID | None] = mapped_column(
         PG_UUID(as_uuid=True),
@@ -68,7 +94,18 @@ class Project(Base):
 
     ai_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     ai_policy: Mapped[dict] = mapped_column(JSONB, nullable=False, default=lambda: dict(_DEFAULT_AI_POLICY))
-
+    collaboration_policy: Mapped[dict] = mapped_column(
+        JSONB,
+        nullable=False,
+        default=lambda: {
+            "student_owns_acceptance": True,
+            "supervisor_ai_history_default": False,
+            "admin_content_access_default": False,
+            "operator_prose_edit": False,
+            "external_review": True,
+        },
+    )
+    submission_locked: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     archived: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
