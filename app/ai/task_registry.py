@@ -68,7 +68,7 @@ TASKS: dict[str, TaskSpec] = {
     "memory_refresh": TaskSpec(
         "memory_refresh", "hierarchical_memory_refresh", PROMPT_BUNDLE_VERSION,
         "memory", "low", "utility", (), "project",
-        "Refresh project/chapter summaries and the argument map from canonical content.",
+        "Refresh project/chapter summaries, the thesis argument map and literature-review matrix without changing the document.",
     ),
 }
 
@@ -99,5 +99,4 @@ def public_task_catalog() -> list[dict]:
             "maximum_scope": spec.maximum_scope,
         }
         for spec in TASKS.values()
-        if spec.mode != "memory_refresh"
     ]
