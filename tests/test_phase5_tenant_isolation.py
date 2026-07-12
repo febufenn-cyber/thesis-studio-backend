@@ -79,6 +79,11 @@ async def test_institution_cannot_replay_another_tenants_billing_event(
         name="Other University",
         short_name=f"OU-{uuid4().hex[:6]}",
         email_domains="other.test",
+        address="Other Campus Road",
+        short_address="Other Campus",
+        university_name="Other University",
+        default_department="Department of English",
+        department_aided=False,
         is_active=True,
     )
     db_session.add(other)
