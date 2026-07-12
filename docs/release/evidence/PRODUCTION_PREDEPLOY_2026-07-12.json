@@ -1,0 +1,53 @@
+{
+  "schema": "robofox.production-predeploy.v1",
+  "captured_at": "2026-07-12T12:53:00+00:00",
+  "domain": "thesis.robofox.online",
+  "serves": "legacy-v1",
+  "edge": {
+    "provider": "cloudflare",
+    "dns": [
+      "172.67.173.228",
+      "104.21.30.225"
+    ],
+    "tls_edge": "valid"
+  },
+  "origin": {
+    "host": "[REDACTED]",
+    "os": "ubuntu-22.04",
+    "arch": "x86_64",
+    "vcpu": 2,
+    "path": "cloudflare -> nginx(certbot) -> 127.0.0.1:8000",
+    "process": "pm2 thesis-api"
+  },
+  "live_endpoints": {
+    "healthz": 200,
+    "readyz": 404,
+    "meta_release": 404,
+    "root": 200
+  },
+  "v1": {
+    "deploy_dir": "[REDACTED]",
+    "source_sha": "2b11a09df1dd122d762d5dc57572b30a080d56b1",
+    "env": "production",
+    "database": "[REDACTED \u2014 on-host PostgreSQL 14.23]",
+    "alembic_revision": "0006",
+    "storage_backend": "local",
+    "email": "resend-present",
+    "clamav": "absent",
+    "workers": "in-process",
+    "prior_backups": "none"
+  },
+  "capacity": {
+    "ram_total_mb": 956,
+    "ram_available_mb": 318,
+    "disk_free_gb": 29,
+    "co_tenants": "multiple unrelated production services + e2-demo"
+  },
+  "release_under_consideration": {
+    "eligible_sha": "69d5333c059731d8b040171bc0754df951407171",
+    "schema_target": "0018",
+    "note": "d023b02c is the a072295 build, NOT this release; rebuild for the derived SHA"
+  },
+  "secrets_included": false,
+  "thesis_content_included": false
+}
