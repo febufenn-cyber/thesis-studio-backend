@@ -24,6 +24,8 @@ def test_placeholders_and_secret_references_are_allowed() -> None:
             "ANTHROPIC_API_KEY=test-provider-key-placeholder",
             "R2_SECRET_ACCESS_" + "KEY=${R2_SECRET_ACCESS_KEY}",
             "R2_SECRET_ACCESS_" + "KEY=<injected-at-runtime>",
+            "R2_SECRET_ACCESS_" + "KEY=CHANGE_ME",
+            'R2_SECRET_ACCESS_' + 'KEY="test-secret-placeholder",',
         ]
     )
     assert scan_text(text) == []
