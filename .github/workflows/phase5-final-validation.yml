@@ -47,7 +47,7 @@ jobs:
       LOG_LEVEL: WARNING
       RELEASE_SHA: ${{ github.sha }}
       BUILD_TIME: 2026-07-12T00:00:00+00:00
-      SCHEMA_VERSION: "0017"
+      SCHEMA_VERSION: "0018"
       BILLING_PROVIDER: test
       BILLING_WEBHOOK_SECRET: phase5-final-webhook-test-secret
       SESSION_IDLE_MINUTES: "60"
@@ -71,7 +71,7 @@ jobs:
           pip install pip-audit bandit
       - name: Compile and import exact head
         run: |
-          python -m compileall -q app tests
+          python -m compileall -q app tests scripts
           python - <<'PY'
           from app.main import app
           assert app.version == "0.7.0"
@@ -98,7 +98,7 @@ jobs:
           set -o pipefail
           pip-audit -r requirements.txt 2>&1 | tee /tmp/final-pip-audit.log
           bandit -r app -x tests -ll -ii 2>&1 | tee /tmp/final-bandit.log
-          ! git grep -nE '(sk-[A-Za-z0-9_-]{20,}|AKIA[0-9A-Z]{16}|BEGIN (RSA|OPENSSH|EC) PRIVATE KEY|R2_SECRET_ACCESS_KEY=[^$<{])' -- ':!*.md' ':!.env.example'
+          python scripts/check_secret_patterns.py 2>&1 | tee /tmp/final-secret-patterns.log
       - name: Complete Phase 1–5 regression and acceptance suite
         shell: bash
         run: |
@@ -187,6 +187,7 @@ jobs:
             /tmp/final-migration.log
             /tmp/final-pip-audit.log
             /tmp/final-bandit.log
+            /tmp/final-secret-patterns.log
             /tmp/final-pytest.log
             /tmp/phase5-all.xml
             /tmp/phase5-validation.json

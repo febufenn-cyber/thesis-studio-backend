@@ -39,7 +39,7 @@ jobs:
       LOG_LEVEL: WARNING
       RELEASE_SHA: phase5-test-sha
       BUILD_TIME: 2026-07-12T00:00:00+00:00
-      SCHEMA_VERSION: "0017"
+      SCHEMA_VERSION: "0018"
       BILLING_PROVIDER: test
       BILLING_WEBHOOK_SECRET: phase5-webhook-test-secret
       SESSION_IDLE_MINUTES: "60"
@@ -82,22 +82,22 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          if [ -f tests/test_phase5_unit.py ]; then pytest -q tests/test_phase5_unit.py 2>&1 | tee /tmp/phase5-unit.log; else echo 'Phase 5 unit tests pending' | tee /tmp/phase5-unit.log; fi
+          pytest -q tests/test_phase5_unit.py 2>&1 | tee /tmp/phase5-unit.log
       - name: Phase 5 billing, session and entitlement API
         shell: bash
         run: |
           set -o pipefail
-          if [ -f tests/test_phase5_api.py ]; then pytest -q tests/test_phase5_api.py 2>&1 | tee /tmp/phase5-api.log; else echo 'Phase 5 API tests pending' | tee /tmp/phase5-api.log; fi
+          pytest -q tests/test_phase5_api.py 2>&1 | tee /tmp/phase5-api.log
       - name: Phase 5 reliability, privacy and recovery
         shell: bash
         run: |
           set -o pipefail
-          if [ -f tests/test_phase5_reliability.py ]; then pytest -q tests/test_phase5_reliability.py 2>&1 | tee /tmp/phase5-reliability.log; else echo 'Phase 5 reliability tests pending' | tee /tmp/phase5-reliability.log; fi
+          pytest -q tests/test_phase5_reliability.py 2>&1 | tee /tmp/phase5-reliability.log
       - name: Phase 5 commercial acceptance demonstration
         shell: bash
         run: |
           set -o pipefail
-          if [ -f tests/test_phase5_acceptance.py ]; then pytest -q tests/test_phase5_acceptance.py 2>&1 | tee /tmp/phase5-acceptance.log; else echo 'Phase 5 acceptance test pending' | tee /tmp/phase5-acceptance.log; fi
+          pytest -q tests/test_phase5_acceptance.py 2>&1 | tee /tmp/phase5-acceptance.log
       - name: Complete regression suite
         shell: bash
         run: |

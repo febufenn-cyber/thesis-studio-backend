@@ -1,327 +1,263 @@
-# Robofox Thesis Studio — Backend
+# Robofox Thesis Studio
 
-FastAPI backend for Robofox Thesis Studio. The application preserves the legacy AI-guided thesis workflow and adds three governed product layers:
+Robofox Thesis Studio is a FastAPI/PostgreSQL academic-document platform built around five governed layers:
 
-1. **Trusted manuscript conversion** — preserve, parse, verify and export an uploaded thesis.
-2. **Human review workspace** — safely correct the canonical thesis through structured, reversible commands.
-3. **Grounded AI thesis partner** — inspect, challenge and propose without silently becoming the author.
+1. **Trusted manuscript conversion** — preserve, inspect, parse, verify and export an uploaded thesis without silent content loss.
+2. **Human review and editing** — correct the canonical thesis through typed, reversible and versioned commands.
+3. **Grounded AI thesis partner** — inspect, challenge and propose changes without acquiring authorship, verification or approval authority.
+4. **Collaborative academic workspace** — separate student, supervisor, operator, department and examiner powers through review snapshots and institutional policy.
+5. **Commercial reliability, security and scale** — enforce editions, billing, revocable sessions, provider routing, recovery, privacy and audited operations.
 
-## Quick start
+The preserved legacy coaching interface remains available at `/legacy`. The structured workspace is served at `/`.
+
+## Current release identity
+
+- Application version: `0.7.0`
+- Database schema: `0018`
+- Canonical schema: versioned independently inside project JSON
+- Production release source: an exact commit reachable from `main` with a durable file at `release-candidates/<sha>.json`
+
+A merged commit is not automatically production-ready. See [Release Candidate Hardening](docs/RELEASE_CANDIDATE_HARDENING.md).
+
+## Local development
 
 ```bash
-# Clone and enter the repository
-git clone <this-repo> thesis-studio-backend
+git clone https://github.com/febufenn-cyber/thesis-studio-backend.git
 cd thesis-studio-backend
-
-# Python environment
 python3.11 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
-
-# Configuration
 cp .env.example .env
-# Set a secure JWT secret and the existing Claude/provider configuration.
 
-# Database
-docker-compose up -d postgres
+docker compose up -d postgres
 alembic upgrade head
 
-# Create an institution if the database is empty
-python scripts/create_institution.py \
-    --name "Madras Christian College (Autonomous)" \
-    --short-name "MCC" \
-    --domains "mcc.edu.in,students.mcc.edu.in" \
-    --address "Tambaram, Chennai – 600 059." \
-    --short-address "Tambaram, Chennai – 59" \
-    --university "University of Madras" \
-    --department "PG & Research Department of English" \
-    --aided
-
-# API
+# Terminal 1
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
-# Durable worker in a second terminal
-source venv/bin/activate
+# Terminal 2
 python -m app.services.job_queue
 ```
 
-Open `http://localhost:8000/` for the structured thesis workspace. The preserved legacy coaching interface remains at `http://localhost:8000/legacy`.
+Create the initial institution when required:
+
+```bash
+python scripts/create_institution.py \
+  --name "Madras Christian College (Autonomous)" \
+  --short-name MCC \
+  --domains "mcc.edu.in,students.mcc.edu.in" \
+  --address "Tambaram, Chennai – 600 059." \
+  --short-address "Tambaram, Chennai – 59" \
+  --university "University of Madras" \
+  --department "PG & Research Department of English" \
+  --aided
+```
+
+Open:
+
+- Workspace: `http://localhost:8000/`
+- Legacy coaching: `http://localhost:8000/legacy`
+- OpenAPI in debug mode: `http://localhost:8000/docs`
+- Liveness: `/healthz`
+- Readiness: `/readyz`
+- Component status: `/status`
+- Release identity: `/meta/release`
 
 ## Phase 1 — Trusted manuscript conversion
 
-Phase 1 accepts a `.docx`, preserves the original and SHA-256 checksum, detects unsupported content, parses a provenance-rich canonical document, exposes ambiguity for review, verifies citations/sources/quotations, and produces version-bound review or final exports.
+Phase 1 provides:
 
-Core guarantees:
-
-- immutable manuscript revisions and restoration;
+- immutable original uploads and revisions;
+- SHA-256 checksums and parser provenance;
+- DOCX type, ZIP-bomb and package validation;
+- configurable ClamAV malware scanning before DOCX parsing;
 - stable chapter/front-matter/block UUIDs;
-- source paragraph and revision provenance;
-- DOCX ZIP/preflight validation;
-- unsupported objects reported rather than silently discarded;
+- unsupported-object reporting;
 - conservative citation resolution;
-- active-revision-isolated source and quotation registries;
-- durable PostgreSQL ingestion/export jobs;
-- verifier-gated final exports;
+- source and quotation registries;
+- verification-gated final exports;
 - clearly labelled review exports;
-- post-render QA and chain-of-custody manifests.
+- DOCX/PDF post-render QA and chain-of-custody manifests.
 
-See [`docs/PHASE1_TRUSTED_CONVERSION.md`](docs/PHASE1_TRUSTED_CONVERSION.md).
+See [PHASE1_TRUSTED_CONVERSION.md](docs/PHASE1_TRUSTED_CONVERSION.md).
 
-## Phase 2 — Human review and editing workspace
+## Phase 2 — Human review and editing
 
-Phase 2 replaces raw JSON as the normal editing path with a structured review cockpit.
+Phase 2 provides:
 
-It provides:
-
-- chapter-level lazy loading and stable deep links;
-- paragraph, heading, quotation, verse and marker editing;
-- block insert/delete/duplicate/move/split/merge/type conversion;
-- run-preserving paragraph changes so italics survive;
+- three-pane thesis review cockpit;
+- lazy chapter loading and stable deep links;
+- typed block editing for paragraphs, headings, quotations, verse and markers;
+- insert, delete, duplicate, move, convert, split and merge commands;
 - optimistic concurrency and idempotent autosave;
-- append-only commands with exact inverse operations;
-- undo/redo, checkpoints, snapshot comparison and restore;
-- persistent review items with deterministic re-opening;
-- dependency-aware invalidation of review/citation/quote trust;
+- append-only commands with undo/redo;
+- checkpoints, snapshot comparison and restore;
+- persistent review issues and deterministic readiness;
 - original-versus-current comparison;
-- template-driven source and metadata forms;
+- template-driven metadata and source forms;
 - exact citation-occurrence resolution;
 - cached authoritative PDF preview;
-- stale export visibility;
-- browser draft recovery, accessibility and mobile review mode.
+- stale preview/export visibility and browser draft recovery.
 
-See [`docs/PHASE2_HUMAN_REVIEW.md`](docs/PHASE2_HUMAN_REVIEW.md).
+See [PHASE2_HUMAN_REVIEW.md](docs/PHASE2_HUMAN_REVIEW.md).
 
 ## Phase 3 — Grounded AI thesis partner
 
-Phase 3 introduces AI into the governed canonical workspace without giving it direct mutation, verification, approval, export or submission authority.
-
-### Authority boundary
-
-The canonical Project is the sole source of truth. Robofox Scholar may inspect and propose, but every document operation must follow:
+The canonical Project is the sole source of truth. AI follows this authority path:
 
 ```text
-AI response
-→ strict output schema
-→ semantic safety validation
+bounded project context
+→ strict structured output
 → inert proposal
 → human selects/edits operations
 → Phase 2 command engine
-→ version check + undo history
+→ version/invalidation checks
 → deterministic verification
 ```
 
-AI cannot:
+Task modes include understanding, diagnosis, planning, transformation, challenge, research strategy, coherence, viva preparation and memory refresh.
 
-- directly edit project JSON;
-- verify sources or quotations;
-- approve chapters;
-- resolve blocking integrity findings;
-- trigger export/submission;
-- change institutional format profiles;
-- claim external browsing;
-- invent or reproduce direct quotations outside the verified quote registry;
-- grade the thesis or assist AI-detection evasion.
+AI cannot directly edit canonical JSON, verify evidence, approve chapters, trigger submission, change institution templates, claim browsing, invent quotations, grade the thesis or assist AI-detection evasion. Direct quotation insertion requires an already human-verified quote registry ID.
 
-### Grounded task modes
+See [PHASE3_GROUNDED_AI.md](docs/PHASE3_GROUNDED_AI.md).
 
-- `understand` — explain or summarise selected content;
-- `diagnose` — identify claim/evidence/analysis/transition weaknesses;
-- `plan` — propose a reviewable revision sequence;
-- `transform` — propose bounded prose operations;
-- `challenge` — act as a sceptical examiner;
-- `research` — generate search strategies without browsing claims;
-- `coherence` — detect whole-thesis contradiction and drift;
-- `viva` — generate defence-readiness questions without grading;
-- `memory_refresh` — refresh summaries, argument map and literature matrix.
+## Phase 4 — Collaborative academic workspace
 
-The server selects risk, output type, model tier and allowed operations. User wording cannot escalate permissions or force a stronger model.
+Phase 4 provides:
 
-### Bounded context and prompt-injection defence
+- verified institution and department memberships;
+- capability-based project access;
+- separate metadata, content, sources and private-AI-history permissions;
+- immutable review snapshots and repeated review cycles;
+- anchored comments and structured human suggestions;
+- student-controlled suggestion acceptance;
+- separate content, citation, formatting, institutional and submission approvals;
+- dependency-aware approval invalidation;
+- supervisor instructions and role-specific queues;
+- versioned institutional profiles, policies and official templates;
+- sealed submission packages and attestations;
+- recipient-bound external examiner access;
+- notification, retention, support-access and audit workflows.
 
-For each run, the server compiles only the selected canonical scope, relevant active-revision sources/quotations, related review issues, current project memory and a bounded recent thread window.
+Students remain authors, supervisors remain reviewers, operators remain formatters and AI remains an assistant.
 
-All manuscript/source/quotation/message text is XML-escaped and wrapped as untrusted data. The context manifest records exact IDs, hashes, versions, verified evidence IDs, truncation, injection findings and a SHA-256 context hash.
+## Phase 5 — Commercial reliability, security and scale
 
-The provider process remains tool-disabled, MCP-isolated and sessionless.
+Phase 5 adds:
 
-### Human-controlled proposals
+- student, operator and institution product editions;
+- backend entitlement enforcement and usage/cost ledgers;
+- signed, idempotent and tenant-bound billing events;
+- revocable server-side application sessions;
+- provider-neutral AI routing and circuit breakers;
+- separate general, AI, PDF and maintenance worker queues;
+- expiring job leases and crash recovery;
+- release, incident, SLO, backup and restore records;
+- versioned privacy notices, consent and data inventory;
+- policy-driven retention/deletion and sealed-custody controls;
+- metadata-only support diagnostics;
+- exact release identity and component status;
+- immutable image, canary and rolling deployment workflow.
 
-Permitted proposal operations are restricted to:
+See:
 
-- `replace_runs`
-- `insert_paragraph`
-- `insert_marker`
-- `move_block`
-- `add_verified_quote`
+- [Commercial operating contract](PHASE5-COMMERCIAL-OPERATING-CONTRACT.md)
+- [Production topology](docs/phase5/production-topology.md)
+- [Security verification matrix](docs/phase5/security-verification-matrix.md)
+- [Incident runbook](docs/runbooks/incident-response.md)
+- [Backup/restore runbook](docs/runbooks/backup-restore.md)
 
-Direct quotations can be inserted only by `quote_id` from a currently human-verified quotation whose source is also human-verified. The backend—not the model—copies the exact registered text.
+## Release candidate workflow
 
-Users may accept selected operations, accept all, edit an operation before acceptance, reject with a structured reason, or regenerate stale proposals. High-risk structural changes require a decision note. Accepted operations become one undoable Phase 2 command/batch.
+Every pull request to `main` and every non-attestation push to `main` runs `.github/workflows/main-release-candidate.yml`:
 
-### Memory, research and viva preparation
+- Python compilation and application import;
+- all workspace JavaScript syntax checks;
+- Alembic `head → 0016 → head` verification;
+- dependency, Bandit and tracked-file secret-pattern gates;
+- complete Phase 1–5 regression/acceptance suite;
+- immutable Docker image build;
+- exact-commit evidence artifact.
 
-Phase 3 adds:
+A successful `main` push produces `release-candidates/<sha>.json`. The manual release workflow refuses SHAs that:
 
-- project/chapter summaries;
-- thesis argument maps;
-- voice-profile and literature-matrix memory records;
-- version-aware memory invalidation;
-- controlled research candidates;
-- explicit candidate lifecycle before registry import;
-- mandatory human verification after candidate import;
-- evidence-grounded viva questions and challenge mode;
-- preserved legacy coaching history linked to canonical projects.
+- are not reachable from `main`;
+- lack the matching attestation;
+- contain test failures/errors;
+- lack a successful image-build result.
 
-A search snippet never becomes evidence, and an imported research candidate is always unverified.
+Deployment remains manual and protected by GitHub environments. It performs target environment validation, staging/canary smoke tests and production backup-evidence checks.
 
-### Capacity and degraded mode
+## Required pre-production evidence
 
-AI runs use the durable PostgreSQL worker and support idempotency, progress, cancellation, retry and stale-result suppression.
+Before broad production launch, complete:
 
-Environment-configurable controls include:
+- [Staging acceptance](docs/release/STAGING_ACCEPTANCE.md)
+- [Real manuscript pilot](docs/release/REAL_MANUSCRIPT_PILOT.md)
+- [Institution profile sign-off](docs/release/INSTITUTION_PROFILE_SIGNOFF.md)
+- [Restore drill evidence](docs/release/RESTORE_DRILL_EVIDENCE.md)
+- [Release decision](docs/release/RELEASE_DECISION.md)
 
-```text
-AI_GLOBAL_ENABLED
-AI_MAX_CONTEXT_CHARS
-AI_RECENT_THREAD_MESSAGES
-AI_USER_CONCURRENT_LIMIT
-AI_PROJECT_QUEUE_LIMIT
-AI_DAILY_RUN_LIMIT
-AI_DAILY_STRONG_RUN_LIMIT
-AI_MAX_PROPOSAL_OPERATIONS
-```
+These documents do not manufacture external proof. Qualified legal/accounting review, institution approval, production credentials, independent security assessment and observed operational history remain external gates.
 
-Project policy also controls AI enablement, allowed modes, private threads, supervisor constraints and disclosure requirements.
+## Production topology
 
-When the AI provider is unavailable or disabled, editing, verification, sources, previews and exports continue to work.
+The release compose file runs:
 
-### AI provenance and disclosure
+- `web-a` and `web-b`;
+- `worker-general`;
+- `worker-ai`;
+- `worker-pdf`;
+- `maintenance`;
+- internal health-checked ClamAV.
 
-Every run/proposal records:
-
-- model;
-- prompt name/version;
-- document version and selected scope;
-- context manifest/hash;
-- evidence IDs and assumptions;
-- original operations;
-- selected and human-edited operations;
-- decision/rejection information;
-- resulting command;
-- verifier reports before and after.
-
-Final export manifests contain a privacy-preserving AI disclosure summary. Raw private conversations are not included.
-
-See [`docs/PHASE3_GROUNDED_AI.md`](docs/PHASE3_GROUNDED_AI.md).
-
-## Phase 3 evaluation benchmark
-
-Run:
+Production PostgreSQL must be external to the application host. Durable objects use Cloudflare R2. Both application and ClamAV images must be pinned to immutable references. Place web instances behind health-aware routing.
 
 ```bash
-python scripts/run_phase3_evals.py
+python scripts/verify_phase5_environment.py --target staging
+python scripts/phase5_smoke.py --base-url https://staging.example --expected-release <sha>
 ```
 
-The current release gate covers ten safe/adversarial cases including:
+The production release workflow is `workflow_dispatch` only; it never runs on push and never enables auto-merge.
 
-- invalid output authority fields;
-- fabricated quotation insertion;
-- quotation text smuggling;
-- false browsing claims;
-- verification/approval overreach;
-- AI-detection evasion;
-- prompt injection treated as document data;
-- safe evidence markers;
-- safe viva questions.
+## Testing
 
-The required release thresholds are:
-
-```text
-expectation_match_rate = 1.0
-unsafe_acceptance_rate = 0.0
+```bash
+pytest -q
+pytest -q tests/test_release_candidate_hardening.py
+python scripts/check_secret_patterns.py
+python scripts/run_phase3_evals.py
+python -m compileall -q app tests scripts
+node --check app/static/phase2-core.js
+node --check app/static/phase2-editor.js
+node --check app/static/phase2-review.js
+node --check app/static/phase2-integrity.js
+node --check app/static/phase3-ai.js
+node --check app/static/phase4-collaboration.js
 ```
 
 ## Project structure
 
 ```text
 app/
-├── ai/              # scoped context, safety, provider, proposals, memory and evals
-├── api/             # auth, projects, manuscripts, editor, review and AI routes
+├── ai/              # bounded AI context, provider adapters, proposals and evaluations
+├── api/             # auth, projects, editor, AI, collaboration and commercial APIs
 ├── canonical/       # stable canonical thesis model and JSON migrations
-├── core/            # application settings and security helpers
-├── db/              # async SQLAlchemy engine/session/dependencies
-├── editor/          # deterministic Phase 2 command engine
-├── ingest/          # DOCX inspection, parsing and verification
-├── models/          # ORM models
-├── renderers/       # governed DOCX/PDF/Markdown/Text renderers
-├── services/        # jobs, export, preview, storage, readiness and legacy AI
-├── static/          # review cockpit and grounded AI workspace
-└── main.py
+├── collaboration/   # capabilities and institutional workflow rules
+├── commercial/      # entitlements, billing, sessions, recovery, privacy and support
+├── editor/           # deterministic command engine
+├── ingest/           # malware/package preflight, parsing and verification
+├── models/           # SQLAlchemy models
+├── renderers/        # governed DOCX/PDF/Markdown/Text renderers
+├── services/         # jobs, preview, export, storage, readiness and email
+└── static/           # review, AI and collaboration workspace
 
-migrations/          # relational migrations through Phase 3
-scripts/             # deployment and evaluation commands
-tests/               # inherited, phase-specific and adversarial suites
+deploy/              # release compose topology
+docs/release/         # launch evidence templates
+docs/runbooks/        # incident, restore and support procedures
+release-candidates/   # workflow-generated exact-main validation attestations
 ```
 
-## Health and readiness
+## Explicit non-claims
 
-- `GET /healthz` — API liveness.
-- `GET /readyz` — database, migration head, worker heartbeat, stuck jobs, storage/disk, LibreOffice/font and production-email readiness.
-- `GET /projects/{id}/ai/health` — AI availability, capacity and degraded-mode state.
-
-AI provider availability is intentionally not a hard `/readyz` dependency.
-
-## Tests
-
-```bash
-docker-compose up -d postgres-test
-pytest -v
-pytest tests/test_phase1_unit.py -v
-pytest tests/test_phase2_unit.py tests/test_phase2_api.py -v
-pytest tests/test_phase3_unit.py tests/test_phase3_evals.py tests/test_phase3_api.py -v
-python scripts/run_phase3_evals.py
-```
-
-Phase 3 completion validation on its functional head:
-
-- Python compilation: passed;
-- all five workspace JavaScript modules: passed;
-- Alembic `head → 0009 → head`: passed;
-- Phase 3 safety invariants: **9 passed**;
-- grounded AI benchmark: **10/10 expected outcomes**, **0% unsafe acceptance**;
-- Phase 3 API/proposal/research workflows: **6 passed**;
-- complete repository suite: **131 passed**;
-- inherited Phase 1 and Phase 2 workflows: passed.
-
-## Deployment
-
-```bash
-scripts/deploy_to_oracle.sh
-```
-
-Deployment upgrades the database, starts/reloads both API and durable worker processes, and requires `/readyz` success.
-
-The phase branches are stacked and must be reviewed and merged in order:
-
-```text
-Phase 1 → Phase 2 → Phase 3 → main → production deployment
-```
-
-No phase branch should be merged or deployed automatically.
-
-## Documentation
-
-- [`docs/PHASE1_TRUSTED_CONVERSION.md`](docs/PHASE1_TRUSTED_CONVERSION.md)
-- [`docs/PHASE2_HUMAN_REVIEW.md`](docs/PHASE2_HUMAN_REVIEW.md)
-- [`docs/PHASE3_GROUNDED_AI.md`](docs/PHASE3_GROUNDED_AI.md)
-- `CLAUDE.md` — standing coding-agent and safety instructions
-- `/docs` with `DEBUG=true` — OpenAPI documentation
-
-## Stack
-
-- Python 3.11, FastAPI, SQLAlchemy 2 async, PostgreSQL 14+
-- Alembic and PostgreSQL-backed durable jobs
-- tool-disabled structured Claude CLI adapter plus preserved legacy coaching
-- Cloudflare R2 or local storage
-- Resend transactional email
-- python-docx and LibreOffice for governed output
+The repository does not by itself establish an uptime SLA, zero data loss, legal digital signatures, GST/tax correctness, DPDP compliance, ASVS/SOC 2/ISO certification, 24/7 staffed support, institution approval or a completed independent penetration test.

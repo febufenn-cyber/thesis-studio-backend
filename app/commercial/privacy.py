@@ -128,11 +128,28 @@ async def execute_lifecycle_job(request_id: UUID) -> dict:
                 )
             ).scalar_one_or_none()
             if sealed is not None:
+                project.archived = True
+                project.ai_enabled = False
                 request.status = "authorization_required"
                 request.result = {
-                    "message": "A sealed institutional submission requires institutional authorization or withdrawal before deletion.",
+                    "message": "A sealed institutional submission requires institutional authorization or withdrawal before destructive deletion.",
                     "sealed_submission_present": True,
+                    "normal_access_removed": True,
+                    "institutional_authorization_required": True,
+                    "permanent_deletion_claim": False,
                 }
+                db.add(
+                    Event(
+                        project_id=project.id,
+                        user_id=request.user_id,
+                        kind="sealed_project_deletion_blocked",
+                        data={
+                            "request_id": str(request.id),
+                            "sealed_package_id_hash": hashlib.sha256(str(sealed).encode()).hexdigest(),
+                            "normal_access_removed": True,
+                        },
+                    )
+                )
                 await db.commit()
                 return request.result
 

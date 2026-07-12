@@ -7,7 +7,7 @@ from uuid import UUID, uuid4
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID as PG_UUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, synonym
 
 from app.db.session import Base
 
@@ -29,16 +29,19 @@ class Quote(Base):
     )
 
     page_or_loc: Mapped[str] = mapped_column(String(100), nullable=False, default="")
+    locator = synonym("page_or_loc")
     text: Mapped[str] = mapped_column(Text, nullable=False)
     method: Mapped[str] = mapped_column(String(30), nullable=False, default="pasted")
 
     import_revision_id: Mapped[UUID | None] = mapped_column(
         PG_UUID(as_uuid=True), ForeignKey("manuscript_revisions.id", ondelete="SET NULL"), nullable=True, index=True
     )
+    manuscript_revision_id = synonym("import_revision_id")
     source_paragraph_index: Mapped[int | None] = mapped_column(Integer, nullable=True)
     evidence_snapshot: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
 
     verified: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    verify_note: Mapped[str | None] = mapped_column(Text, nullable=True)
     verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     verified_by: Mapped[UUID | None] = mapped_column(
         PG_UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True

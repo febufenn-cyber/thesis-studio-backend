@@ -10,8 +10,6 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    """Application configuration. All values come from environment variables."""
-
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
@@ -19,24 +17,18 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # ---- Application and release identity ----
     ENV: Literal["development", "staging", "production"] = "development"
     DEBUG: bool = False
     LOG_LEVEL: str = "INFO"
     RELEASE_SHA: str = ""
     BUILD_TIME: str = ""
-    SCHEMA_VERSION: str = "0017"
+    SCHEMA_VERSION: str = "0018"
     RENDERER_VERSION: str = "phase1-renderer"
     PROMPT_BUNDLE_VERSION: str = "phase3-prompts"
     CANONICAL_SCHEMA_VERSION: str = "1"
 
-    # ---- Database ----
-    DATABASE_URL: str = Field(
-        ...,
-        description="Async Postgres URL (postgresql+asyncpg://...)",
-    )
+    DATABASE_URL: str = Field(..., description="Async Postgres URL")
 
-    # ---- Auth and revocable application sessions ----
     JWT_SECRET: str = Field(..., min_length=32)
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRY_DAYS: int = 30
@@ -45,18 +37,11 @@ class Settings(BaseSettings):
     SESSION_ABSOLUTE_DAYS: int = 30
     SESSION_REAUTH_MINUTES: int = 15
     SESSION_COOKIE_NAME: str = "access_token"
-
-    # Open signup remains identity creation only. Institutional privilege still
-    # requires Phase 4 membership verification.
     DEFAULT_INSTITUTION_SHORT_NAME: str = "MCC"
 
-    # ---- Frontend ----
     FRONTEND_URL: str = "http://localhost:3000"
     FRONTEND_LOGIN_PATH: str = "/auth/callback"
 
-    # ---- AI providers ----
-    # ANTHROPIC_API_KEY is unused under the legacy Max+CLI adapter. It remains
-    # required for backwards-compatible settings construction during migration.
     ANTHROPIC_API_KEY: str = Field(..., min_length=10)
     GOOGLE_CLIENT_ID: str = ""
     CLAUDE_CLI_PATH: str = "claude"
@@ -69,41 +54,38 @@ class Settings(BaseSettings):
     USER_MONTHLY_INPUT_TOKEN_CAP: int = 2_000_000
     USER_MONTHLY_OUTPUT_TOKEN_CAP: int = 200_000
 
-    # ---- Durable worker queues ----
     JOB_LEASE_SECONDS: int = 120
     JOB_HEARTBEAT_SECONDS: int = 20
     WORKER_QUEUE: str = "general"
     WORKER_ID: str = ""
 
-    # ---- Billing ----
     BILLING_PROVIDER: str = "manual"
     BILLING_WEBHOOK_SECRET: str = ""
     BILLING_WEBHOOK_TOLERANCE_SECONDS: int = 300
     BILLING_GRACE_DAYS: int = 7
 
-    # ---- Email ----
     RESEND_API_KEY: str = ""
     EMAIL_FROM_ADDRESS: str = "thesis@robofox.online"
     EMAIL_FROM_NAME: str = "Robofox Thesis Studio"
 
-    # ---- Storage ----
     LOCAL_STORAGE_DIR: str = "var/storage"
     STORAGE_BACKEND: Literal["auto", "r2", "local"] = "auto"
     PRODUCTION_REQUIRE_R2: bool = True
-
-    # ---- R2 ----
     R2_ACCOUNT_ID: str = ""
     R2_ACCESS_KEY_ID: str = ""
     R2_SECRET_ACCESS_KEY: str = ""
     R2_BUCKET_NAME: str = "thesis-studio"
     R2_PUBLIC_URL: str = ""
 
-    # ---- Privacy and support ----
+    MALWARE_SCAN_MODE: Literal["disabled", "clamav"] = "disabled"
+    PRODUCTION_REQUIRE_MALWARE_SCAN: bool = True
+    CLAMAV_HOST: str = "clamav"
+    CLAMAV_PORT: int = 3310
+    CLAMAV_TIMEOUT_SECONDS: float = 30.0
+
     SUPPORT_ACCESS_DEFAULT_MINUTES: int = 60
     DELETION_GRACE_DAYS: int = 30
     PRIVACY_HASH_PEPPER: str = ""
-
-    # ---- CORS ----
     CORS_ORIGINS: str = "http://localhost:3000"
 
     @property
@@ -122,9 +104,7 @@ class Settings(BaseSettings):
     @classmethod
     def jwt_secret_not_default(cls, value: str) -> str:
         if "replace_me" in value.lower():
-            raise ValueError(
-                "JWT_SECRET is still the placeholder. Generate one with: openssl rand -hex 32"
-            )
+            raise ValueError("JWT_SECRET is still the placeholder")
         return value
 
     @field_validator("RELEASE_SHA")
@@ -137,8 +117,10 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def production_safety(self) -> "Settings":
         if self.ENV == "production":
+            if self.DEBUG:
+                raise ValueError("DEBUG must be false in production")
             if self.PRODUCTION_REQUIRE_R2 and self.STORAGE_BACKEND != "r2":
-                raise ValueError("Production requires STORAGE_BACKEND=r2; local fallback is disabled")
+                raise ValueError("Production requires STORAGE_BACKEND=r2")
             missing_r2 = [
                 name
                 for name, value in {
@@ -155,10 +137,13 @@ class Settings(BaseSettings):
                 raise ValueError("Production deployments must provide RELEASE_SHA")
             if self.SESSION_IDLE_MINUTES <= 0 or self.SESSION_ABSOLUTE_DAYS <= 0:
                 raise ValueError("Production session lifetimes must be positive")
+            if self.PRODUCTION_REQUIRE_MALWARE_SCAN and self.MALWARE_SCAN_MODE != "clamav":
+                raise ValueError("Production requires MALWARE_SCAN_MODE=clamav")
+            if self.MALWARE_SCAN_MODE == "clamav" and not self.CLAMAV_HOST.strip():
+                raise ValueError("CLAMAV_HOST is required when malware scanning is enabled")
         return self
 
 
 @lru_cache
 def get_settings() -> Settings:
-    """Cached settings instance. Use this everywhere instead of constructing Settings()."""
     return Settings()

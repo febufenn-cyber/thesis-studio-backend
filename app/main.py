@@ -13,37 +13,75 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import select, update
 
-from app.api import active_registry as active_registry_router
-from app.api import ai_partner as ai_partner_router
-from app.api import auth as auth_router
-from app.api import chat as chat_router
-from app.api import citation_schema as citation_schema_router
-from app.api import collaboration as collaboration_router
-from app.api import collaboration_commands as collaboration_commands_router
-from app.api import collaboration_read as collaboration_read_router
-from app.api import commercial_billing as commercial_billing_router
-from app.api import commercial_operations as commercial_operations_router
-from app.api import commercial_privacy as commercial_privacy_router
-from app.api import commercial_sessions as commercial_sessions_router
-from app.api import compile as compile_router
-from app.api import data_portability as data_portability_router
-from app.api import editor as editor_router
-from app.api import external_downloads as external_downloads_router
-from app.api import institutional as institutional_router
-from app.api import manuscripts as manuscripts_router
-from app.api import presence as presence_router
-from app.api import previews as previews_router
-from app.api import projects as projects_router
-from app.api import resolutions as resolutions_router
-from app.api import review_workspace as review_workspace_router
-from app.api import sessions as sessions_router
-from app.api import submissions as submissions_router
-from app.api import support_console as support_console_router
+from app.api import (
+    active_registry,
+    ai_partner,
+    auth,
+    chat,
+    citation_schema,
+    collaboration,
+    collaboration_commands,
+    collaboration_read,
+    collaboration_sources,
+    commercial_billing,
+    commercial_operations,
+    commercial_privacy,
+    commercial_reliability,
+    commercial_sessions,
+    compile,
+    data_portability,
+    editor,
+    external_downloads,
+    institutional,
+    institutional_lifecycle,
+    manuscripts,
+    presence,
+    previews,
+    projects,
+    resolutions,
+    review_workspace,
+    sessions,
+    submissions,
+    support_console,
+)
 from app.commercial.guards import CommercialGuardMiddleware
 from app.commercial.observability import JourneyTracingMiddleware, release_identity
 from app.core.config import get_settings
 from app.core.exceptions import register_exception_handlers
 from app.services.readiness_service import readiness_report
+
+
+API_MODULES = (
+    auth,
+    commercial_sessions,
+    sessions,
+    chat,
+    compile,
+    projects,
+    manuscripts,
+    resolutions,
+    active_registry,
+    citation_schema,
+    editor,
+    review_workspace,
+    previews,
+    ai_partner,
+    collaboration,
+    collaboration_commands,
+    collaboration_read,
+    collaboration_sources,
+    presence,
+    institutional,
+    institutional_lifecycle,
+    submissions,
+    external_downloads,
+    data_portability,
+    commercial_billing,
+    commercial_operations,
+    commercial_privacy,
+    commercial_reliability,
+    support_console,
+)
 
 
 def _configure_logging() -> None:
@@ -55,11 +93,9 @@ def _configure_logging() -> None:
 
 
 async def _sweep_orphaned_compiles() -> None:
-    """Mark legacy process-bound compile jobs failed after a restart."""
     from app.db.session import AsyncSessionLocal
     from app.models.file import File
 
-    log = logging.getLogger(__name__)
     async with AsyncSessionLocal() as db:
         result = await db.execute(
             update(File)
@@ -68,11 +104,12 @@ async def _sweep_orphaned_compiles() -> None:
         )
         await db.commit()
         if result.rowcount:
-            log.warning("Startup sweep: marked %d legacy compile(s) failed", result.rowcount)
+            logging.getLogger(__name__).warning(
+                "Startup sweep: marked %d legacy compile(s) failed", result.rowcount
+            )
 
 
 async def _register_release() -> None:
-    """Record the exact runtime identity without making deployment success claims."""
     from app.db.session import AsyncSessionLocal
     from app.models.commercial import ReleaseRecord
 
@@ -87,25 +124,26 @@ async def _register_release() -> None:
                 )
             )
         ).scalar_one_or_none()
-        if existing is None:
-            build_time = (
-                datetime.fromisoformat(identity["build_time"].replace("Z", "+00:00"))
-                if identity["build_time"]
-                else datetime.now(timezone.utc)
+        if existing is not None:
+            return
+        build_time = (
+            datetime.fromisoformat(identity["build_time"].replace("Z", "+00:00"))
+            if identity["build_time"]
+            else datetime.now(timezone.utc)
+        )
+        db.add(
+            ReleaseRecord(
+                release_sha=identity["release_sha"],
+                build_time=build_time,
+                schema_version=identity["schema_version"],
+                renderer_version=identity["renderer_version"],
+                prompt_bundle_version=identity["prompt_bundle_version"],
+                canonical_schema_version=identity["canonical_schema_version"],
+                state="running",
+                metadata_json={"environment": identity["environment"]},
             )
-            db.add(
-                ReleaseRecord(
-                    release_sha=identity["release_sha"],
-                    build_time=build_time,
-                    schema_version=identity["schema_version"],
-                    renderer_version=identity["renderer_version"],
-                    prompt_bundle_version=identity["prompt_bundle_version"],
-                    canonical_schema_version=identity["canonical_schema_version"],
-                    state="running",
-                    metadata_json={"environment": identity["environment"]},
-                )
-            )
-            await db.commit()
+        )
+        await db.commit()
 
 
 @asynccontextmanager
@@ -151,9 +189,6 @@ def _serve_frontend(path: Path, label: str) -> Response:
 def create_app() -> FastAPI:
     settings = get_settings()
     static_dir = Path(__file__).parent / "static"
-    v2_index = static_dir / "v2.html"
-    legacy_index = static_dir / "index.html"
-
     app = FastAPI(
         title="Robofox Thesis Studio API",
         description=(
@@ -176,33 +211,8 @@ def create_app() -> FastAPI:
         expose_headers=["X-Request-ID", "X-Trace-ID", "X-Release-SHA"],
     )
     app.mount("/static", StaticFiles(directory=static_dir), name="static")
-
-    app.include_router(auth_router.router)
-    app.include_router(commercial_sessions_router.router)
-    app.include_router(sessions_router.router)
-    app.include_router(chat_router.router)
-    app.include_router(compile_router.router)
-    app.include_router(projects_router.router)
-    app.include_router(manuscripts_router.router)
-    app.include_router(resolutions_router.router)
-    app.include_router(active_registry_router.router)
-    app.include_router(citation_schema_router.router)
-    app.include_router(editor_router.router)
-    app.include_router(review_workspace_router.router)
-    app.include_router(previews_router.router)
-    app.include_router(ai_partner_router.router)
-    app.include_router(collaboration_router.router)
-    app.include_router(collaboration_commands_router.router)
-    app.include_router(collaboration_read_router.router)
-    app.include_router(presence_router.router)
-    app.include_router(institutional_router.router)
-    app.include_router(submissions_router.router)
-    app.include_router(external_downloads_router.router)
-    app.include_router(data_portability_router.router)
-    app.include_router(commercial_billing_router.router)
-    app.include_router(commercial_operations_router.router)
-    app.include_router(commercial_privacy_router.router)
-    app.include_router(support_console_router.router)
+    for module in API_MODULES:
+        app.include_router(module.router)
 
     @app.get("/healthz", tags=["meta"])
     async def health() -> dict:
@@ -228,11 +238,11 @@ def create_app() -> FastAPI:
 
     @app.get("/", include_in_schema=False)
     async def frontend_v2() -> Response:
-        return _serve_frontend(v2_index, "v2")
+        return _serve_frontend(static_dir / "v2.html", "v2")
 
     @app.get("/legacy", include_in_schema=False)
     async def frontend_legacy() -> Response:
-        return _serve_frontend(legacy_index, "legacy")
+        return _serve_frontend(static_dir / "index.html", "legacy")
 
     register_exception_handlers(app)
     return app

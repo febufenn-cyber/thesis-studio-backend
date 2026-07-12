@@ -37,9 +37,11 @@ def _sha256(path: str) -> str:
     return digest.hexdigest()
 
 
-def _page_count(path: str) -> int | None:
-    """Conservative PDF page count without adding a heavyweight parser."""
+def _profile_digest(profile_version: str) -> str:
+    return hashlib.sha256(profile_version.encode("utf-8")).hexdigest()[:16]
 
+
+def _page_count(path: str) -> int | None:
     with open(path, "rb") as handle:
         data = handle.read()
     count = data.count(b"/Type /Page") - data.count(b"/Type /Pages")
@@ -137,9 +139,7 @@ async def run_preview(preview_id: UUID, project_id: UUID, user_id: UUID) -> None
             if profile_version != preview.profile_version:
                 raise StalePreviewError("Format profile changed before preview rendering.")
             all_sources = list(
-                (
-                    await db.execute(select(Source).where(Source.project_id == project.id))
-                ).scalars()
+                (await db.execute(select(Source).where(Source.project_id == project.id))).scalars()
             )
             source_rows = active_revision_rows(all_sources, project.active_revision_id)
             sources = {source.id: source for source in source_rows}
@@ -155,12 +155,11 @@ async def run_preview(preview_id: UUID, project_id: UUID, user_id: UUID) -> None
             checksum = await asyncio.to_thread(_sha256, pdf_path)
             key = (
                 f"previews/{user_id}/{project.id}/"
-                f"v{preview.document_version}-{hashlib.sha1(profile_version.encode()).hexdigest()[:12]}.pdf"
+                f"v{preview.document_version}-{_profile_digest(profile_version)}.pdf"
             )
             storage = get_storage_service()
             size = await storage.upload_file(pdf_path, key, content_type="application/pdf")
             pages = await asyncio.to_thread(_page_count, pdf_path)
-
             manifest = dict(preview.manifest or {})
             manifest.update(
                 {

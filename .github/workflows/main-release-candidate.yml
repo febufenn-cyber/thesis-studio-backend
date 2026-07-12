@@ -1,0 +1,148 @@
+name: Main Release Candidate
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'release-candidates/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: main-release-candidate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: thesis
+          POSTGRES_PASSWORD: thesis
+          POSTGRES_DB: thesis_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U thesis -d thesis_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      ENV: development
+      DEBUG: 'false'
+      DATABASE_URL: postgresql+asyncpg://thesis:thesis@127.0.0.1:5432/thesis_test
+      JWT_SECRET: main-release-candidate-secret-at-least-32-characters
+      JWT_ALGORITHM: HS256
+      JWT_EXPIRY_DAYS: '1'
+      ANTHROPIC_API_KEY: test-key-placeholder
+      FRONTEND_URL: http://localhost:8000
+      CORS_ORIGINS: http://localhost:8000
+      DEFAULT_INSTITUTION_SHORT_NAME: TU
+      STORAGE_BACKEND: local
+      LOCAL_STORAGE_DIR: /tmp/thesis-main-rc-storage
+      MALWARE_SCAN_MODE: disabled
+      PRODUCTION_REQUIRE_MALWARE_SCAN: 'false'
+      LOG_LEVEL: WARNING
+      RELEASE_SHA: ${{ github.sha }}
+      BUILD_TIME: 2026-07-12T00:00:00+00:00
+      SCHEMA_VERSION: '0018'
+      BILLING_PROVIDER: test
+      BILLING_WEBHOOK_SECRET: main-release-candidate-webhook-secret
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - name: Install application and verification tools
+        run: |
+          pip install -r requirements.txt
+          pip install pip-audit bandit
+      - name: Compile and import exact commit
+        run: |
+          python -m compileall -q app tests scripts
+          python - <<'PY'
+          from app.main import app
+          assert app.version == '0.7.0'
+          print(app.version)
+          PY
+      - name: Validate workspace JavaScript
+        run: |
+          node --check app/static/phase2-core.js
+          node --check app/static/phase2-editor.js
+          node --check app/static/phase2-review.js
+          node --check app/static/phase2-integrity.js
+          node --check app/static/phase3-ai.js
+          node --check app/static/phase4-collaboration.js
+      - name: Validate migration upgrade rollback upgrade
+        shell: bash
+        run: |
+          set -o pipefail
+          alembic upgrade head 2>&1 | tee /tmp/main-rc-migration.log
+          alembic downgrade 0016 2>&1 | tee -a /tmp/main-rc-migration.log
+          alembic upgrade head 2>&1 | tee -a /tmp/main-rc-migration.log
+      - name: Security gates
+        shell: bash
+        run: |
+          set -o pipefail
+          pip-audit -r requirements.txt 2>&1 | tee /tmp/main-rc-pip-audit.log
+          bandit -r app -x tests -ll -ii 2>&1 | tee /tmp/main-rc-bandit.log
+          python scripts/check_secret_patterns.py 2>&1 | tee /tmp/main-rc-secret-patterns.log
+      - name: Complete regression and acceptance suite
+        shell: bash
+        run: |
+          set -o pipefail
+          pytest -q --junitxml=/tmp/main-rc-tests.xml 2>&1 | tee /tmp/main-rc-pytest.log
+      - name: Build immutable release image
+        run: |
+          docker build \
+            --file Dockerfile.phase5 \
+            --build-arg RELEASE_SHA=${{ github.sha }} \
+            --build-arg BUILD_TIME=2026-07-12T00:00:00Z \
+            --tag robofox-thesis-studio:${{ github.sha }} .
+      - name: Build validation report
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import xml.etree.ElementTree as ET
+          root = ET.parse('/tmp/main-rc-tests.xml').getroot()
+          suite = root if root.tag == 'testsuite' else root.find('testsuite')
+          report = {
+              'schema': 'robofox.main-release-candidate.v1',
+              'sha': os.environ['GITHUB_SHA'],
+              'ref': os.environ['GITHUB_REF'],
+              'tests': int(suite.attrib.get('tests', 0)),
+              'failures': int(suite.attrib.get('failures', 0)),
+              'errors': int(suite.attrib.get('errors', 0)),
+              'skipped': int(suite.attrib.get('skipped', 0)),
+              'migration': 'head -> 0016 -> head passed',
+              'security': 'pip-audit, Bandit and secret-pattern gates passed',
+              'image_build': 'passed',
+              'deployment_triggered': False,
+          }
+          with open('/tmp/main-release-candidate.json', 'w') as handle:
+              json.dump(report, handle, indent=2, sort_keys=True)
+          print(json.dumps(report, indent=2, sort_keys=True))
+          PY
+      - name: Upload exact-commit evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: main-release-candidate-${{ github.sha }}
+          path: |
+            /tmp/main-rc-migration.log
+            /tmp/main-rc-pip-audit.log
+            /tmp/main-rc-bandit.log
+            /tmp/main-rc-secret-patterns.log
+            /tmp/main-rc-pytest.log
+            /tmp/main-rc-tests.xml
+            /tmp/main-release-candidate.json
+          if-no-files-found: warn

@@ -14,7 +14,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import get_settings
 from app.models.ai_run import AIRun
 from app.models.commercial import AIProvider, AIProviderHealth
-from app.models.project import Project
 
 
 class AIProviderUnavailable(RuntimeError):
@@ -121,9 +120,11 @@ async def route_ai_provider(
             max_concurrency=provider.max_concurrency,
         )
 
-    # The existing CLI path remains an explicit pilot adapter, not an implicit
-    # commercial promise. It is used only when no configured provider can serve.
-    if _legacy_cli_available():
+    # Development keeps the historical synthetic pilot route so tests and local
+    # demos can replace the provider in-process without requiring a real CLI
+    # binary. Staging/production never receive this synthetic route: they must
+    # configure a healthy provider or have an explicitly available pilot CLI.
+    if _legacy_cli_available() or settings.ENV == "development":
         return ProviderRoute(
             provider_id=None,
             slug="legacy-claude-cli",
@@ -215,12 +216,13 @@ async def provider_status(db: AsyncSession, institution_id: UUID | None) -> list
             }
         )
     if not providers:
+        available = _legacy_cli_available() or get_settings().ENV == "development"
         rows.append(
             {
                 "slug": "legacy-claude-cli",
                 "adapter": "claude_cli",
                 "state": "pilot_only",
-                "circuit_state": "closed" if _legacy_cli_available() else "unavailable",
+                "circuit_state": "closed" if available else "unavailable",
                 "consecutive_failures": None,
                 "retry_after": None,
                 "last_success_at": None,

@@ -1,12 +1,11 @@
 """Centralised exception handlers for the FastAPI application.
 
 Register all handlers via ``register_exception_handlers(app)`` inside
-``create_app()`` in app/main.py.  Each handler maps a specific exception
+``create_app()`` in app/main.py. Each handler maps a specific exception
 class to an HTTP status code and a user-safe detail string.
 
-Logging policy: every handler calls ``log.exception(...)`` so the full
-traceback is captured, but NO request body, query params, or headers are
-ever included in the log output.
+Logging policy: handlers record the route and exception class, but never request
+bodies, query parameters, upload names, manuscript content or authentication data.
 """
 
 from __future__ import annotations
@@ -18,22 +17,21 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from app.services.claude_service import ClaudeRateLimitError, ClaudeSubprocessError
+from app.services.malware_service import MalwareDetectedError, MalwareScannerUnavailableError
 
 
 log = logging.getLogger(__name__)
 
 
 async def _handle_rate_limit(request: Request, exc: ClaudeRateLimitError) -> JSONResponse:
-    """Return 429 when the Claude Max session limit is reached."""
     log.exception("Claude rate-limit error on %s %s", request.method, request.url.path)
     return JSONResponse(
         status_code=429,
-        content={"detail": "The AI service is rate-limited right now. Please try again in a few minutes."},
+        content={"detail": "The AI service is rate-limited right now. Please try again later."},
     )
 
 
 async def _handle_subprocess_error(request: Request, exc: ClaudeSubprocessError) -> JSONResponse:
-    """Return 503 when the Claude subprocess fails."""
     log.exception("Claude subprocess error on %s %s", request.method, request.url.path)
     return JSONResponse(
         status_code=503,
@@ -41,8 +39,27 @@ async def _handle_subprocess_error(request: Request, exc: ClaudeSubprocessError)
     )
 
 
+async def _handle_malware_detected(request: Request, exc: MalwareDetectedError) -> JSONResponse:
+    log.warning("Malware-positive upload rejected on %s %s", request.method, request.url.path)
+    return JSONResponse(
+        status_code=422,
+        content={"detail": "The uploaded document failed the malware safety check."},
+    )
+
+
+async def _handle_malware_unavailable(
+    request: Request, exc: MalwareScannerUnavailableError
+) -> JSONResponse:
+    log.exception("Malware scanner unavailable on %s %s", request.method, request.url.path)
+    return JSONResponse(
+        status_code=503,
+        content={
+            "detail": "Document uploads are temporarily unavailable because the safety scanner did not respond."
+        },
+    )
+
+
 async def _handle_integrity_error(request: Request, exc: IntegrityError) -> JSONResponse:
-    """Return 409 on database uniqueness / FK constraint violations."""
     log.exception("Database integrity error on %s %s", request.method, request.url.path)
     return JSONResponse(
         status_code=409,
@@ -51,7 +68,6 @@ async def _handle_integrity_error(request: Request, exc: IntegrityError) -> JSON
 
 
 async def _handle_sqlalchemy_error(request: Request, exc: SQLAlchemyError) -> JSONResponse:
-    """Return 500 for any other SQLAlchemy-level database error."""
     log.exception("Database error on %s %s", request.method, request.url.path)
     return JSONResponse(
         status_code=500,
@@ -60,14 +76,11 @@ async def _handle_sqlalchemy_error(request: Request, exc: SQLAlchemyError) -> JS
 
 
 def register_exception_handlers(app: FastAPI) -> None:
-    """Attach all exception handlers to *app*.
+    """Attach user-safe handlers to the application."""
 
-    Call this inside ``create_app()`` before returning the application
-    instance so that handlers are active for every request.
-    """
     app.add_exception_handler(ClaudeRateLimitError, _handle_rate_limit)
     app.add_exception_handler(ClaudeSubprocessError, _handle_subprocess_error)
-    # IntegrityError must be registered before SQLAlchemyError; Starlette
-    # resolves by MRO so this ordering is informational only, but explicit.
+    app.add_exception_handler(MalwareDetectedError, _handle_malware_detected)
+    app.add_exception_handler(MalwareScannerUnavailableError, _handle_malware_unavailable)
     app.add_exception_handler(IntegrityError, _handle_integrity_error)
     app.add_exception_handler(SQLAlchemyError, _handle_sqlalchemy_error)
