@@ -64,6 +64,12 @@ class Settings(BaseSettings):
     WORKER_QUEUE: str = "general"
     WORKER_ID: str = ""
 
+    # SQLAlchemy connection pool. Defaults preserve prior behaviour
+    # (pool_size=10, max_overflow=20); override downward on tiny hosts
+    # (e.g. the owner-live 1 GB box uses 2/2) via env.
+    DB_POOL_SIZE: int = 10
+    DB_MAX_OVERFLOW: int = 20
+
     BILLING_PROVIDER: str = "manual"
     BILLING_WEBHOOK_SECRET: str = ""
     BILLING_WEBHOOK_TOLERANCE_SECONDS: int = 300

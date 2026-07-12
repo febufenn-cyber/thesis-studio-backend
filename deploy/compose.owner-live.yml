@@ -1,0 +1,69 @@
+# ============================================================
+# OWNER-ONLY LIVE DEPLOYMENT
+# NOT COMPLIANT PRODUCTION · NOT STAGING
+# ============================================================
+# Single-user private deployment on a constrained 1 GB shared host, with the
+# owner's explicit acceptance of the documented deviations (no ClamAV, no R2,
+# on-host PostgreSQL 14, local storage, AI disabled, billing manual). See
+# docs/release/owner-live/OWNER_LIVE_RUNBOOK.md.
+#
+# Host networking (not a dedicated bridge) is a deliberate deviation: it lets
+# the containers reach the host's existing PostgreSQL over loopback WITHOUT
+# restarting or reconfiguring that shared database server (legacy v1 depends
+# on it). uvicorn binds 127.0.0.1:8400 so nothing is exposed beyond the host;
+# nginx proxies the public domain to it at cutover.
+#
+# Required env (exported before `docker compose ... up`):
+#   ROBOFOX_OWNER_IMAGE      digest-addressed amd64 release image
+#   ROBOFOX_OWNER_ENV_FILE   path to the owner-live .env (chmod 600)
+
+name: thesis-v2
+
+x-app: &app
+  image: ${ROBOFOX_OWNER_IMAGE:?digest-addressed release image required}
+  env_file: ${ROBOFOX_OWNER_ENV_FILE:?owner-live env file required}
+  network_mode: host
+  restart: always
+  read_only: true
+  tmpfs:
+    - /tmp:size=256m
+  volumes:
+    - /opt/thesis-studio-v2/var:/app/var
+  security_opt:
+    - no-new-privileges:true
+  cap_drop: [ALL]
+
+services:
+  web:
+    <<: *app
+    container_name: thesis-v2-web
+    command:
+      - uvicorn
+      - app.main:app
+      - --host
+      - 127.0.0.1
+      - --port
+      - "8400"
+      - --workers
+      - "1"
+      - --proxy-headers
+      - --forwarded-allow-ips
+      - "127.0.0.1"
+    mem_limit: 256m
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:8400/healthz"]
+      interval: 30s
+      timeout: 5s
+      start_period: 40s
+      retries: 3
+
+  worker:
+    <<: *app
+    container_name: thesis-v2-worker
+    command: ["python", "-m", "app.services.job_queue"]
+    environment:
+      # One worker drains every queue; the AI queue is inert (AI disabled).
+      WORKER_QUEUE: general,ai,pdf,maintenance
+    mem_limit: 384m
+    healthcheck:
+      disable: true
