@@ -97,6 +97,7 @@ jobs:
           pytest -q
       - name: Migration expansion/rollback validation
         env:
+          DATABASE_URL: postgresql+asyncpg://release:release@127.0.0.1:5432/release_migration
           JWT_SECRET: release-validation-secret-32-chars-minimum
           ANTHROPIC_API_KEY: release-validation-placeholder
           ENV: staging
@@ -104,6 +105,10 @@ jobs:
           MALWARE_SCAN_MODE: disabled
           PRODUCTION_REQUIRE_MALWARE_SCAN: 'false'
         run: |
+          # Dedicated database: the suite step's fixtures create tables via
+          # metadata on release_validation, which would collide with alembic.
+          PGPASSWORD=release psql -h 127.0.0.1 -U release -d release_validation \
+            -c 'CREATE DATABASE release_migration;'
           alembic upgrade head
           alembic downgrade 0016
           alembic upgrade head
