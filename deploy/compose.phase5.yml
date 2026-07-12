@@ -11,6 +11,7 @@ x-app: &app
     - /tmp:size=512m,mode=1777
   volumes:
     - runtime-var:/app/var
+    - ${BACKUP_EVIDENCE_HOST_PATH:-/dev/null}:/run/secrets/latest-backup-evidence.json:ro
   security_opt:
     - no-new-privileges:true
   cap_drop:
@@ -124,4 +125,5 @@ volumes:
 # PostgreSQL and object storage are intentionally absent. Staging and production
 # must use an isolated PostgreSQL service and Cloudflare R2. web-a/web-b belong
 # behind a health-aware reverse proxy. CLAMAV_IMAGE and ROBOFOX_IMAGE must be
-# pinned to immutable digests by the release environment.
+# pinned to immutable digests. Production must supply BACKUP_EVIDENCE_HOST_PATH;
+# the application env points BACKUP_EVIDENCE_PATH at the read-only container path.
