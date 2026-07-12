@@ -21,17 +21,17 @@ Studio**, not a Phase 1–5 release. Confirmed, not assumed:
 | DNS | `thesis.robofox.online` → `172.67.173.228`, `104.21.30.225` (Cloudflare) |
 | Edge | Cloudflare proxy (server: cloudflare, cf-ray …-SIN); TLS valid at edge |
 | Origin path | Cloudflare → nginx (Certbot TLS) → `proxy_pass http://127.0.0.1:8000` |
-| Origin host | Oracle VM `68.233.116.11`, Ubuntu 22.04, **x86_64**, 2 vCPU |
+| Origin host | Oracle VM `[REDACTED]`, Ubuntu 22.04, **x86_64**, 2 vCPU |
 | App process | PM2 `thesis-api` (online, 7 restarts, ~14 MB RSS) |
 
 ## v1 application facts
 
 | Property | Value |
 |---|---|
-| Deploy dir | `/opt/thesis-studio-backend` |
+| Deploy dir | `[REDACTED — deploy path]` |
 | Source commit | `2b11a09df1dd122d762d5dc57572b30a080d56b1` |
 | `ENV` | production |
-| Database | `postgresql://…@localhost:5432/thesis_studio` (**on-host PostgreSQL 14.23**) |
+| Database | `[REDACTED — database endpoint]` (**on-host PostgreSQL 14.23**) |
 | **Alembic revision** | **`0006`** |
 | Storage backend | **`local`** |
 | Email | Resend key present |
@@ -44,17 +44,19 @@ Studio**, not a Phase 1–5 release. Confirmed, not assumed:
 - RAM: **956 MB total, ~318 MB available** (476 MB used)
 - Disk: 29 GB free of 49 GB
 - Co-tenant production services on the same host (must stay healthy):
-  LeadFinder (`leads`/`api`), NetPrep (`netprep`, Streamlit :8503), FoxLabel,
-  RoboFox Voice, RoboFox clothing site, the marketing site, and the
-  separately-authorised **E2 demo stack** (thesis-demo-*, ~56 MB total).
+  multiple unrelated production services, plus the separately-authorised E2 demo stack.
 
 ## Release under consideration
 
-- Eligible attested application SHA: `69d5333c059731d8b040171bc0754df951407171`
-  (PR #9 merge; derived by `scripts/latest_attested_release.py`, not hand-copied)
-- Multi-arch image available (from the PR #8 build; PR #9 changed only
-  workflow/demo/docs, no app runtime): amd64
+- Eligible attested application SHA at capture time: `69d5333c059731d8b040171bc0754df951407171`
+  (derived by `scripts/latest_attested_release.py`, not hand-copied; re-derive
+  before any deploy).
+- **Image**: the digest
   `sha256:d023b02c963201865d5bb932e58096bd5c7729d30c9461b2f4a479132a31a46c`
+  is the build of the **older** `a072295…` release and does **not** carry the
+  `69d5333…` release identity. The image to deploy must be built for the exact
+  derived SHA (a `build-only` release run) so the embedded `RELEASE_SHA`
+  matches — do not deploy the `a072295` digest as this release.
 - Release schema target: `0018` (app 0.7.0)
 
 ## Immediate consequence for the plan

@@ -10,7 +10,7 @@ Companion: `PRODUCTION_BACKUP_2026-07-12.json`.
 |---|---|
 | Database | `thesis_studio` (on-host PostgreSQL 14.23) |
 | Method | `pg_dump -Fc` (custom format), read-only |
-| Artifact | `/opt/thesis-studio-backend/backups/predeploy-thesis_studio-20260712T125345Z.dump` |
+| Artifact | `[REDACTED — deploy path]/backups/predeploy-thesis_studio-20260712T125345Z.dump` |
 | Size | 35,242 bytes |
 | SHA-256 | `aef65262e1e86694199938719da7ef834aea6ae16f69299556c9fb2e0365cdf8` |
 | Location | Durable host path, **outside** any container volume |
@@ -25,7 +25,12 @@ Companion: `PRODUCTION_BACKUP_2026-07-12.json`.
   files 0, messages 6.
 
 The dump is readable, restores cleanly to a schema, and reflects the expected
-v1 structure. Backup verification: **PASS**.
+v1 structure. Schema-restore check: **PASS** — this confirms the dump is
+readable and structurally sound, but a schema-only restore is **not** a
+complete rollback proof. Full rollback confidence requires a data-inclusive
+restore into an isolated database with row-count and integrity verification
+(performed separately as part of the owner-live restore rehearsal, recorded in
+its own evidence file).
 
 ## Rollback anchor
 
@@ -33,9 +38,9 @@ This backup is the restore point if any future production change goes wrong.
 Restore procedure (into an isolated DB first, never over live production):
 
 ```bash
-createdb thesis_studio_restore
+createdb <restore_db>
 pg_restore -d thesis_studio_restore \
-  /opt/thesis-studio-backend/backups/predeploy-thesis_studio-20260712T125345Z.dump
+  [REDACTED — deploy path]/backups/predeploy-thesis_studio-20260712T125345Z.dump
 # verify, then promote only after an explicit, separate decision
 ```
 

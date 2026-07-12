@@ -29,8 +29,7 @@ token and validate a write (steps in `docs/release/staging/R2_STAGING_SPEC.md`,
 adapted to a `thesis-prod` bucket).
 
 ### 3. Host capacity — cannot run the topology beside co-tenants
-956 MB RAM / 2 shared vCPU already runs v1 + LeadFinder + NetPrep + FoxLabel +
-Voice + clothing + marketing + the E2 demo. The Phase 5 stack (2 web +
+956 MB RAM / 2 shared vCPU already runs v1 + multiple unrelated production services. The Phase 5 stack (2 web +
 general/ai/pdf/maintenance workers + ClamAV + LibreOffice) needs multiple GB.
 Safety rule 6/11: co-tenant production services must stay healthy — they
 cannot. **Unblock:** a dedicated production host (the A1 spec in
