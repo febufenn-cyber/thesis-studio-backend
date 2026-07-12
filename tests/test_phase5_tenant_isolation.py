@@ -18,6 +18,7 @@ from app.commercial.privacy import execute_lifecycle_job
 from app.commercial.sessions import issue_session
 from app.core.config import get_settings
 from app.models.commercial import BillingEvent
+from app.models.document_snapshot import DocumentSnapshot
 from app.models.institution import Institution
 from app.models.institutional_governance import SubmissionPackage
 from app.models.project import Project
@@ -77,12 +78,12 @@ async def test_institution_cannot_replay_another_tenants_billing_event(
     other = Institution(
         name="Other University",
         short_name=f"OU-{uuid4().hex[:6]}",
-        email_domains=["other.test"],
+        email_domains="other.test",
         is_active=True,
     )
     db_session.add(other)
     await db_session.commit()
-    other_admin, other_cookies = await _institution_admin(db_session, other, "other")
+    _, other_cookies = await _institution_admin(db_session, other, "other")
     _, owner_cookies = await _institution_admin(db_session, test_institution, "owner")
 
     envelope = {
@@ -132,11 +133,29 @@ async def test_sealed_submission_blocks_destructive_project_deletion(
     )
     db_session.add(project)
     await db_session.flush()
+    snapshot = DocumentSnapshot(
+        project_id=project.id,
+        user_id=user_a.id,
+        name="Sealed custody snapshot",
+        reason="submission",
+        automatic=True,
+        document_version=project.document_version,
+        canonical_document={
+            "meta": project.meta,
+            "front_matter": project.front_matter,
+            "chapters": project.chapters,
+            "works_cited": project.works_cited,
+        },
+        checksum="a" * 64,
+    )
+    db_session.add(snapshot)
+    await db_session.flush()
     package = SubmissionPackage(
         project_id=project.id,
         institution_id=test_institution.id,
         package_number=1,
         state="sealed",
+        snapshot_id=snapshot.id,
         document_version=project.document_version,
         document_checksum="a" * 64,
         package_checksum="b" * 64,
