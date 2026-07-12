@@ -13,7 +13,7 @@ The preserved legacy coaching interface remains available at `/legacy`. The stru
 ## Current release identity
 
 - Application version: `0.7.0`
-- Database schema: `0017`
+- Database schema: `0018`
 - Canonical schema: versioned independently inside project JSON
 - Production release source: an exact commit reachable from `main` with a durable file at `release-candidates/<sha>.json`
 
@@ -174,7 +174,7 @@ Every pull request to `main` and every non-attestation push to `main` runs `.git
 - Python compilation and application import;
 - all workspace JavaScript syntax checks;
 - Alembic `head → 0016 → head` verification;
-- dependency, Bandit and secret-pattern gates;
+- dependency, Bandit and tracked-file secret-pattern gates;
 - complete Phase 1–5 regression/acceptance suite;
 - immutable Docker image build;
 - exact-commit evidence artifact.
@@ -225,6 +225,7 @@ The production release workflow is `workflow_dispatch` only; it never runs on pu
 ```bash
 pytest -q
 pytest -q tests/test_release_candidate_hardening.py
+python scripts/check_secret_patterns.py
 python scripts/run_phase3_evals.py
 python -m compileall -q app tests scripts
 node --check app/static/phase2-core.js
@@ -244,12 +245,12 @@ app/
 ├── canonical/       # stable canonical thesis model and JSON migrations
 ├── collaboration/   # capabilities and institutional workflow rules
 ├── commercial/      # entitlements, billing, sessions, recovery, privacy and support
-├── editor/          # deterministic command engine
-├── ingest/          # malware/package preflight, parsing and verification
-├── models/          # SQLAlchemy models
-├── renderers/       # governed DOCX/PDF/Markdown/Text renderers
-├── services/        # jobs, preview, export, storage, readiness and email
-└── static/          # review, AI and collaboration workspace
+├── editor/           # deterministic command engine
+├── ingest/           # malware/package preflight, parsing and verification
+├── models/           # SQLAlchemy models
+├── renderers/        # governed DOCX/PDF/Markdown/Text renderers
+├── services/         # jobs, preview, export, storage, readiness and email
+└── static/           # review, AI and collaboration workspace
 
 deploy/              # release compose topology
 docs/release/         # launch evidence templates
