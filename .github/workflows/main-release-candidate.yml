@@ -93,7 +93,7 @@ jobs:
           set -o pipefail
           pip-audit -r requirements.txt 2>&1 | tee /tmp/main-rc-pip-audit.log
           bandit -r app -x tests -ll -ii 2>&1 | tee /tmp/main-rc-bandit.log
-          ! git grep -nE '(sk-[A-Za-z0-9_-]{20,}|AKIA[0-9A-Z]{16}|BEGIN (RSA|OPENSSH|EC) PRIVATE KEY|R2_SECRET_ACCESS_KEY=[^$<{])' -- ':!*.md' ':!.env.example'
+          python scripts/check_secret_patterns.py 2>&1 | tee /tmp/main-rc-secret-patterns.log
       - name: Complete regression and acceptance suite
         shell: bash
         run: |
@@ -141,6 +141,7 @@ jobs:
             /tmp/main-rc-migration.log
             /tmp/main-rc-pip-audit.log
             /tmp/main-rc-bandit.log
+            /tmp/main-rc-secret-patterns.log
             /tmp/main-rc-pytest.log
             /tmp/main-rc-tests.xml
             /tmp/main-release-candidate.json
