@@ -1,0 +1,106 @@
+# DEMO ONLY — E2.1.Micro (1 GB RAM, linux/amd64) co-tenant stack.
+# Not staging, not production: relaxed controls by design (see
+# docs/release/staging/E2_DEMO_NOTES.md). Fully isolated from co-tenant
+# services: dedicated network, thesis-demo-* names, high loopback ports,
+# dedicated volumes. Total memory caps: pg 256m + web 192m + worker 320m +
+# cloudflared 64m = 832m against 956m RAM + 4G swap.
+#
+# Required env: ROBOFOX_DEMO_IMAGE (digest-addressed amd64 pull from the
+# release manifest), ROBOFOX_DEMO_ENV_FILE (chmod 600, from
+# .env.e2-demo.example).
+
+name: thesis-demo
+
+networks:
+  demo:
+    name: thesis-demo-net
+
+volumes:
+  demo-pg:
+    name: thesis-demo-pg
+  demo-var:
+    name: thesis-demo-var
+
+x-app: &app
+  image: ${ROBOFOX_DEMO_IMAGE:?digest-addressed release image required}
+  env_file: ${ROBOFOX_DEMO_ENV_FILE:?demo env file required}
+  restart: always
+  read_only: true
+  tmpfs:
+    - /tmp:size=256m
+  volumes:
+    - demo-var:/app/var
+  networks: [demo]
+  security_opt:
+    - no-new-privileges:true
+  cap_drop: [ALL]
+  depends_on:
+    postgres:
+      condition: service_healthy
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: thesis-demo-postgres
+    restart: always
+    # max_connections=60 deviates from the suggested ~20 deliberately: the
+    # attested release image hardcodes SQLAlchemy pool_size=10/max_overflow=20
+    # per process and the demo runs two processes (web + worker). 60 covers
+    # the worst case without deploying unattested code. Demo load is ~1 user;
+    # idle connections cost little.
+    command: >-
+      postgres -c max_connections=60 -c shared_buffers=128MB
+      -c effective_cache_size=192MB -c maintenance_work_mem=32MB
+    environment:
+      POSTGRES_USER: thesis_demo
+      POSTGRES_PASSWORD_FILE: /run/secrets/demo-pg-password
+      POSTGRES_DB: thesis_demo
+    secrets:
+      - demo-pg-password
+    volumes:
+      - demo-pg:/var/lib/postgresql/data
+    networks: [demo]
+    mem_limit: 256m
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U thesis_demo"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  web:
+    <<: *app
+    container_name: thesis-demo-web
+    ports:
+      - "127.0.0.1:8300:8000"
+    mem_limit: 192m
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:8000/healthz"]
+      interval: 30s
+      timeout: 5s
+      start_period: 40s
+      retries: 3
+
+  worker:
+    <<: *app
+    container_name: thesis-demo-worker
+    command: ["python", "-m", "app.services.job_queue"]
+    environment:
+      WORKER_QUEUE: general,ai,pdf,maintenance
+    mem_limit: 320m
+    healthcheck:
+      disable: true
+
+  tunnel:
+    image: cloudflare/cloudflared:2025.2.0
+    container_name: thesis-demo-tunnel
+    restart: always
+    # Credential-free quick tunnel: random *.trycloudflare.com URL in the
+    # logs. No DNS records, no OCI rule changes, no account access.
+    command: tunnel --no-autoupdate --url http://web:8000
+    networks: [demo]
+    mem_limit: 64m
+    depends_on: [web]
+
+secrets:
+  demo-pg-password:
+    file: ${ROBOFOX_DEMO_PG_PASSWORD_FILE:?path to password file required}

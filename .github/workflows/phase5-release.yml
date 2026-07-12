@@ -7,7 +7,7 @@ on:
         description: Target environment
         required: true
         type: choice
-        options: [staging, production]
+        options: [build-only, staging, production]
       expected_sha:
         description: Exact validated main commit SHA to deploy
         required: true
@@ -28,6 +28,20 @@ concurrency:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: release
+          POSTGRES_PASSWORD: release
+          POSTGRES_DB: release_validation
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U release" --health-interval 5s
+          --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql+asyncpg://release:release@127.0.0.1:5432/release_validation
     outputs:
       image: ${{ steps.image.outputs.value }}
     steps:
@@ -83,7 +97,6 @@ jobs:
           pytest -q
       - name: Migration expansion/rollback validation
         env:
-          DATABASE_URL: ${{ secrets.RELEASE_VALIDATION_DATABASE_URL }}
           JWT_SECRET: release-validation-secret-32-chars-minimum
           ANTHROPIC_API_KEY: release-validation-placeholder
           ENV: staging
