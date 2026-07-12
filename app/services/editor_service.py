@@ -258,6 +258,19 @@ async def _apply(
     summary_override: str | None = None,
     allow_internal: bool = False,
 ) -> tuple[DocumentCommand, CommandResult]:
+    # Atomic optimistic-concurrency gate: re-read the version under a row lock
+    # so two writers that both loaded the same version serialize here — the
+    # loser sees the winner's committed increment and conflicts instead of
+    # silently overwriting it (an in-memory compare alone allows lost updates).
+    locked_version = (
+        await db.execute(
+            select(Project.document_version)
+            .where(Project.id == project.id)
+            .with_for_update()
+        )
+    ).scalar_one()
+    if locked_version != project.document_version:
+        await db.refresh(project)
     if project.document_version != expected_version:
         raise VersionConflict(expected_version, project.document_version)
 
