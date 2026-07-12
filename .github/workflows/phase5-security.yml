@@ -4,7 +4,6 @@ on:
   pull_request:
   push:
     branches:
-      - agent/phase-5-commercial-reliability
       - main
   schedule:
     - cron: "17 2 * * 1"
@@ -28,9 +27,15 @@ jobs:
           pip install -r requirements.txt
           pip install pip-audit bandit
       - name: Dependency vulnerability audit
-        run: pip-audit -r requirements.txt --strict
+        shell: bash
+        run: |
+          set -o pipefail
+          pip-audit -r requirements.txt --strict 2>&1 | tee /tmp/pip-audit.log
       - name: Static application security scan
-        run: bandit -r app -x tests -ll -ii
+        shell: bash
+        run: |
+          set -o pipefail
+          bandit -r app -x tests -ll -ii 2>&1 | tee /tmp/bandit.log
       - name: Secret pattern check
         shell: bash
         run: |
@@ -40,6 +45,7 @@ jobs:
         shell: bash
         env:
           ENV: production
+          DEBUG: "false"
           DATABASE_URL: postgresql+asyncpg://service:password@managed-db.example.invalid:5432/thesis?ssl=require
           JWT_SECRET: 0123456789abcdef0123456789abcdef
           RELEASE_SHA: 0123456789abcdef0123456789abcdef01234567
@@ -49,5 +55,24 @@ jobs:
           R2_ACCESS_KEY_ID: test-access-key
           R2_SECRET_ACCESS_KEY: test-secret-key
           R2_BUCKET_NAME: test-bucket
-          BILLING_WEBHOOK_SECRET: test-webhook-secret-at-least-24
-        run: python scripts/verify_phase5_environment.py
+          BILLING_PROVIDER: manual
+          RESEND_API_KEY: re_test_release_candidate
+          PRIVACY_HASH_PEPPER: test-privacy-pepper
+          FRONTEND_URL: https://thesis.example.invalid
+          CORS_ORIGINS: https://thesis.example.invalid
+          MALWARE_SCAN_MODE: clamav
+          CLAMAV_HOST: clamav.internal
+          AI_GLOBAL_ENABLED: "false"
+        run: |
+          echo '{"backup":"test-only"}' > /tmp/backup-evidence.json
+          export BACKUP_EVIDENCE_PATH=/tmp/backup-evidence.json
+          python scripts/verify_phase5_environment.py --target production
+      - name: Upload security diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase5-security-${{ github.sha }}
+          path: |
+            /tmp/pip-audit.log
+            /tmp/bandit.log
+          if-no-files-found: ignore
