@@ -10,6 +10,7 @@ from pydantic import ValidationError
 
 from app.core.config import Settings
 from app.ingest.preflight import inspect_docx
+from app.main import app
 from app.services.malware_service import (
     MalwareDetectedError,
     MalwareScannerUnavailableError,
@@ -93,3 +94,15 @@ def test_docx_preflight_records_nonproduction_scan_state(tmp_path: Path) -> None
         "status": "skipped",
         "engine": "disabled",
     }
+
+
+def test_every_merged_control_plane_router_is_reachable() -> None:
+    routes = {(route.path, method) for route in app.routes for method in getattr(route, "methods", set())}
+    required = {
+        ("/institutions/{institution_id}/policies/{policy_id}/state", "POST"),
+        ("/projects/{project_id}/shared-sources", "GET"),
+        ("/institutions/{institution_id}/reliability/dashboard", "GET"),
+        ("/status", "GET"),
+        ("/meta/release", "GET"),
+    }
+    assert required <= routes
