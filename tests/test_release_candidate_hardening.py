@@ -95,18 +95,18 @@ def test_docx_preflight_records_nonproduction_scan_state(tmp_path: Path) -> None
     }
 
 
-def test_every_merged_control_plane_router_is_reachable() -> None:
-    # FastAPI/Starlette expose the canonical routing table on app.router.routes.
-    routes = {
-        (route.path, method)
-        for route in app.router.routes
-        for method in getattr(route, "methods", set())
-    }
+def test_every_merged_control_plane_router_is_published_in_openapi() -> None:
+    # OpenAPI is the public API contract. This avoids relying on Starlette's
+    # private route-container representation, which can change between releases.
+    app.openapi_schema = None
+    paths = app.openapi()["paths"]
     required = {
-        ("/institutions/{institution_id}/policies/{policy_id}/state", "POST"),
-        ("/projects/{project_id}/collaboration/evidence", "GET"),
-        ("/institutions/{institution_id}/reliability/dashboard", "GET"),
-        ("/status", "GET"),
-        ("/meta/release", "GET"),
+        "/institutions/{institution_id}/policies/{policy_id}/state": "post",
+        "/projects/{project_id}/collaboration/evidence": "get",
+        "/institutions/{institution_id}/reliability/dashboard": "get",
+        "/status": "get",
+        "/meta/release": "get",
     }
-    assert required <= routes
+    for path, method in required.items():
+        assert path in paths, f"Missing OpenAPI path: {path}"
+        assert method in paths[path], f"Missing {method.upper()} operation for {path}"
