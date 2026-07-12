@@ -28,10 +28,17 @@ SIGNATURES = (
         "private_key_header",
         re.compile(r"BEGIN " + r"(?:RSA|OPENSSH|EC) PRIVATE KEY"),
     ),
-    Signature(
-        "r2_secret_assignment",
-        re.compile(r"R2_SECRET_ACCESS_" + r"KEY=[^$<{\s]"),
-    ),
+)
+R2_ASSIGNMENT = re.compile(
+    r"R2_SECRET_ACCESS_" + r"KEY\s*=\s*(?P<value>[^\s#]+)"
+)
+R2_PLACEHOLDER_PREFIXES = (
+    "change_me",
+    "replace_me",
+    "test",
+    "dummy",
+    "example",
+    "placeholder",
 )
 
 
@@ -48,12 +55,23 @@ def _is_excluded(path: Path) -> bool:
     return path.suffix.lower() == ".md" or path.name == ".env.example"
 
 
+def _r2_value_is_placeholder(value: str) -> bool:
+    value = value.strip()
+    if value.startswith(("$", "<", "{")):
+        return True
+    normalized = value.strip("\"',);]").lower()
+    return not normalized or normalized.startswith(R2_PLACEHOLDER_PREFIXES)
+
+
 def scan_text(text: str) -> list[tuple[int, str]]:
     findings: list[tuple[int, str]] = []
     for line_number, line in enumerate(text.splitlines(), start=1):
         for signature in SIGNATURES:
             if signature.pattern.search(line):
                 findings.append((line_number, signature.label))
+        for match in R2_ASSIGNMENT.finditer(line):
+            if not _r2_value_is_placeholder(match.group("value")):
+                findings.append((line_number, "r2_secret_assignment"))
     return findings
 
 
