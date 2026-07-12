@@ -1,6 +1,7 @@
 # Staging Provisioning Runbook
 
-Date: 2026-07-12 · Target release: main `b2c9c624cd6b6faffe4f9585ac7f4580631abd82`
+Date: 2026-07-12 · Target release: derive with `python scripts/latest_attested_release.py`
+(hard-coded SHAs go stale; attestation-only commits are never deployable)
 Decisions encoded (owner, 2026-07-12): AI deterministic degraded mode
 (`AI_GLOBAL_ENABLED=false`), billing manual mode, isolated staging host,
 external TLS PostgreSQL, dedicated staging R2 bucket, protected environments,
@@ -137,13 +138,13 @@ python scripts/check_staging_secrets.py   # presence check, names only
 ```bash
 gh workflow run phase5-release.yml \
   -f environment=staging \
-  -f expected_sha=b2c9c624cd6b6faffe4f9585ac7f4580631abd82
+  -f expected_sha=$(python scripts/latest_attested_release.py)
 gh run watch   # verify job re-checks attestation, pushes ghcr image (record its digest)
 
 # Smoke (also run automatically by the workflow):
 python scripts/phase5_smoke.py \
   --base-url https://thesis-staging.robofox.online \
-  --expected-release b2c9c624cd6b6faffe4f9585ac7f4580631abd82
+  --expected-release $(python scripts/latest_attested_release.py)
 
 # UAT driver + human checklists:
 python scripts/run_uat_flows.py --base-url https://thesis-staging.robofox.online \
