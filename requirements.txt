@@ -22,6 +22,8 @@ PyJWT==2.13.0
 cryptography==49.0.0
 passlib[bcrypt]==1.7.4
 
+defusedxml==0.7.1
+
 # HTTP client (for Resend email + R2)
 httpx==0.28.1
 
