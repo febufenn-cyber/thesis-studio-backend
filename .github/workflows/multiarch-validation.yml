@@ -1,0 +1,64 @@
+name: Multi-Architecture Validation
+
+# Builds the release Dockerfile natively on amd64 AND arm64 runners and runs
+# the full container runtime smoke (scripts/container_runtime_smoke.py) on
+# each: fail-closed boot, non-root, dependency imports, LibreOffice + Times
+# New Roman, ClamAV client, migrations, health/release identity, worker
+# startup, DOCX render and PDF conversion. A build that merely completes is
+# not ARM-verified — this workflow is the runtime proof, per architecture.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  runtime-smoke:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-latest
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: smoke
+          POSTGRES_PASSWORD: smoke
+          POSTGRES_DB: smoke
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U smoke" --health-interval 5s
+          --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build release image natively
+        run: |
+          docker build \
+            --file Dockerfile.phase5 \
+            --build-arg RELEASE_SHA=${{ github.sha }} \
+            --build-arg BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ) \
+            --tag robofox-smoke:${{ matrix.arch }} .
+      - name: Container runtime smoke
+        run: |
+          python3 scripts/container_runtime_smoke.py \
+            --image robofox-smoke:${{ matrix.arch }} \
+            --network host \
+            --database-url postgresql+asyncpg://smoke:smoke@127.0.0.1:5432/smoke \
+            --expected-sha ${{ github.sha }} \
+            --out runtime-smoke-${{ matrix.arch }}.json
+      - name: Upload runtime evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: runtime-smoke-${{ matrix.arch }}-${{ github.sha }}
+          path: runtime-smoke-${{ matrix.arch }}.json
