@@ -7,7 +7,7 @@ from uuid import UUID, uuid4
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID as PG_UUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, synonym
 
 from app.db.session import Base
 
@@ -29,6 +29,9 @@ class Quote(Base):
     )
 
     page_or_loc: Mapped[str] = mapped_column(String(100), nullable=False, default="")
+    # Phase 3/4 fixtures and early integrations used ``locator``. Keep it as an
+    # ORM synonym so old code remains loadable without creating a second column.
+    locator = synonym("page_or_loc")
     text: Mapped[str] = mapped_column(Text, nullable=False)
     method: Mapped[str] = mapped_column(String(30), nullable=False, default="pasted")
 
