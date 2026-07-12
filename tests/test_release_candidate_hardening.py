@@ -88,7 +88,6 @@ def test_docx_preflight_records_nonproduction_scan_state(tmp_path: Path) -> None
     document = Document()
     document.add_paragraph("CHAPTER I")
     document.save(path)
-
     report = inspect_docx(str(path))
     assert report.package["malware_scan"] == {
         "status": "skipped",
@@ -97,10 +96,14 @@ def test_docx_preflight_records_nonproduction_scan_state(tmp_path: Path) -> None
 
 
 def test_every_merged_control_plane_router_is_reachable() -> None:
-    routes = {(route.path, method) for route in app.routes for method in getattr(route, "methods", set())}
+    routes = {
+        (route.path, method)
+        for route in app.routes
+        for method in getattr(route, "methods", set())
+    }
     required = {
         ("/institutions/{institution_id}/policies/{policy_id}/state", "POST"),
-        ("/projects/{project_id}/shared-sources", "GET"),
+        ("/projects/{project_id}/collaboration/evidence", "GET"),
         ("/institutions/{institution_id}/reliability/dashboard", "GET"),
         ("/status", "GET"),
         ("/meta/release", "GET"),
