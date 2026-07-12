@@ -1,0 +1,42 @@
+{
+  "schema": "robofox.main-validation-evidence.v1",
+  "sha": "7397fdcc008465ce6752e749960f3251059caca8",
+  "release_candidate_sha": "0941ebda78fb7b1b3e522e95b609a7f35e15ba73",
+  "validated_at": "2026-07-12T04:20:00+00:00",
+  "environment": "local-development-macos",
+  "results_are": "local-revalidation",
+  "checks": {
+    "python_compileall": "passed",
+    "app_import": "passed",
+    "frontend_js_syntax": {"files": 8, "failures": 0},
+    "tests": {"command": "pytest -q", "tests": 173, "failures": 0, "errors": 0, "skipped": 0},
+    "alembic": "head -> 0016 -> head passed; current=0018",
+    "dependency_audit": {"command": "python -m pip_audit (installed clean env)", "result": "no known vulnerabilities", "note": "pip-audit -r isolated mode crashes on macOS/uv (ensurepip SIGABRT); CI Linux invocation unaffected"},
+    "bandit": {"command": "bandit -r app -x tests -ll -ii", "result": "passed"},
+    "secret_patterns": "passed",
+    "image_build": {"dockerfile": "Dockerfile.phase5", "image_id": "sha256:97c81b4c6660", "size": "1.78GB", "platform": "linux/arm64 (local)"},
+    "release_identity": {"RELEASE_SHA": "7397fdcc008465ce6752e749960f3251059caca8", "BUILD_TIME": "2026-07-12T04:15:15+00:00", "baked_into_image": true},
+    "openapi": {"paths": 176},
+    "required_routes": "all present",
+    "production_fail_closed": {"positive_rc": 0, "negative_rc": 1}
+  },
+  "version_agreement": {
+    "application_version": "0.7.0",
+    "schema_version": "0018",
+    "alembic_head": "0018",
+    "renderer_version": "phase1-renderer",
+    "canonical_schema_version": "1",
+    "prompt_bundle_version": "phase3-prompts",
+    "parser_version": "phase1-2.0",
+    "release_sha": "7397fdcc008465ce6752e749960f3251059caca8",
+    "agree": true
+  },
+  "regressions_fixed": [
+    {
+      "file": "tests/test_release_candidate_hardening.py",
+      "defect": "production-safety Settings tests read developer's untracked .env; DEBUG=true masked the ClamAV rule",
+      "fix": "Settings(_env_file=None, ...) in the test fixture; validator unchanged",
+      "post_fix_suite": "173/0/0/0"
+    }
+  ]
+}

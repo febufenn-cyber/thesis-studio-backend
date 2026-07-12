@@ -8,6 +8,8 @@ from typing import Literal
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from app.canonical.model import CANONICAL_SCHEMA_VERSION as _CANONICAL_MODEL_VERSION
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
@@ -25,7 +27,10 @@ class Settings(BaseSettings):
     SCHEMA_VERSION: str = "0018"
     RENDERER_VERSION: str = "phase1-renderer"
     PROMPT_BUNDLE_VERSION: str = "phase3-prompts"
-    CANONICAL_SCHEMA_VERSION: str = "1"
+    # Derived from the model constant that migrations stamp and the verifier
+    # enforces, so release identity cannot drift from real documents. The env
+    # override remains for deliberate staging experiments only.
+    CANONICAL_SCHEMA_VERSION: str = str(_CANONICAL_MODEL_VERSION)
 
     DATABASE_URL: str = Field(..., description="Async Postgres URL")
 

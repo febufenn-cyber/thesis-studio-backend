@@ -1,0 +1,127 @@
+{
+  "generated_by": "scripts/generate_pilot_fixtures.py",
+  "content": "deterministic synthetic prose only \u2014 never real thesis text",
+  "fixtures": [
+    {
+      "file": "tables.docx",
+      "case": "tables",
+      "expect_preflight_reject": false,
+      "expected_unsupported": [
+        "tables"
+      ],
+      "size_bytes": 37241,
+      "sha256": "9a723c759566e48762d9daf95f691370d00b12fc76388606a6f0e28aba3c0e5c"
+    },
+    {
+      "file": "embedded_image.docx",
+      "case": "embedded_image",
+      "expect_preflight_reject": false,
+      "expected_unsupported": [
+        "images"
+      ],
+      "size_bytes": 37364,
+      "sha256": "a41c21bdf32bb60510cac9e008f408d30f0b815c00d28931c1128ad88933ac7b"
+    },
+    {
+      "file": "equation_omml.docx",
+      "case": "equation_omml",
+      "expect_preflight_reject": false,
+      "expected_unsupported": [
+        "equations"
+      ],
+      "size_bytes": 36901,
+      "sha256": "0b63224113d2df2028e62fe966aa0a4a83a19bfa603fc796f6408c7806089a0b"
+    },
+    {
+      "file": "comments.docx",
+      "case": "comments",
+      "expect_preflight_reject": false,
+      "expected_unsupported": [],
+      "size_bytes": 37280,
+      "sha256": "0090c5b402c0066ab20ef0b4af832d2b122aa660446fcbe16dcfd4c021502135"
+    },
+    {
+      "file": "tracked_changes.docx",
+      "case": "tracked_changes",
+      "expect_preflight_reject": false,
+      "expected_unsupported": [],
+      "size_bytes": 37009,
+      "sha256": "48f13c93a37d7158cac968165f62c15583b07a98c9216387c588d159e72ed8b9"
+    },
+    {
+      "file": "footnotes_endnotes.docx",
+      "case": "footnotes_endnotes",
+      "expect_preflight_reject": false,
+      "expected_unsupported": [
+        "footnotes",
+        "endnotes"
+      ],
+      "size_bytes": 37630,
+      "sha256": "84c4df6c9786153ebe4c4d1d8c26eef5b1b942276cd9d40af253401f97d9acb8"
+    },
+    {
+      "file": "verse_quotation.docx",
+      "case": "verse_quotation",
+      "expect_preflight_reject": false,
+      "expected_unsupported": [],
+      "size_bytes": 36951,
+      "sha256": "f9d03696e945f7404c9603d00180784f490564fc951594f7ce1df79ab533fcc2"
+    },
+    {
+      "file": "block_quotes.docx",
+      "case": "block_quotes",
+      "expect_preflight_reject": false,
+      "expected_unsupported": [],
+      "size_bytes": 37047,
+      "sha256": "708867dbeb6b17e35350df217791df7b9fd2f15ec5cf52105f0e956a1b9ace25"
+    },
+    {
+      "file": "broken_headings.docx",
+      "case": "broken_headings",
+      "expect_preflight_reject": false,
+      "expected_unsupported": [],
+      "size_bytes": 37035,
+      "sha256": "21335326b4190d61559a195a26fc16e7f2f5795356073d573b22be2aa14d049d"
+    },
+    {
+      "file": "complex_works_cited.docx",
+      "case": "complex_works_cited",
+      "expect_preflight_reject": false,
+      "expected_unsupported": [],
+      "size_bytes": 37131,
+      "sha256": "eb5c886a2f466b172680c3743f5763acfec743dcf6a8acb43e353a339a47fc27"
+    },
+    {
+      "file": "non_english.docx",
+      "case": "non_english",
+      "expect_preflight_reject": false,
+      "expected_unsupported": [],
+      "size_bytes": 37272,
+      "sha256": "24896b95de172c36ff2e11bbe4cdbdd449d6003dae2a2773eb80dd74e429fc7c"
+    },
+    {
+      "file": "large_150p.docx",
+      "case": "large_150p",
+      "expect_preflight_reject": false,
+      "expected_unsupported": [],
+      "size_bytes": 41534,
+      "sha256": "3b7f8c3b67d1b191343518dc0313155357806df36b24c58808f3de40fe8ff7e9"
+    },
+    {
+      "file": "malformed_zip.docx",
+      "case": "malformed_zip",
+      "expect_preflight_reject": true,
+      "expected_unsupported": [],
+      "size_bytes": 18371,
+      "sha256": "24efd4916fa8d7742e2f2c0795767adc414acc3d0960a352e33ccc3c3234c1bf"
+    },
+    {
+      "file": "zip_bomb.docx",
+      "case": "zip_bomb",
+      "expect_preflight_reject": true,
+      "expected_unsupported": [],
+      "size_bytes": 98035,
+      "sha256": "09e001a58f0df57203f37c5ae120750c5e6ed9d731aeb7e8b90143d9ca006aa5"
+    }
+  ]
+}

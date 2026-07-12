@@ -1,0 +1,272 @@
+{
+  "metadata": {
+    "commit_sha": "81c9b6ad841bfdc427565099df9de0ca617e3c33",
+    "environment": "local-development-macos (M-series, in-process ASGI, results NOT representative of staging SLOs)",
+    "python_version": "3.11.14",
+    "platform": "macOS-26.2-arm64-arm-64bit",
+    "timestamp_utc": "2026-07-12T04:33:02.319204+00:00",
+    "database_url_host": "localhost:5453/thesis_studio_test",
+    "iterations_per_operation": 30,
+    "warmups_per_operation": 3,
+    "transport": "httpx ASGITransport (in-process, no network/TLS/proxy)"
+  },
+  "process": {
+    "rss_bytes_start": 146800640,
+    "rss_bytes_after_http_benchmarks": 303431680,
+    "rss_bytes_end": 303431680,
+    "db_pool": {
+      "status": "Pool size: 10  Connections in pool: 2 Current Overflow: -8 Current Checked out connections: 0",
+      "size": 10,
+      "checkedin": 2,
+      "checkedout": 0,
+      "overflow": -8
+    }
+  },
+  "operations": {
+    "500_blocks": {
+      "project_id": "eff67272-a7ca-43c7-bbce-fedc6b1fa8d1",
+      "project_open_get_canonical_document": {
+        "iterations": 30,
+        "warmups": 3,
+        "errors": 0,
+        "p50_ms": 4.328,
+        "p95_ms": 5.13,
+        "p99_ms": 38.936,
+        "min_ms": 3.793,
+        "max_ms": 38.936,
+        "mean_ms": 5.509
+      },
+      "search_editor_document": {
+        "iterations": 30,
+        "warmups": 3,
+        "errors": 0,
+        "p50_ms": 9.7,
+        "p95_ms": 43.428,
+        "p99_ms": 45.624,
+        "min_ms": 9.085,
+        "max_ms": 45.624,
+        "mean_ms": 14.132,
+        "matched_results": 50
+      },
+      "single_block_save_update_block_text": {
+        "iterations": 30,
+        "warmups": 3,
+        "errors": 0,
+        "p50_ms": 44.575,
+        "p95_ms": 70.679,
+        "p99_ms": 78.456,
+        "min_ms": 29.736,
+        "max_ms": 78.456,
+        "mean_ms": 50.619,
+        "note": "Full canonical-document rewrite per save (whole-JSONB persistence, command + event rows); includes any periodic auto-snapshot that falls inside the measured window (AUTO_SNAPSHOT_EVERY=25 versions)."
+      },
+      "optimistic_concurrency_stale_save_409": {
+        "iterations": 30,
+        "warmups": 3,
+        "errors": 0,
+        "p50_ms": 4.357,
+        "p95_ms": 4.68,
+        "p99_ms": 4.719,
+        "min_ms": 3.996,
+        "max_ms": 4.719,
+        "mean_ms": 4.371,
+        "note": "Stale expected_document_version rejected with 409; no document mutation."
+      },
+      "optimistic_concurrency_interleaved_pair": {
+        "base_version": 34,
+        "responses": [
+          {
+            "request": "A",
+            "status": 200,
+            "latency_ms": 86.513
+          },
+          {
+            "request": "B",
+            "status": 200,
+            "latency_ms": 107.413
+          }
+        ],
+        "one_won_one_409": false
+      },
+      "final_document_version": 35
+    },
+    "2000_blocks": {
+      "project_id": "6ab6fe9b-aedb-47d5-a201-6141d714b317",
+      "project_open_get_canonical_document": {
+        "iterations": 30,
+        "warmups": 3,
+        "errors": 0,
+        "p50_ms": 9.421,
+        "p95_ms": 9.989,
+        "p99_ms": 44.086,
+        "min_ms": 8.838,
+        "max_ms": 44.086,
+        "mean_ms": 10.587
+      },
+      "search_editor_document": {
+        "iterations": 30,
+        "warmups": 3,
+        "errors": 0,
+        "p50_ms": 66.077,
+        "p95_ms": 68.568,
+        "p99_ms": 107.046,
+        "min_ms": 28.351,
+        "max_ms": 107.046,
+        "mean_ms": 56.869,
+        "matched_results": 100
+      },
+      "single_block_save_update_block_text": {
+        "iterations": 30,
+        "warmups": 3,
+        "errors": 0,
+        "p50_ms": 194.951,
+        "p95_ms": 223.92,
+        "p99_ms": 229.36,
+        "min_ms": 141.674,
+        "max_ms": 229.36,
+        "mean_ms": 195.587,
+        "note": "Full canonical-document rewrite per save (whole-JSONB persistence, command + event rows); includes any periodic auto-snapshot that falls inside the measured window (AUTO_SNAPSHOT_EVERY=25 versions)."
+      },
+      "optimistic_concurrency_stale_save_409": {
+        "iterations": 30,
+        "warmups": 3,
+        "errors": 0,
+        "p50_ms": 8.281,
+        "p95_ms": 8.78,
+        "p99_ms": 42.909,
+        "min_ms": 7.987,
+        "max_ms": 42.909,
+        "mean_ms": 9.497,
+        "note": "Stale expected_document_version rejected with 409; no document mutation."
+      },
+      "optimistic_concurrency_interleaved_pair": {
+        "base_version": 34,
+        "responses": [
+          {
+            "request": "A",
+            "status": 200,
+            "latency_ms": 384.77
+          },
+          {
+            "request": "B",
+            "status": 200,
+            "latency_ms": 393.847
+          }
+        ],
+        "one_won_one_409": false
+      },
+      "final_document_version": 35
+    },
+    "5000_blocks": {
+      "project_id": "1e09d0d6-8ef9-4e4d-bfb3-65094dd524bb",
+      "project_open_get_canonical_document": {
+        "iterations": 30,
+        "warmups": 3,
+        "errors": 0,
+        "p50_ms": 18.782,
+        "p95_ms": 53.8,
+        "p99_ms": 55.838,
+        "min_ms": 18.364,
+        "max_ms": 55.838,
+        "mean_ms": 23.517
+      },
+      "search_editor_document": {
+        "iterations": 30,
+        "warmups": 3,
+        "errors": 0,
+        "p50_ms": 145.917,
+        "p95_ms": 162.492,
+        "p99_ms": 170.384,
+        "min_ms": 106.459,
+        "max_ms": 170.384,
+        "mean_ms": 140.847,
+        "matched_results": 100
+      },
+      "single_block_save_update_block_text": {
+        "iterations": 30,
+        "warmups": 3,
+        "errors": 0,
+        "p50_ms": 502.306,
+        "p95_ms": 541.242,
+        "p99_ms": 627.888,
+        "min_ms": 476.808,
+        "max_ms": 627.888,
+        "mean_ms": 513.387,
+        "note": "Full canonical-document rewrite per save (whole-JSONB persistence, command + event rows); includes any periodic auto-snapshot that falls inside the measured window (AUTO_SNAPSHOT_EVERY=25 versions)."
+      },
+      "optimistic_concurrency_stale_save_409": {
+        "iterations": 30,
+        "warmups": 3,
+        "errors": 0,
+        "p50_ms": 17.035,
+        "p95_ms": 53.027,
+        "p99_ms": 55.378,
+        "min_ms": 16.265,
+        "max_ms": 55.378,
+        "mean_ms": 21.832,
+        "note": "Stale expected_document_version rejected with 409; no document mutation."
+      },
+      "optimistic_concurrency_interleaved_pair": {
+        "base_version": 34,
+        "responses": [
+          {
+            "request": "A",
+            "status": 200,
+            "latency_ms": 976.605
+          },
+          {
+            "request": "B",
+            "status": 200,
+            "latency_ms": 1063.58
+          }
+        ],
+        "one_won_one_409": false
+      },
+      "final_document_version": 35
+    },
+    "job_queue": {
+      "job_kind": "verify_project",
+      "queue": "general",
+      "jobs": 200,
+      "queue_depth_before_enqueue": 0,
+      "enqueue_total_ms": 93.679,
+      "enqueue_jobs_per_second": 2134.9,
+      "queue_depth_after_enqueue": 200,
+      "oldest_job_age_seconds_at_measurement": 0.063,
+      "oldest_job_age_query": {
+        "iterations": 10,
+        "warmups": 0,
+        "errors": 0,
+        "p50_ms": 0.484,
+        "p95_ms": 1.276,
+        "p99_ms": 1.276,
+        "min_ms": 0.432,
+        "max_ms": 1.276,
+        "mean_ms": 0.557
+      },
+      "claimed_jobs": 200,
+      "claim_total_seconds": 0.618,
+      "claim_throughput_jobs_per_second": 323.4,
+      "claim_latency": {
+        "iterations": 200,
+        "warmups": 0,
+        "errors": 0,
+        "p50_ms": 3.095,
+        "p95_ms": 3.65,
+        "p99_ms": 4.021,
+        "min_ms": 2.07,
+        "max_ms": 7.068,
+        "mean_ms": 3.08,
+        "note": "Per-pass latency of _claim_next (lease sweep + deadline sweep + FOR UPDATE SKIP LOCKED claim + commit), single worker."
+      },
+      "queue_depth_after_claims_queued": 0,
+      "queue_depth_after_claims_running": 200,
+      "cleanup": "probe jobs deleted"
+    }
+  },
+  "failures": [
+    "concurrent same-base-version saves returned statuses [200, 200] (expected exactly one 200 and one 409)",
+    "concurrent same-base-version saves returned statuses [200, 200] (expected exactly one 200 and one 409)",
+    "concurrent same-base-version saves returned statuses [200, 200] (expected exactly one 200 and one 409)"
+  ]
+}

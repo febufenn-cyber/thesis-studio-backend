@@ -1,0 +1,888 @@
+{
+  "schema": "uat-flow-report/1",
+  "generated_at": "2026-07-12T04:46:15.401977+00:00",
+  "mode": "local-asgi",
+  "base_url": null,
+  "run_id": "067ef0f0",
+  "totals": {
+    "steps": 87,
+    "pass": 74,
+    "fail": 0,
+    "manual": 4,
+    "requires_staging": 9,
+    "blocked": 0
+  },
+  "checklists": "docs/release/evidence/UAT_CHECKLISTS.md",
+  "steps": [
+    {
+      "id": "SETUP-01",
+      "journey": "setup",
+      "name": "fixture: fresh schema + UAT institution/department",
+      "status": "pass",
+      "expected": "",
+      "observed": "",
+      "detail": "",
+      "duration_ms": 689
+    },
+    {
+      "id": "AUTH-student",
+      "journey": "auth",
+      "name": "student OTP login + /auth/me",
+      "status": "pass",
+      "expected": "http 200 + 200",
+      "observed": "verify 200, me 200",
+      "detail": "",
+      "duration_ms": 1734
+    },
+    {
+      "id": "J01-02",
+      "journey": "J01-identity",
+      "name": "second device login visible in session list",
+      "status": "pass",
+      "expected": "http 200",
+      "observed": "http 200",
+      "detail": "sessions=2",
+      "duration_ms": 1394
+    },
+    {
+      "id": "J01-03",
+      "journey": "J01-identity",
+      "name": "revoked device session rejected opaquely",
+      "status": "pass",
+      "expected": "http 401",
+      "observed": "http 401",
+      "detail": "revoke=200",
+      "duration_ms": 10
+    },
+    {
+      "id": "J01-04",
+      "journey": "J01-identity",
+      "name": "OTP email arrival, sender and wording",
+      "status": "manual",
+      "expected": "",
+      "observed": "",
+      "detail": "human judgement \u2014 see docs/release/evidence/UAT_CHECKLISTS.md (student \u00a71)",
+      "duration_ms": 0
+    },
+    {
+      "id": "J02-01",
+      "journey": "J02-manuscript",
+      "name": "create project",
+      "status": "pass",
+      "expected": "http 201",
+      "observed": "http 201",
+      "detail": "",
+      "duration_ms": 33
+    },
+    {
+      "id": "J02-02",
+      "journey": "J02-manuscript",
+      "name": "manuscript upload accepted (202)",
+      "status": "pass",
+      "expected": "http 202",
+      "observed": "http 202",
+      "detail": "",
+      "duration_ms": 28
+    },
+    {
+      "id": "J02-03",
+      "journey": "J02-manuscript",
+      "name": "immutable revision checksum matches upload bytes",
+      "status": "pass",
+      "expected": "sha256 5436e1e8aced\u2026",
+      "observed": "sha256 5436e1e8aced\u2026",
+      "detail": "",
+      "duration_ms": 0
+    },
+    {
+      "id": "J02-04",
+      "journey": "J02-manuscript",
+      "name": "ingestion job completes and revision becomes ready",
+      "status": "pass",
+      "expected": "status ready",
+      "observed": "status ready",
+      "detail": "",
+      "duration_ms": 4
+    },
+    {
+      "id": "J02-05",
+      "journey": "J02-manuscript",
+      "name": "identical re-upload rejected as duplicate (409)",
+      "status": "pass",
+      "expected": "http 409",
+      "observed": "http 409",
+      "detail": "",
+      "duration_ms": 5
+    },
+    {
+      "id": "J02-06",
+      "journey": "J02-manuscript",
+      "name": "live ClamAV malware scan on upload",
+      "status": "requires-staging",
+      "expected": "",
+      "observed": "",
+      "detail": "not automatable here: local mode runs MALWARE_SCAN_MODE=disabled; staging runs clamav",
+      "duration_ms": 0
+    },
+    {
+      "id": "J03-01",
+      "journey": "J03-import-report",
+      "name": "import report present with planted unresolved-citation issue",
+      "status": "pass",
+      "expected": "http 200",
+      "observed": "http 200",
+      "detail": "issues_open=1",
+      "duration_ms": 3
+    },
+    {
+      "id": "J03-02",
+      "journey": "J03-import-report",
+      "name": "student resolves an import issue (open count drops)",
+      "status": "pass",
+      "expected": "http 200",
+      "observed": "http 200",
+      "detail": "issues_open 1 -> 0",
+      "duration_ms": 9
+    },
+    {
+      "id": "J04-01",
+      "journey": "J04-editing",
+      "name": "student structured edit persists (autosave path)",
+      "status": "pass",
+      "expected": "http 200",
+      "observed": "http 200",
+      "detail": "",
+      "duration_ms": 131
+    },
+    {
+      "id": "J04-02",
+      "journey": "J04-editing",
+      "name": "stale document version rejected with 409",
+      "status": "pass",
+      "expected": "http 409",
+      "observed": "http 409",
+      "detail": "",
+      "duration_ms": 4
+    },
+    {
+      "id": "J04-03",
+      "journey": "J04-editing",
+      "name": "undo of the structured edit",
+      "status": "pass",
+      "expected": "http 200",
+      "observed": "http 200",
+      "detail": "",
+      "duration_ms": 12
+    },
+    {
+      "id": "J04-04",
+      "journey": "J04-editing",
+      "name": "restore from the immutable manuscript revision",
+      "status": "pass",
+      "expected": "http 200",
+      "observed": "http 200",
+      "detail": "",
+      "duration_ms": 9
+    },
+    {
+      "id": "J05-01",
+      "journey": "J05-citations",
+      "name": "registry sources parsed from Works Cited",
+      "status": "pass",
+      "expected": "http 200",
+      "observed": "http 200",
+      "detail": "sources=2",
+      "duration_ms": 0
+    },
+    {
+      "id": "J05-02",
+      "journey": "J05-citations",
+      "name": "student verifies every registry source",
+      "status": "pass",
+      "expected": "http 200",
+      "observed": "http 200",
+      "detail": "verified=2/2",
+      "duration_ms": 0
+    },
+    {
+      "id": "J05-03",
+      "journey": "J05-citations",
+      "name": "quotation registry extracted from manuscript",
+      "status": "pass",
+      "expected": "http 200",
+      "observed": "http 200",
+      "detail": "quotes=1",
+      "duration_ms": 0
+    },
+    {
+      "id": "J05-04",
+      "journey": "J05-citations",
+      "name": "quotation verify with changed text rejected (409)",
+      "status": "pass",
+      "expected": "http 409",
+      "observed": "http 409",
+      "detail": "",
+      "duration_ms": 5
+    },
+    {
+      "id": "J05-05",
+      "journey": "J05-citations",
+      "name": "exact quotation verification recorded",
+      "status": "pass",
+      "expected": "http 200",
+      "observed": "http 200",
+      "detail": "",
+      "duration_ms": 6
+    },
+    {
+      "id": "J05-06",
+      "journey": "J05-citations",
+      "name": "exact citation occurrence resolution",
+      "status": "pass",
+      "expected": "http 200",
+      "observed": "http 200",
+      "detail": "",
+      "duration_ms": 12
+    },
+    {
+      "id": "J05-07",
+      "journey": "J05-citations",
+      "name": "verifier endpoint returns a full report",
+      "status": "pass",
+      "expected": "http 200",
+      "observed": "http 200",
+      "detail": "passed=False counts={'block': 9, 'warn': 1, 'info': 0}",
+      "duration_ms": 0
+    },
+    {
+      "id": "J06-01",
+      "journey": "J06-preview",
+      "name": "preview request accepted (202)",
+      "status": "pass",
+      "expected": "http 202",
+      "observed": "http 202",
+      "detail": "",
+      "duration_ms": 11
+    },
+    {
+      "id": "J06-02",
+      "journey": "J06-preview",
+      "name": "authoritative PDF preview rendered",
+      "status": "requires-staging",
+      "expected": "",
+      "observed": "",
+      "detail": "not automatable here: LibreOffice (soffice) not installed on this host; run on staging",
+      "duration_ms": 0
+    },
+    {
+      "id": "J07-01",
+      "journey": "J07-ai-partner",
+      "name": "AI health endpoint reports application/editing/export independent of AI",
+      "status": "pass",
+      "expected": "http 200",
+      "observed": "http 200",
+      "detail": "ai=operational",
+      "duration_ms": 9
+    },
+    {
+      "id": "J07-02",
+      "journey": "J07-ai-partner",
+      "name": "grounded AI proposal with partial acceptance and provenance",
+      "status": "requires-staging",
+      "expected": "",
+      "observed": "",
+      "detail": "not automatable here: needs a configured commercial AI provider and AI worker",
+      "duration_ms": 0
+    },
+    {
+      "id": "J08-00",
+      "journey": "J08-supervisor",
+      "name": "fixture: project linked to institution/department",
+      "status": "pass",
+      "expected": "",
+      "observed": "",
+      "detail": "local direct-DB seeding (staging: provisioning flow)",
+      "duration_ms": 0
+    },
+    {
+      "id": "AUTH-supervisor",
+      "journey": "auth",
+      "name": "supervisor OTP login + /auth/me",
+      "status": "pass",
+      "expected": "http 200 + 200",
+      "observed": "verify 200, me 200",
+      "detail": "",
+      "duration_ms": 1335
+    },
+    {
+      "id": "J08-01",
+      "journey": "J08-supervisor",
+      "name": "student invites supervisor; supervisor accepts (single-use token)",
+      "status": "pass",
+      "expected": "http 200",
+      "observed": "http 200",
+      "detail": "invite=201",
+      "duration_ms": 30
+    },
+    {
+      "id": "J08-02",
+      "journey": "J08-supervisor",
+      "name": "student submits snapshot review cycle",
+      "status": "pass",
+      "expected": "http 201",
+      "observed": "http 201",
+      "detail": "",
+      "duration_ms": 21
+    },
+    {
+      "id": "J08-03",
+      "journey": "J08-supervisor",
+      "name": "supervisor reads the immutable review snapshot",
+      "status": "pass",
+      "expected": "http 200",
+      "observed": "http 200",
+      "detail": "",
+      "duration_ms": 0
+    },
+    {
+      "id": "J08-04",
+      "journey": "J08-supervisor",
+      "name": "supervisor anchors a review comment",
+      "status": "pass",
+      "expected": "http 201",
+      "observed": "http 201",
+      "detail": "",
+      "duration_ms": 11
+    },
+    {
+      "id": "J08-05",
+      "journey": "J08-supervisor",
+      "name": "supervisor files a structured suggestion",
+      "status": "pass",
+      "expected": "http 201",
+      "observed": "http 201",
+      "detail": "",
+      "duration_ms": 11
+    },
+    {
+      "id": "J08-06",
+      "journey": "J08-supervisor",
+      "name": "student accepts the suggestion (authorship preserved, command applied)",
+      "status": "pass",
+      "expected": "http 200",
+      "observed": "http 200",
+      "detail": "",
+      "duration_ms": 20
+    },
+    {
+      "id": "J08-07",
+      "journey": "J08-supervisor",
+      "name": "approval of a superseded snapshot is honestly marked snapshot_only",
+      "status": "pass",
+      "expected": "http 200",
+      "observed": "http 200",
+      "detail": "approval=snapshot_only",
+      "duration_ms": 14
+    },
+    {
+      "id": "J08-08",
+      "journey": "J08-supervisor",
+      "name": "student resubmits the current version for review",
+      "status": "pass",
+      "expected": "http 201",
+      "observed": "http 201",
+      "detail": "",
+      "duration_ms": 12
+    },
+    {
+      "id": "J08-09",
+      "journey": "J08-supervisor",
+      "name": "current-version approval activates and advances workflow",
+      "status": "pass",
+      "expected": "http 200",
+      "observed": "http 200",
+      "detail": "workflow=academically_approved",
+      "duration_ms": 11
+    },
+    {
+      "id": "AUTH-operator",
+      "journey": "auth",
+      "name": "operator OTP login + /auth/me",
+      "status": "pass",
+      "expected": "http 200 + 200",
+      "observed": "verify 200, me 200",
+      "detail": "",
+      "duration_ms": 520
+    },
+    {
+      "id": "J09-01",
+      "journey": "J09-operator",
+      "name": "operator invited and joins project",
+      "status": "pass",
+      "expected": "http 200",
+      "observed": "http 200",
+      "detail": "",
+      "duration_ms": 0
+    },
+    {
+      "id": "J09-02",
+      "journey": "J09-operator",
+      "name": "operator prose rewrite mechanically refused (403/404/409)",
+      "status": "pass",
+      "expected": "http 403/404/409",
+      "observed": "http 409",
+      "detail": "",
+      "duration_ms": 5
+    },
+    {
+      "id": "J09-03",
+      "journey": "J09-operator",
+      "name": "operator formatting/metadata fix succeeds without prose authority",
+      "status": "pass",
+      "expected": "http 200",
+      "observed": "http 200",
+      "detail": "",
+      "duration_ms": 21
+    },
+    {
+      "id": "J09-04",
+      "journey": "J09-operator",
+      "name": "operator moves workflow into formatting review",
+      "status": "pass",
+      "expected": "http 200",
+      "observed": "http 200",
+      "detail": "",
+      "duration_ms": 5
+    },
+    {
+      "id": "AUTH-dept_admin",
+      "journey": "auth",
+      "name": "dept_admin OTP login + /auth/me",
+      "status": "pass",
+      "expected": "http 200 + 200",
+      "observed": "verify 200, me 200",
+      "detail": "",
+      "duration_ms": 456
+    },
+    {
+      "id": "AUTH-inst_admin",
+      "journey": "auth",
+      "name": "inst_admin OTP login + /auth/me",
+      "status": "pass",
+      "expected": "http 200 + 200",
+      "observed": "verify 200, me 200",
+      "detail": "",
+      "duration_ms": 1432
+    },
+    {
+      "id": "J10-00",
+      "journey": "J10-approvals",
+      "name": "fixture: department/institution admin roles provisioned",
+      "status": "pass",
+      "expected": "",
+      "observed": "",
+      "detail": "local direct-DB seeding (staging: admin onboarding)",
+      "duration_ms": 0
+    },
+    {
+      "id": "J10-01",
+      "journey": "J10-approvals",
+      "name": "department admin records a role assignment",
+      "status": "pass",
+      "expected": "http 201",
+      "observed": "http 201",
+      "detail": "",
+      "duration_ms": 9
+    },
+    {
+      "id": "J10-02",
+      "journey": "J10-approvals",
+      "name": "institution admin drafts and publishes policy",
+      "status": "pass",
+      "expected": "http 200",
+      "observed": "http 200",
+      "detail": "",
+      "duration_ms": 36
+    },
+    {
+      "id": "J10-03",
+      "journey": "J10-approvals",
+      "name": "separate citation approval recorded",
+      "status": "pass",
+      "expected": "http 201",
+      "observed": "http 201",
+      "detail": "",
+      "duration_ms": 9
+    },
+    {
+      "id": "J10-04",
+      "journey": "J10-approvals",
+      "name": "separate formatting approval recorded",
+      "status": "pass",
+      "expected": "http 201",
+      "observed": "http 201",
+      "detail": "",
+      "duration_ms": 9
+    },
+    {
+      "id": "J10-05",
+      "journey": "J10-approvals",
+      "name": "separate institutional approval recorded",
+      "status": "pass",
+      "expected": "http 201",
+      "observed": "http 201",
+      "detail": "",
+      "duration_ms": 7
+    },
+    {
+      "id": "J10-06",
+      "journey": "J10-approvals",
+      "name": "admin scope excludes manuscript content and private AI history",
+      "status": "pass",
+      "expected": "http 200",
+      "observed": "http 200",
+      "detail": "",
+      "duration_ms": 0
+    },
+    {
+      "id": "J10-07",
+      "journey": "J10-approvals",
+      "name": "private AI history is invisible in the admin UI",
+      "status": "manual",
+      "expected": "",
+      "observed": "",
+      "detail": "human judgement \u2014 see docs/release/evidence/UAT_CHECKLISTS.md (dept admin \u00a73)",
+      "duration_ms": 0
+    },
+    {
+      "id": "J11-01",
+      "journey": "J11-seal",
+      "name": "student and supervisor attestations recorded",
+      "status": "pass",
+      "expected": "http 201",
+      "observed": "http 201",
+      "detail": "",
+      "duration_ms": 28
+    },
+    {
+      "id": "J11-02",
+      "journey": "J11-seal",
+      "name": "export request accepted after authorship acknowledgement (202)",
+      "status": "pass",
+      "expected": "http 202",
+      "observed": "http 202",
+      "detail": "review_fallback=True",
+      "duration_ms": 20
+    },
+    {
+      "id": "J11-03",
+      "journey": "J11-seal",
+      "name": "rendered export artifacts",
+      "status": "pass",
+      "expected": "docx (+pdf on staging) ready",
+      "observed": "ready=['docx']",
+      "detail": "pdf rendering needs LibreOffice; verify on staging",
+      "duration_ms": 0
+    },
+    {
+      "id": "J11-04",
+      "journey": "J11-seal",
+      "name": "fixture: final docx+pdf export slots seeded with real stored files",
+      "status": "pass",
+      "expected": "",
+      "observed": "",
+      "detail": "local stand-in for worker-rendered finals; staging renders them",
+      "duration_ms": 0
+    },
+    {
+      "id": "J11-05",
+      "journey": "J11-seal",
+      "name": "submission readiness reports every gate satisfied",
+      "status": "pass",
+      "expected": "http 200",
+      "observed": "http 200",
+      "detail": "",
+      "duration_ms": 0
+    },
+    {
+      "id": "J11-06",
+      "journey": "J11-seal",
+      "name": "submission sealed with package checksum and signature claim",
+      "status": "pass",
+      "expected": "http 201",
+      "observed": "http 201",
+      "detail": "checksum=009daff44d47\u2026",
+      "duration_ms": 19
+    },
+    {
+      "id": "J11-07",
+      "journey": "J11-seal",
+      "name": "sealed submission is immutable (edit \u2192 409)",
+      "status": "pass",
+      "expected": "http 409",
+      "observed": "http 409",
+      "detail": "",
+      "duration_ms": 2
+    },
+    {
+      "id": "J11-08",
+      "journey": "J11-seal",
+      "name": "audit timeline records the full decision trail",
+      "status": "pass",
+      "expected": "http 200",
+      "observed": "http 200",
+      "detail": "kinds=17",
+      "duration_ms": 0
+    },
+    {
+      "id": "J12-01",
+      "journey": "J12-external",
+      "name": "recipient-bound external grant issued",
+      "status": "pass",
+      "expected": "http 201",
+      "observed": "http 201",
+      "detail": "",
+      "duration_ms": 22
+    },
+    {
+      "id": "J12-02",
+      "journey": "J12-external",
+      "name": "wrong recipient rejected opaquely (404)",
+      "status": "pass",
+      "expected": "http 404",
+      "observed": "http 404",
+      "detail": "",
+      "duration_ms": 6
+    },
+    {
+      "id": "J12-03",
+      "journey": "J12-external",
+      "name": "bound recipient reads sealed content with watermark notice",
+      "status": "pass",
+      "expected": "http 200",
+      "observed": "http 200",
+      "detail": "",
+      "duration_ms": 3
+    },
+    {
+      "id": "J12-04",
+      "journey": "J12-external",
+      "name": "sealed download carries the watermark response header",
+      "status": "pass",
+      "expected": "http 200",
+      "observed": "http 200",
+      "detail": "X-Robofox-Watermark present",
+      "duration_ms": 13
+    },
+    {
+      "id": "J12-05",
+      "journey": "J12-external",
+      "name": "watermark visibly rendered on the PDF pages",
+      "status": "manual",
+      "expected": "",
+      "observed": "",
+      "detail": "human judgement \u2014 see docs/release/evidence/UAT_CHECKLISTS.md (external reviewer \u00a74)",
+      "duration_ms": 0
+    },
+    {
+      "id": "J12-06",
+      "journey": "J12-external",
+      "name": "expired grant rejected opaquely (404)",
+      "status": "pass",
+      "expected": "http 404",
+      "observed": "http 404",
+      "detail": "",
+      "duration_ms": 4012
+    },
+    {
+      "id": "J12-07",
+      "journey": "J12-external",
+      "name": "revoked grant rejected opaquely (404)",
+      "status": "pass",
+      "expected": "http 404",
+      "observed": "http 404",
+      "detail": "",
+      "duration_ms": 9
+    },
+    {
+      "id": "J13-01",
+      "journey": "J13-lifecycle",
+      "name": "student self-service account data export",
+      "status": "pass",
+      "expected": "http 200",
+      "observed": "http 200",
+      "detail": "",
+      "duration_ms": 10
+    },
+    {
+      "id": "J13-02",
+      "journey": "J13-lifecycle",
+      "name": "project deletion enters a grace period (202, execute_after set)",
+      "status": "pass",
+      "expected": "http 202",
+      "observed": "http 202",
+      "detail": "",
+      "duration_ms": 37
+    },
+    {
+      "id": "J13-03",
+      "journey": "J13-lifecycle",
+      "name": "deletion cancellable inside grace period",
+      "status": "pass",
+      "expected": "http 200",
+      "observed": "http 200",
+      "detail": "",
+      "duration_ms": 4
+    },
+    {
+      "id": "J13-04",
+      "journey": "J13-lifecycle",
+      "name": "deletion of a sealed project accepted only into grace period",
+      "status": "pass",
+      "expected": "http 202",
+      "observed": "http 202",
+      "detail": "",
+      "duration_ms": 5
+    },
+    {
+      "id": "J13-05",
+      "journey": "J13-lifecycle",
+      "name": "sealed-custody terminal state (authorization_required after grace)",
+      "status": "requires-staging",
+      "expected": "",
+      "observed": "",
+      "detail": "not automatable here: needs grace-period elapse plus the maintenance worker",
+      "duration_ms": 0
+    },
+    {
+      "id": "AUTH-support",
+      "journey": "auth",
+      "name": "support OTP login + /auth/me",
+      "status": "pass",
+      "expected": "http 200 + 200",
+      "observed": "verify 200, me 200",
+      "detail": "",
+      "duration_ms": 1266
+    },
+    {
+      "id": "J14-01",
+      "journey": "J14-support",
+      "name": "student grants time-boxed metadata-only support access",
+      "status": "pass",
+      "expected": "http 201",
+      "observed": "http 201",
+      "detail": "",
+      "duration_ms": 8
+    },
+    {
+      "id": "J14-02",
+      "journey": "J14-support",
+      "name": "diagnostic bundle is metadata-only (canary prose absent)",
+      "status": "pass",
+      "expected": "http 200",
+      "observed": "http 200",
+      "detail": "manuscript_content_included=false, canary absent",
+      "duration_ms": 22
+    },
+    {
+      "id": "J14-03",
+      "journey": "J14-support",
+      "name": "fixture: failed pdf job induced",
+      "status": "pass",
+      "expected": "",
+      "observed": "",
+      "detail": "local stand-in for a crashed worker",
+      "duration_ms": 0
+    },
+    {
+      "id": "J14-04",
+      "journey": "J14-support",
+      "name": "support retries the failed job without content access",
+      "status": "pass",
+      "expected": "http 200",
+      "observed": "http 200",
+      "detail": "",
+      "duration_ms": 8
+    },
+    {
+      "id": "F-01",
+      "journey": "F-failure-exercises",
+      "name": "stop AI provider: editing/export stay available",
+      "status": "requires-staging",
+      "expected": "",
+      "observed": "",
+      "detail": "not automatable here: operator stops the AI provider on staging",
+      "duration_ms": 0
+    },
+    {
+      "id": "F-02",
+      "journey": "F-failure-exercises",
+      "name": "stop one web instance: traffic continues",
+      "status": "requires-staging",
+      "expected": "",
+      "observed": "",
+      "detail": "not automatable here: needs two staging web instances behind routing",
+      "duration_ms": 0
+    },
+    {
+      "id": "F-03",
+      "journey": "F-failure-exercises",
+      "name": "kill PDF worker mid-job: lease reclaimed without duplicates",
+      "status": "requires-staging",
+      "expected": "",
+      "observed": "",
+      "detail": "not automatable here: operator kills the staging pdf worker (unit-covered in tests/test_phase5_acceptance.py)",
+      "duration_ms": 0
+    },
+    {
+      "id": "F-04",
+      "journey": "F-failure-exercises",
+      "name": "stop ClamAV: uploads 503, existing projects usable",
+      "status": "requires-staging",
+      "expected": "",
+      "observed": "",
+      "detail": "not automatable here: operator stops staging ClamAV",
+      "duration_ms": 0
+    },
+    {
+      "id": "F-05",
+      "journey": "F-failure-exercises",
+      "name": "stale document version mutation returns 409 and loses no work",
+      "status": "pass",
+      "expected": "http 409",
+      "observed": "http 409",
+      "detail": "",
+      "duration_ms": 3
+    },
+    {
+      "id": "F-06",
+      "journey": "F-failure-exercises",
+      "name": "revoked staff member's sessions fail opaquely (401)",
+      "status": "pass",
+      "expected": "http 401",
+      "observed": "http 401",
+      "detail": "revoke=200",
+      "duration_ms": 9
+    },
+    {
+      "id": "F-06b",
+      "journey": "F-failure-exercises",
+      "name": "revoked staff invitation links fail opaquely in the UI",
+      "status": "manual",
+      "expected": "",
+      "observed": "",
+      "detail": "human judgement \u2014 see docs/release/evidence/UAT_CHECKLISTS.md (dept admin \u00a75)",
+      "duration_ms": 0
+    },
+    {
+      "id": "F-07",
+      "journey": "F-failure-exercises",
+      "name": "restore backup into isolation; compare sealed checksum",
+      "status": "requires-staging",
+      "expected": "",
+      "observed": "",
+      "detail": "not automatable here: restore drill runs on staging infrastructure (Subphase C)",
+      "duration_ms": 0
+    }
+  ]
+}

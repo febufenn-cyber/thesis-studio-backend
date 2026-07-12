@@ -29,7 +29,9 @@ def _settings(**overrides):
         "PRODUCTION_REQUIRE_MALWARE_SCAN": False,
     }
     values.update(overrides)
-    return Settings(**values)
+    # _env_file=None keeps this hermetic: a developer's untracked .env (e.g.
+    # DEBUG=true) must not change which production-safety rule fires first.
+    return Settings(_env_file=None, **values)
 
 
 def test_clamd_clean_response() -> None:

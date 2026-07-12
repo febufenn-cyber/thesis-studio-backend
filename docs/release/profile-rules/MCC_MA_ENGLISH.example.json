@@ -1,0 +1,51 @@
+{
+  "status": "EXAMPLE — replace with values transcribed from the official institutional guide; not itself institutional evidence",
+  "institution": "Madras Christian College (EXAMPLE — unconfirmed)",
+  "programme": "MA English (EXAMPLE — unconfirmed)",
+  "academic_year": "EXAMPLE — fill from the official guide",
+  "source": "Repo-documented legacy formatter defaults only: README.md and app/formatter/thesis_formatter.py constants (FONT='Times New Roman', BODY 12pt, LINE_SPACING=1.5, page 8.5x11in, margins 1.5in left / 1in top-right-bottom). This is NOT an official institutional guide.",
+  "source_guide_date": "EXAMPLE — fill from the official guide",
+  "approver": "EXAMPLE — unassigned; certification is blocked until an authorised approver signs docs/release/INSTITUTION_PROFILE_SIGNOFF.md",
+  "rules": {
+    "page_size": "Letter",
+    "margins_in": {
+      "top": 1.0,
+      "bottom": 1.0,
+      "left": 1.5,
+      "right": 1.0
+    },
+    "font": "Times New Roman",
+    "font_size_pt": 12,
+    "line_spacing": 1.5,
+    "first_line_indent_in": 0.5,
+    "justify_body": true,
+    "chapter_title": {
+      "label_format": "CHAPTER {ROMAN}",
+      "caps": true,
+      "bold": true,
+      "new_page": true
+    },
+    "pagination": {
+      "front_style": "lower_roman",
+      "front_position": "footer_center",
+      "body_style": "arabic",
+      "body_position": "footer_center",
+      "body_restart_at": 1,
+      "mla_header_name": false
+    },
+    "quotations": {
+      "block_threshold_lines": 4,
+      "block_indent_in": 0.5,
+      "verse_threshold_lines": 3
+    },
+    "works_cited": {
+      "style": "MLA 9",
+      "heading": "WORKS CITED",
+      "heading_bold": true,
+      "hanging_indent_in": 0.5
+    },
+    "toc": {
+      "native_word_field": true
+    }
+  }
+}
