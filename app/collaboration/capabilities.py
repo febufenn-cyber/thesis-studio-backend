@@ -1,9 +1,4 @@
-"""Capability resolution for institutional, project and commercial operations.
-
-Cross-tenant and unauthorized reads deliberately return 404 so identifiers cannot
-be enumerated. Existing project owners retain student-author compatibility, while
-all shared users require explicit, active and non-expired memberships.
-"""
+"""Capability resolution for institutional, project and commercial operations."""
 
 from __future__ import annotations
 
@@ -130,7 +125,6 @@ async def resolve_project_access(
     ).scalar_one_or_none()
     if project is None:
         return None
-
     if project.user_id == user.id:
         return ProjectAccess(
             project=project,
@@ -155,18 +149,16 @@ async def resolve_project_access(
             )
         )
     ).scalar_one_or_none()
-
     if membership is not None and _active_until(membership.expires_at, now) and org is not None:
         capabilities = set(ROLE_CAPABILITIES.get(membership.role, set()))
         capabilities.update(str(value) for value in membership.capabilities or [])
         if not membership.content_access:
+            capabilities.discard("project.read_content")
             capabilities.difference_update(
-                {value for value in capabilities if value.startswith("project.read_content")}
+                {"project.edit_content", "project.edit_structure", "project.edit_metadata"}
             )
-            capabilities.difference_update({"project.edit_content", "project.edit_structure", "project.edit_metadata"})
         if not membership.source_access:
-            capabilities.discard("project.read_sources")
-            capabilities.discard("source.verify")
+            capabilities.difference_update({"project.read_sources", "source.verify"})
         if not membership.ai_history_access:
             capabilities.discard("project.read_ai_history")
         return ProjectAccess(
@@ -255,11 +247,24 @@ async def require_institution_capability(
 
 
 async def accessible_project_ids(db: AsyncSession, user: User, capability: str) -> list[UUID]:
-    owned = list(
+    """Return every project visible through ownership, assignment or admin scope.
+
+    Organization administrators receive metadata scope only. This index never
+    grants manuscript content; each project response is still resolved through
+    ``resolve_project_access`` before it is returned.
+    """
+
+    result = set(
         (
-            await db.execute(select(Project.id).where(Project.user_id == user.id, Project.archived.is_(False)))
+            await db.execute(
+                select(Project.id).where(
+                    Project.user_id == user.id,
+                    Project.archived.is_(False),
+                )
+            )
         ).scalars()
     )
+    now = datetime.now(timezone.utc)
     memberships = list(
         (
             await db.execute(
@@ -270,12 +275,39 @@ async def accessible_project_ids(db: AsyncSession, user: User, capability: str) 
             )
         ).scalars()
     )
-    now = datetime.now(timezone.utc)
-    result = set(owned)
     for membership in memberships:
         if not _active_until(membership.expires_at, now):
             continue
-        caps = set(ROLE_CAPABILITIES.get(membership.role, set())) | set(membership.capabilities or [])
+        caps = set(ROLE_CAPABILITIES.get(membership.role, set())) | set(
+            membership.capabilities or []
+        )
         if capability in caps:
             result.add(membership.project_id)
+
+    org_rows = list(
+        (
+            await db.execute(
+                select(OrganizationMembership).where(
+                    OrganizationMembership.user_id == user.id,
+                    OrganizationMembership.status == "active",
+                    OrganizationMembership.affiliation_status.in_(_VERIFIED_AFFILIATIONS),
+                    OrganizationMembership.role.in_(("department_admin", "institution_admin")),
+                )
+            )
+        ).scalars()
+    )
+    for org in org_rows:
+        caps = _apply_overrides(ROLE_CAPABILITIES.get(org.role, set()), org.capability_overrides)
+        if capability not in caps:
+            continue
+        query = select(Project.id).where(
+            Project.institution_id == org.institution_id,
+            Project.archived.is_(False),
+        )
+        if org.role == "department_admin":
+            if org.department_id is None:
+                continue
+            query = query.where(Project.department_id == org.department_id)
+        result.update((await db.execute(query)).scalars())
+
     return sorted(result, key=str)
