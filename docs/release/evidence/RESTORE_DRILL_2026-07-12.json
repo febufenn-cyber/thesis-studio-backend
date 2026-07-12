@@ -1,0 +1,349 @@
+{
+  "drill": "backup-restore",
+  "schema": "robofox.restore-drill-evidence.v1",
+  "environment": "local-development-macos",
+  "run_id": "c501ddd1f0",
+  "started_at": "2026-07-12T04:28:14.982111+00:00",
+  "source": {
+    "database": "thesis_studio",
+    "host": "localhost",
+    "port": 5452
+  },
+  "restore": {
+    "database": "thesis_restore_drill",
+    "dropped_after": true
+  },
+  "tooling": {
+    "mode": "host-client-tcp",
+    "client_version": "pg_dump (PostgreSQL) 16.13 (Homebrew)",
+    "probe_note": "docker exec unavailable: OCI runtime exec failed: open /tmp/runc-process517797643: input/output error"
+  },
+  "status": "passed",
+  "seed": {
+    "institution_id": "bc57908c-e354-4fd3-ad24-e61983691e25",
+    "student_id": "1a9979c3-8a82-4239-8c37-ae27687fc221",
+    "supervisor_id": "f96d0700-faf5-4ef6-931c-562a52f6d536",
+    "project_id": "bc3692df-9c06-4c35-b940-cdc5ec5fb76f",
+    "revision_id": "f6013bbe-f00c-4c4e-b207-18efcd947458",
+    "snapshot_id": "4aef02b5-ce76-43a0-bac5-26bb1b1ea544",
+    "package_id": "995ab25e-2d13-4618-84ba-995d87ffd2f8",
+    "document_version": 1,
+    "org_membership_count": 2,
+    "project_membership_count": 2,
+    "source_count": 2,
+    "quote_count": 2,
+    "jobs_by_status": {
+      "failed": 1,
+      "queued": 1,
+      "succeeded": 1
+    }
+  },
+  "seed_left_in_source": true,
+  "checksums": {
+    "canonical_document": "59cf41115383181c548fe0f3306992c35ef5a030fae6c9d24e678e21eb9ef7b7",
+    "sealed_package": "7710023d6b762d7bb3551d6e8db155c54a3c34e87830d9403bee04236e087709",
+    "sealed_document": "59cf41115383181c548fe0f3306992c35ef5a030fae6c9d24e678e21eb9ef7b7",
+    "membership_fingerprint": "0ed55f577fb5f0daa62c6cc50191aa9df19490eb741598b0e32deff2cc1844f6",
+    "manuscript_object": "6bac882179040db6fed201ac097fb64212c13577bf796e26c0838a0fe1014f44",
+    "dump_file": "eb915292cf5b8b54ffb8ecb3e4220105b531c9c61375ebf8aaf1f7b125393dfe"
+  },
+  "inventory": {
+    "table_count": 86,
+    "total_rows": 100,
+    "row_counts": {
+      "ai_memories": 0,
+      "ai_messages": 0,
+      "ai_proposals": 0,
+      "ai_provider_health": 0,
+      "ai_providers": 0,
+      "ai_runs": 0,
+      "ai_threads": 0,
+      "alembic_version": 1,
+      "application_sessions": 0,
+      "approval_records": 8,
+      "attestations": 4,
+      "auth_tokens": 4,
+      "backup_records": 0,
+      "billing_customers": 0,
+      "billing_events": 0,
+      "citation_resolutions": 0,
+      "collaboration_comments": 0,
+      "consent_records": 0,
+      "cost_ledger": 0,
+      "data_inventory_records": 0,
+      "data_lifecycle_jobs": 0,
+      "data_lifecycle_requests": 0,
+      "departments": 0,
+      "deployment_records": 0,
+      "document_commands": 0,
+      "document_previews": 0,
+      "document_snapshots": 4,
+      "edition_versions": 0,
+      "entitlement_definitions": 15,
+      "entitlement_grants": 0,
+      "events": 6,
+      "exports": 4,
+      "external_review_grants": 0,
+      "feature_flags": 0,
+      "files": 1,
+      "human_suggestions": 0,
+      "institutional_policy_versions": 0,
+      "institutional_profile_versions": 0,
+      "institutions": 3,
+      "invoices": 0,
+      "jobs": 6,
+      "manuscript_revisions": 2,
+      "membership_invitations": 0,
+      "messages": 2,
+      "notification_preferences": 0,
+      "notifications": 0,
+      "official_template_versions": 0,
+      "organization_memberships": 4,
+      "payments": 0,
+      "platform_budget_controls": 0,
+      "privacy_notice_versions": 0,
+      "processing_purposes": 0,
+      "product_editions": 3,
+      "project_handoffs": 0,
+      "project_memberships": 4,
+      "project_presence": 0,
+      "projects": 2,
+      "quotes": 4,
+      "recovery_policies": 0,
+      "release_records": 0,
+      "research_candidates": 0,
+      "restore_drills": 0,
+      "retention_policies": 0,
+      "review_assignments": 0,
+      "review_cycles": 0,
+      "review_items": 0,
+      "rollout_assignments": 0,
+      "security_requirement_evidence": 0,
+      "service_components": 8,
+      "service_incidents": 0,
+      "sessions": 1,
+      "sli_measurements": 0,
+      "slo_definitions": 0,
+      "sources": 4,
+      "style_profiles": 0,
+      "submission_packages": 2,
+      "subprocessor_records": 0,
+      "subscription_items": 0,
+      "subscriptions": 0,
+      "supervisor_instructions": 0,
+      "support_access_grants": 0,
+      "support_actions": 0,
+      "tenant_budgets": 0,
+      "usage_events": 2,
+      "usage_ledger": 0,
+      "users": 6
+    },
+    "storage_dir": "/Users/febin/thesis studio/var/storage",
+    "storage_object_count": 3,
+    "storage_objects": [
+      {
+        "path": "drill/10c10a18ac/manuscript_v1.txt",
+        "size_bytes": 72,
+        "sha256": "4c33ad46c8c2c0a7b49b16c86e1d497f6be7f0f87f4b596466e834f647e5f644"
+      },
+      {
+        "path": "drill/c501ddd1f0/manuscript_v1.txt",
+        "size_bytes": 72,
+        "sha256": "6bac882179040db6fed201ac097fb64212c13577bf796e26c0838a0fe1014f44"
+      },
+      {
+        "path": "files/c5a1f4a2-0cc3-4589-8fb7-ddc0db351ab5/3500e52a-d505-4fd4-a5b3-024dad9fef03/13dcf850-1be8-488a-b410-283b6b676a4d.docx",
+        "size_bytes": 40516,
+        "sha256": "e2e8cf4d0bedcfb89bcb48ee5659c4fa659a4c736853fb4b3e7537cc26e44481"
+      }
+    ]
+  },
+  "dump": {
+    "path": "/var/folders/s9/tpdwtgs1681bq6hxgkrj4yq40000gn/T/restore_drill_c501ddd1f0_lx7lqcr_/thesis_studio.sql",
+    "size_bytes": 257145,
+    "started_at": "2026-07-12T04:28:15.406420+00:00"
+  },
+  "alembic_current": "0018 (head)",
+  "verification": {
+    "passed": true,
+    "checks": [
+      {
+        "name": "table_count",
+        "ok": true,
+        "expected": 86,
+        "actual": 86
+      },
+      {
+        "name": "row_counts_all_tables",
+        "ok": true,
+        "expected": {},
+        "actual": {}
+      },
+      {
+        "name": "project_present",
+        "ok": true,
+        "expected": true,
+        "actual": true
+      },
+      {
+        "name": "canonical_document_checksum",
+        "ok": true,
+        "expected": "59cf41115383181c548fe0f3306992c35ef5a030fae6c9d24e678e21eb9ef7b7",
+        "actual": "59cf41115383181c548fe0f3306992c35ef5a030fae6c9d24e678e21eb9ef7b7"
+      },
+      {
+        "name": "document_version",
+        "ok": true,
+        "expected": 1,
+        "actual": 1
+      },
+      {
+        "name": "submission_locked",
+        "ok": true,
+        "expected": true,
+        "actual": true
+      },
+      {
+        "name": "sealed_package_present",
+        "ok": true,
+        "expected": true,
+        "actual": true
+      },
+      {
+        "name": "sealed_package_state",
+        "ok": true,
+        "expected": "sealed",
+        "actual": "sealed"
+      },
+      {
+        "name": "sealed_package_checksum",
+        "ok": true,
+        "expected": "7710023d6b762d7bb3551d6e8db155c54a3c34e87830d9403bee04236e087709",
+        "actual": "7710023d6b762d7bb3551d6e8db155c54a3c34e87830d9403bee04236e087709"
+      },
+      {
+        "name": "sealed_package_manifest_recomputed",
+        "ok": true,
+        "expected": "7710023d6b762d7bb3551d6e8db155c54a3c34e87830d9403bee04236e087709",
+        "actual": "7710023d6b762d7bb3551d6e8db155c54a3c34e87830d9403bee04236e087709"
+      },
+      {
+        "name": "sealed_document_checksum",
+        "ok": true,
+        "expected": "59cf41115383181c548fe0f3306992c35ef5a030fae6c9d24e678e21eb9ef7b7",
+        "actual": "59cf41115383181c548fe0f3306992c35ef5a030fae6c9d24e678e21eb9ef7b7"
+      },
+      {
+        "name": "sealed_snapshot_checksum",
+        "ok": true,
+        "expected": "59cf41115383181c548fe0f3306992c35ef5a030fae6c9d24e678e21eb9ef7b7",
+        "actual": "59cf41115383181c548fe0f3306992c35ef5a030fae6c9d24e678e21eb9ef7b7"
+      },
+      {
+        "name": "membership_fingerprint",
+        "ok": true,
+        "expected": "0ed55f577fb5f0daa62c6cc50191aa9df19490eb741598b0e32deff2cc1844f6",
+        "actual": "0ed55f577fb5f0daa62c6cc50191aa9df19490eb741598b0e32deff2cc1844f6"
+      },
+      {
+        "name": "org_membership_count",
+        "ok": true,
+        "expected": 2,
+        "actual": 2
+      },
+      {
+        "name": "project_membership_count",
+        "ok": true,
+        "expected": 2,
+        "actual": 2
+      },
+      {
+        "name": "source_count",
+        "ok": true,
+        "expected": 2,
+        "actual": 2
+      },
+      {
+        "name": "quote_count",
+        "ok": true,
+        "expected": 2,
+        "actual": 2
+      },
+      {
+        "name": "manuscript_revision_present",
+        "ok": true,
+        "expected": true,
+        "actual": true
+      },
+      {
+        "name": "manuscript_object_checksum_matches_row",
+        "ok": true,
+        "expected": "6bac882179040db6fed201ac097fb64212c13577bf796e26c0838a0fe1014f44",
+        "actual": "6bac882179040db6fed201ac097fb64212c13577bf796e26c0838a0fe1014f44"
+      },
+      {
+        "name": "jobs_by_status",
+        "ok": true,
+        "expected": {
+          "failed": 1,
+          "queued": 1,
+          "succeeded": 1
+        },
+        "actual": {
+          "succeeded": 1,
+          "queued": 1,
+          "failed": 1
+        }
+      },
+      {
+        "name": "jobs_running_after_restore",
+        "ok": true,
+        "expected": 0,
+        "actual": 0
+      },
+      {
+        "name": "jobs_stale_leases_recoverable",
+        "ok": true,
+        "expected": 0,
+        "actual": 0
+      },
+      {
+        "name": "storage_inventory_unchanged",
+        "ok": true,
+        "expected": "c0d64f934e753afd89fd0822aa9f715fce80917a3a28a6eddd0a0d39826874ce",
+        "actual": "c0d64f934e753afd89fd0822aa9f715fce80917a3a28a6eddd0a0d39826874ce"
+      },
+      {
+        "name": "alembic_current_at_head",
+        "ok": true,
+        "expected": "(head)",
+        "actual": "0018 (head)"
+      }
+    ]
+  },
+  "timings": {
+    "seed_seconds": 0.237,
+    "baseline_seconds": 0.1,
+    "dump_seconds": 0.108,
+    "createdb_seconds": 0.053,
+    "restore_seconds": 0.559,
+    "alembic_current_seconds": 0.347,
+    "verify_seconds": 0.13,
+    "rto_seconds": 1.197
+  },
+  "rto": {
+    "definition": "wall-clock seconds for dump + createdb + restore + alembic check + verify",
+    "rto_seconds": 1.197
+  },
+  "rpo": {
+    "definition": "data-loss window relative to the pg_dump snapshot; a fresh dump captures every transaction committed before dump start",
+    "last_committed_write_at": "2026-07-12T04:28:15.286397+00:00",
+    "dump_started_at": "2026-07-12T04:28:15.406420+00:00",
+    "write_to_dump_gap_seconds": 0.12,
+    "rpo_seconds": 0.0
+  },
+  "notes": [
+    "dump file removed after a passed drill"
+  ],
+  "finished_at": "2026-07-12T04:28:16.634644+00:00"
+}
