@@ -1,0 +1,87 @@
+{
+  "architecture_reported": "arm64",
+  "checks": [
+    {
+      "check": "image_platform",
+      "detail": "linux/arm64 sha256:c3b91d284ade81b81",
+      "ok": true
+    },
+    {
+      "check": "release_identity_baked",
+      "detail": "RELEASE_SHA=9d071a18e1e7 BUILD_TIME=2026-07-12T09:17:44Z",
+      "ok": true
+    },
+    {
+      "check": "fail_closed_production_local_storage",
+      "detail": "rc=1 (nonzero required)",
+      "ok": true
+    },
+    {
+      "check": "non_root_user",
+      "detail": "robofox\n10001",
+      "ok": true
+    },
+    {
+      "check": "python_dependency_imports",
+      "detail": "",
+      "ok": true
+    },
+    {
+      "check": "libreoffice_binary",
+      "detail": "LibreOffice 7.4.7.2 40(Build:2)",
+      "ok": true
+    },
+    {
+      "check": "fonts_times_new_roman_and_liberation",
+      "detail": "tnr=8 liberation=16",
+      "ok": true
+    },
+    {
+      "check": "clamav_client_protocol",
+      "detail": "",
+      "ok": true
+    },
+    {
+      "check": "migrations_inside_container",
+      "detail": "INFO  [alembic.runtime.migration] Running upgrade 0017 -> 0018, Persist collaboration quotation verification notes.",
+      "ok": true
+    },
+    {
+      "check": "healthz",
+      "detail": "http://127.0.0.1:18000",
+      "ok": true
+    },
+    {
+      "check": "meta_release_identity",
+      "detail": "{\"release_sha\": \"9d071a18e1e7e550a0e897653c85921c60076e91\", \"schema_version\": \"0018\", \"renderer_version\": \"phase1-renderer\", \"canonical_schema_version\": \"3\", \"prompt_bundle_version\": \"phase3-prompts\"}",
+      "ok": true
+    },
+    {
+      "check": "readyz_components",
+      "detail": "{\"database\": true, \"migration\": true, \"worker\": true, \"pdf_stack\": true, \"storage\": true, \"email\": true, \"malware_scanner\": true}",
+      "ok": true
+    },
+    {
+      "check": "worker_startup",
+      "detail": "rc=124 (124 = looped until timeout)",
+      "ok": true
+    },
+    {
+      "check": "docx_render",
+      "detail": "d9cf5107c59b99209e694b32b0dc4ebc3a69180dde36b032933db4a5df67dca9",
+      "ok": true
+    },
+    {
+      "check": "pdf_conversion",
+      "detail": "pdf_bytes=32926",
+      "ok": true
+    }
+  ],
+  "container_uname_m": "aarch64",
+  "expected_release_sha": "9d071a18e1e7e550a0e897653c85921c60076e91",
+  "generated_at": "2026-07-12T09:30:51.910563+00:00",
+  "image": "robofox-smoke:arm64-local",
+  "image_id": "sha256:c3b91d284ade81b81593040911bbfd7fb012e5e77c9c6b171d3ba998e725c59f",
+  "passed": true,
+  "schema": "robofox.container-runtime-smoke.v1"
+}
