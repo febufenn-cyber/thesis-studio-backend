@@ -1,4 +1,6 @@
-FROM python:3.11-slim-bookworm
+# Multi-arch index digest (linux/amd64 + linux/arm64) for python:3.11-slim-bookworm,
+# pinned 2026-07-12. Update deliberately, never by tag drift.
+FROM python:3.11-slim-bookworm@sha256:f5cf0344c9886ff24d34797578d5d7dd6e8911ae0fe5962bb55d0f89603ec361
 
 ARG RELEASE_SHA=development
 ARG BUILD_TIME
@@ -9,13 +11,22 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     BUILD_TIME=${BUILD_TIME} \
     PATH=/home/robofox/.local/bin:${PATH}
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# contrib is needed for ttf-mscorefonts-installer: /readyz's pdf_stack check
+# requires Times New Roman (readiness_service + renderers/fonts.py), and the
+# compose healthchecks poll /readyz — without it no container ever goes
+# healthy. The TTFs are architecture-independent; EULA pre-accepted via
+# debconf exactly as scripts/deploy_to_oracle.sh does on the VM.
+RUN sed -i 's/^Components: main$/Components: main contrib/' /etc/apt/sources.list.d/debian.sources \
+    && echo "ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true" | debconf-set-selections \
+    && apt-get update && apt-get install -y --no-install-recommends \
       ca-certificates \
       curl \
       libreoffice-core-nogui \
       libreoffice-writer-nogui \
       fonts-liberation \
       fontconfig \
+      ttf-mscorefonts-installer \
+    && fc-cache -f \
     && rm -rf /var/lib/apt/lists/*
 
 RUN useradd --create-home --uid 10001 --shell /usr/sbin/nologin robofox

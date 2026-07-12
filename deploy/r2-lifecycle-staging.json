@@ -1,5 +1,5 @@
 {
-  "_comment": "Staging R2 lifecycle — apply with: aws s3api put-bucket-lifecycle-configuration --bucket thesis-staging --endpoint-url https://<R2_ACCOUNT_ID>.r2.cloudflarestorage.com --lifecycle-configuration file://deploy/r2-lifecycle-staging.json. Durable prefixes (originals/, revisions/, sealed/, exports/) have NO expiration rule by design — verify no rule matches them before applying (docs/phase5/data-map.md).",
+  "_comment": "Staging R2 lifecycle. Real code-written prefixes (verified in app/): manuscripts/ (originals - durable), files/ (legacy compile output - durable), exports/ (durable in staging: sealed packages reference export objects), previews/ (rebuildable), plus operational backups/ and failed/. Aspirational prefixes from the data map (originals/, revisions/, sealed/, sources/, temp/) are not yet written by code - see docs/release/staging/R2_STAGING_SPEC.md. NO rule below may match manuscripts/, files/ or exports/. Apply: aws s3api put-bucket-lifecycle-configuration --bucket thesis-staging --endpoint-url https://<R2_ACCOUNT_ID>.r2.cloudflarestorage.com --lifecycle-configuration file://deploy/r2-lifecycle-staging.json",
   "Rules": [
     {
       "ID": "expire-previews",
@@ -12,6 +12,12 @@
       "Filter": { "Prefix": "temp/" },
       "Status": "Enabled",
       "Expiration": { "Days": 1 }
+    },
+    {
+      "ID": "expire-failed",
+      "Filter": { "Prefix": "failed/" },
+      "Status": "Enabled",
+      "Expiration": { "Days": 7 }
     },
     {
       "ID": "expire-staging-backups",
