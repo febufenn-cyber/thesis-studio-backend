@@ -96,9 +96,10 @@ def test_docx_preflight_records_nonproduction_scan_state(tmp_path: Path) -> None
 
 
 def test_every_merged_control_plane_router_is_reachable() -> None:
+    # FastAPI/Starlette expose the canonical routing table on app.router.routes.
     routes = {
         (route.path, method)
-        for route in app.routes
+        for route in app.router.routes
         for method in getattr(route, "methods", set())
     }
     required = {
