@@ -56,6 +56,18 @@ class TenantBudgetCreate(BaseModel):
     override_until: datetime | None = None
 
 
+def _billing_event_institution_id(row: BillingEvent) -> UUID | None:
+    """Return the tenant bound by the verified billing envelope."""
+    data = dict((row.payload or {}).get("data") or {})
+    value = data.get("institution_id")
+    if not value:
+        return None
+    try:
+        return UUID(str(value))
+    except (TypeError, ValueError, AttributeError):
+        return None
+
+
 @router.post("/billing/webhooks/{provider}")
 async def billing_webhook(
     provider: str,
@@ -198,15 +210,16 @@ async def billing_summary(
     subscriptions = list(
         (await db.execute(select(Subscription).where(Subscription.billing_customer_id.in_(customer_ids)))).scalars()
     ) if customer_ids else []
-    events = list(
+    recent_events = list(
         (
             await db.execute(
                 select(BillingEvent)
                 .order_by(BillingEvent.created_at.desc())
-                .limit(100)
+                .limit(500)
             )
         ).scalars()
     )
+    events = [row for row in recent_events if _billing_event_institution_id(row) == institution_id][:100]
     return {
         "institution_id": institution_id,
         "customers": [
@@ -242,6 +255,11 @@ async def replay_billing_event(
 ) -> dict:
     await require_institution_capability(db, institution_id, current_user, "billing.manage")
     await require_recent_reauthentication(current_session)
+    event = (
+        await db.execute(select(BillingEvent).where(BillingEvent.id == event_id))
+    ).scalar_one_or_none()
+    if event is None or _billing_event_institution_id(event) != institution_id:
+        raise HTTPException(status_code=404, detail="Billing event not found")
     try:
         row = await replay_event(db, event_id)
     except BillingEventError as exc:
