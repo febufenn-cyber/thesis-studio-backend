@@ -1,0 +1,18 @@
+{
+  "attestation_schema": "robofox.main-validation-attestation.v1",
+  "attested_at": "2026-07-12T03:49:58.657642+00:00",
+  "deployment_triggered": false,
+  "errors": 0,
+  "external_evidence_complete": false,
+  "failures": 0,
+  "image_build": "passed",
+  "migration": "head -> 0016 -> head passed",
+  "production_approved": false,
+  "ref": "refs/heads/main",
+  "schema": "robofox.main-release-candidate.v1",
+  "security": "pip-audit, Bandit and secret-pattern gates passed",
+  "sha": "0941ebda78fb7b1b3e522e95b609a7f35e15ba73",
+  "skipped": 0,
+  "tests": 173,
+  "validation_run_url": "https://github.com/febufenn-cyber/thesis-studio-backend/actions/runs/29178750125"
+}
