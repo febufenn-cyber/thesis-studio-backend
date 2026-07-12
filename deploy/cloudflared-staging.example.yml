@@ -1,0 +1,10 @@
+# /etc/cloudflared/config.yml on the STAGING host.
+# Tunnel is the ONLY ingress: no OCI security-list ports open except the
+# tunnel's outbound connections (and optional SSH, see STAGING_PROVISIONING.md).
+tunnel: CHANGE_ME_STAGING_TUNNEL_ID
+credentials-file: /etc/cloudflared/CHANGE_ME_STAGING_TUNNEL_ID.json
+
+ingress:
+  - hostname: thesis-staging.robofox.online
+    service: http://127.0.0.1:8100   # nginx upstream over web-a/web-b
+  - service: http_status:404
