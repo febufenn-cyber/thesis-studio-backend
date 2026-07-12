@@ -1,11 +1,4 @@
-"""DOCX package safety and preservation preflight.
-
-The scanner runs before python-docx parsing. It performs the configured malware
-scan, validates the ZIP package, rejects decompression bombs, and enumerates
-document objects that the current canonical model cannot reconstruct. Unsupported
-content is never silently ignored: it is returned as explicit blocking/review
-issues in the import report.
-"""
+"""DOCX package safety and preservation preflight."""
 
 from __future__ import annotations
 
@@ -14,17 +7,18 @@ import zipfile
 from dataclasses import dataclass, field
 from pathlib import PurePosixPath
 from typing import Literal
-from xml.etree import ElementTree as ET
+from xml.etree.ElementTree import Element, ParseError
+
+from defusedxml import ElementTree as SafeET
+from defusedxml.common import DefusedXmlException
 
 from app.services.malware_service import scan_file_sync
-
 
 DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 MAX_UPLOAD_BYTES = 15 * 1024 * 1024
 MAX_UNCOMPRESSED_BYTES = 120 * 1024 * 1024
 MAX_ZIP_ENTRIES = 5000
 MAX_COMPRESSION_RATIO = 200
-
 W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
 M = "http://schemas.openxmlformats.org/officeDocument/2006/math"
 NS = {"w": W, "m": M}
@@ -76,23 +70,23 @@ def _safe_member_name(name: str) -> bool:
     return not p.is_absolute() and ".." not in p.parts
 
 
-def _read_xml(zf: zipfile.ZipFile, name: str) -> ET.Element | None:
+def _read_xml(zf: zipfile.ZipFile, name: str) -> Element | None:
     try:
         raw = zf.read(name)
     except KeyError:
         return None
     try:
-        return ET.fromstring(raw)
-    except ET.ParseError as exc:
-        raise ManuscriptValidationError(f"Malformed DOCX XML: {name}") from exc
+        return SafeET.fromstring(raw)
+    except (ParseError, DefusedXmlException) as exc:
+        raise ManuscriptValidationError(f"Unsafe or malformed DOCX XML: {name}") from exc
 
 
-def _count(root: ET.Element | None, expression: str) -> int:
+def _count(root: Element | None, expression: str) -> int:
     return len(root.findall(expression, NS)) if root is not None else 0
 
 
 def inspect_docx(path: str) -> PreflightReport:
-    """Validate and inspect a DOCX package without extracting it to disk."""
+    """Scan, validate and inspect a DOCX package without extracting it to disk."""
 
     malware = scan_file_sync(path)
     size = os.path.getsize(path)
@@ -109,7 +103,6 @@ def inspect_docx(path: str) -> PreflightReport:
         infos = zf.infolist()
         if len(infos) > MAX_ZIP_ENTRIES:
             raise ManuscriptValidationError("The DOCX package contains too many files.")
-
         total_uncompressed = 0
         max_ratio = 0.0
         for info in infos:
@@ -126,12 +119,10 @@ def inspect_docx(path: str) -> PreflightReport:
         names = set(zf.namelist())
         if "word/document.xml" not in names or "[Content_Types].xml" not in names:
             raise ManuscriptValidationError("The package is missing required DOCX components.")
-
         document = _read_xml(zf, "word/document.xml")
         footnotes = _read_xml(zf, "word/footnotes.xml")
         endnotes = _read_xml(zf, "word/endnotes.xml")
         comments = _read_xml(zf, "word/comments.xml")
-
         header_names = sorted(n for n in names if n.startswith("word/header") and n.endswith(".xml"))
         footer_names = sorted(n for n in names if n.startswith("word/footer") and n.endswith(".xml"))
         media_names = sorted(n for n in names if n.startswith("word/media/") and not n.endswith("/"))
@@ -143,13 +134,10 @@ def inspect_docx(path: str) -> PreflightReport:
             "drawings": _count(document, ".//w:drawing") + _count(document, ".//w:pict"),
             "images": len(media_names),
             "hyperlinks": _count(document, ".//w:hyperlink"),
-            "page_breaks": len(
-                [
-                    e
-                    for e in (document.findall(".//w:br", NS) if document is not None else [])
-                    if e.attrib.get(f"{{{W}}}type") == "page"
-                ]
-            ),
+            "page_breaks": len([
+                e for e in (document.findall(".//w:br", NS) if document is not None else [])
+                if e.attrib.get(f"{{{W}}}type") == "page"
+            ]),
             "section_breaks": _count(document, ".//w:sectPr"),
             "fields": _count(document, ".//w:fldSimple") + _count(document, ".//w:instrText"),
             "tracked_insertions": _count(document, ".//w:ins"),
@@ -164,14 +152,11 @@ def inspect_docx(path: str) -> PreflightReport:
             "comments": _count(comments, ".//w:comment"),
             "embedded_objects": len(embedded_names),
         }
-
         issues: list[PreflightIssue] = []
 
         def add(code: str, key: str, severity: Literal["block", "review", "info"], message: str, evidence: dict | None = None) -> None:
             if counts[key]:
-                issues.append(
-                    PreflightIssue(code, severity, counts[key], message, evidence or {})
-                )
+                issues.append(PreflightIssue(code, severity, counts[key], message, evidence or {}))
 
         add("unsupported_tables", "tables", "block", "Tables require explicit operator reconstruction before final export.")
         add("unsupported_images", "images", "block", "Images/figures and their placement are preserved only in the original manuscript.", {"members": media_names[:50]})
@@ -197,9 +182,6 @@ def inspect_docx(path: str) -> PreflightReport:
                 "uncompressed_bytes": total_uncompressed,
                 "entry_count": len(infos),
                 "max_compression_ratio": round(max_ratio, 2),
-                "malware_scan": {
-                    "status": malware.status,
-                    "engine": malware.engine,
-                },
+                "malware_scan": {"status": malware.status, "engine": malware.engine},
             },
         )
