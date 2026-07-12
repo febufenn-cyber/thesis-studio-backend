@@ -18,7 +18,11 @@ from urllib.parse import urlparse
 
 def present(name: str) -> bool:
     value = os.getenv(name, "").strip()
-    return bool(value and "replace_me" not in value.lower())
+    return bool(
+        value
+        and "replace_me" not in value.lower()
+        and "change_me" not in value.lower()
+    )
 
 
 def truthy(name: str) -> bool:
@@ -69,7 +73,7 @@ def main() -> int:
         if database_host in {"localhost", "127.0.0.1", "postgres", "db"}:
             errors.append("Release database must be isolated from the application host")
         if "sslmode=" not in database_url and "ssl=" not in database_url:
-            warnings.append("DATABASE_URL does not visibly declare TLS; confirm provider-enforced TLS")
+            errors.append("DATABASE_URL must declare TLS (ssl=require or sslmode=require)")
 
     if len(os.getenv("JWT_SECRET", "")) < 32:
         errors.append("JWT_SECRET must contain at least 32 characters")

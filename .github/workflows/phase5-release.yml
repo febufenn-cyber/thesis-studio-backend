@@ -183,6 +183,11 @@ jobs:
             cd '${{ secrets.STAGING_DEPLOY_PATH }}'
             docker compose -f deploy/compose.phase5.yml pull
             docker compose -f deploy/compose.phase5.yml run --rm web-a python scripts/verify_phase5_environment.py --target staging
+            # Expand-migrate before starting: nothing else migrates the real
+            # staging database (verify job's alembic runs against the
+            # throwaway CI validation DB only), and /readyz fails closed on a
+            # schema-version mismatch. --no-deps skips the ClamAV health wait.
+            docker compose -f deploy/compose.phase5.yml run --rm --no-deps web-a alembic upgrade head
             docker compose -f deploy/compose.phase5.yml up -d --remove-orphans
       - name: Staging smoke test
         run: python scripts/phase5_smoke.py --base-url '${{ secrets.STAGING_BASE_URL }}' --expected-release '${{ inputs.expected_sha }}'
