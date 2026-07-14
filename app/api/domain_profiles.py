@@ -98,13 +98,20 @@ def _present_section_identifiers(project: Project) -> set[str]:
     return present
 
 
-@router.get("/projects/{project_id}/readiness")
-async def project_readiness(
+@router.get("/projects/{project_id}/domain-readiness")
+async def project_domain_readiness(
     project_id: UUID,
     current_user: CurrentUser,
     db: AsyncSession = Depends(get_db),
 ) -> dict:
-    """Advisory submission-readiness for a project against its domain profile."""
+    """Advisory submission-readiness for a project against its domain profile.
+
+    Distinct from the Phase 2 review readiness at
+    ``GET /projects/{id}/readiness`` (``review_workspace``): this endpoint
+    reports section coverage against the project's chosen ``DomainProfile``,
+    not review-item completeness. Kept on its own path so neither shadows the
+    other in the router table.
+    """
     project = await fetch_owned_project(db, project_id, current_user.id)
 
     key = (project.meta or {}).get("domain_profile")

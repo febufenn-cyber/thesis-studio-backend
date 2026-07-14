@@ -44,7 +44,7 @@ async def test_readiness_without_domain_profile_is_ready(client: AsyncClient, us
     created = await client.post("/projects", json={"title": "Profile-less project"}, cookies=cookies)
     assert created.status_code == 201
     project = created.json()
-    response = await client.get(f"/projects/{project['id']}/readiness", cookies=cookies)
+    response = await client.get(f"/projects/{project['id']}/domain-readiness", cookies=cookies)
     assert response.status_code == 200
     body = response.json()
     assert body["profile"] is None
