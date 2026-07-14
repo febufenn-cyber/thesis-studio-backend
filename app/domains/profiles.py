@@ -44,6 +44,14 @@ class DomainProfile:
     # Key into app/provenance/templates for the AI Use Statement wording that
     # matches this credential/venue's disclosure policy. Empty = platform default.
     disclosure_template_key: str = ""
+    # Compliance validators (keys into app/domains/validators) this profile
+    # enforces, and the venue body page limit (None = unenforced). Defaults keep
+    # every existing profile a pure template (no enforcement).
+    validators: tuple[str, ...] = ()
+    page_limit: int | None = None
+
+    def enforces(self) -> bool:
+        return bool(self.validators)
 
     def required_sections(self) -> tuple[str, ...]:
         return tuple(s.name for s in self.sections if s.required)
@@ -211,6 +219,8 @@ _NEURIPS_PAPER = DomainProfile(
         "Code/data availability stated",
         "Within the venue page limit",
     ),
+    validators=("page_budget", "double_blind", "reproducibility"),
+    page_limit=9,
 )
 
 _ACL_PAPER = DomainProfile(
@@ -238,6 +248,8 @@ _ACL_PAPER = DomainProfile(
         "Responsible NLP checklist completed",
         "Within the venue page limit",
     ),
+    validators=("page_budget", "double_blind"),
+    page_limit=8,
 )
 
 _CVPR_PAPER = DomainProfile(
@@ -262,6 +274,8 @@ _CVPR_PAPER = DomainProfile(
         "Supplementary material prepared",
         "Every in-text citation resolves to a numbered reference",
     ),
+    validators=("page_budget", "double_blind"),
+    page_limit=8,
 )
 
 
