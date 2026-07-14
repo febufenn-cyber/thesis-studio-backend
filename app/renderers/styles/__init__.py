@@ -8,10 +8,16 @@ specified.
 
 from __future__ import annotations
 
+from app.renderers.styles.acs import ACSStyle
+from app.renderers.styles.ama import AMAStyle
 from app.renderers.styles.apa import APAStyle
+from app.renderers.styles.asce import ASCEStyle
 from app.renderers.styles.base import CitationStyle, MissingCitationField
+from app.renderers.styles.chicago_ad import ChicagoAuthorDateStyle
+from app.renderers.styles.cse import CSEStyle
 from app.renderers.styles.ieee import IEEEStyle
 from app.renderers.styles.mla import MLAStyle
+from app.renderers.styles.vancouver import VancouverStyle
 
 DEFAULT_STYLE_KEY = "mla-9"
 
@@ -19,6 +25,12 @@ _STYLES: dict[str, CitationStyle] = {
     MLAStyle.key: MLAStyle(),
     IEEEStyle.key: IEEEStyle(),
     APAStyle.key: APAStyle(),
+    VancouverStyle.key: VancouverStyle(),
+    ACSStyle.key: ACSStyle(),
+    AMAStyle.key: AMAStyle(),
+    CSEStyle.key: CSEStyle(),
+    ChicagoAuthorDateStyle.key: ChicagoAuthorDateStyle(),
+    ASCEStyle.key: ASCEStyle(),
 }
 
 
