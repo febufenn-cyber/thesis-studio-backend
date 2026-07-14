@@ -193,6 +193,9 @@ class ThesisMeta(BaseModel):
     # Citation style key (see app/renderers/styles). Default MLA keeps existing
     # documents and output byte-for-byte identical.
     citation_style: str = "mla-9"
+    # Domain-profile key that seeded this document (see app/domains/profiles).
+    # Empty string means no profile was declared at creation.
+    domain_profile: str = ""
 
 
 class WorksCitedRef(BaseModel):

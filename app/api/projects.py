@@ -18,7 +18,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import CurrentUser, fetch_owned_project
+from app.canonical.model import ThesisMeta
 from app.db.deps import get_db
+from app.domains.profiles import UnknownDomainProfile, get_domain_profile
 from app.renderers.bibtex import to_bibtex
 from app.models.event import Event
 from app.models.export import Export
@@ -86,6 +88,15 @@ async def create_project(
         format_profile=body.format_profile,
         document_version=1,
     )
+    if body.domain_profile is not None:
+        try:
+            profile = get_domain_profile(body.domain_profile)
+        except UnknownDomainProfile:
+            raise HTTPException(status_code=422, detail="Unknown domain profile")
+        meta = ThesisMeta()
+        meta.citation_style = profile.default_citation_style
+        meta.domain_profile = profile.key
+        project.meta = meta.model_dump(mode="json")
     db.add(project)
     await db.commit()
     await db.refresh(project)
