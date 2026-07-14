@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.quote import Quote
 from app.models.quote_verification import QuoteVerification
+from app.verification.alignment import ClaimAligner, get_claim_aligner
 from app.verification.extractors.base import ExtractorError
 from app.verification.extractors.registry import get_extractor
 from app.verification.quotes import verify_against_doc
@@ -59,6 +60,8 @@ async def verify_quote_against_source(
     *,
     source_bytes: bytes | None,
     mime_type: str,
+    run_alignment: bool = False,
+    aligner: ClaimAligner | None = None,
 ) -> QuoteVerification:
     """Verify a quote against source bytes and persist the result (advisory)."""
     if not source_bytes:
@@ -77,7 +80,7 @@ async def verify_quote_against_source(
         )
 
     result, findings = verify_against_doc(quote.text, quote.page_or_loc, doc)
-    return await _upsert(
+    row = await _upsert(
         db, quote, kind="verbatim", status=result.status, score=result.score,
         method=result.method, matched_locator=result.matched_locator,
         detail={
@@ -86,6 +89,34 @@ async def verify_quote_against_source(
             "findings": [
                 {"rule": f.rule, "severity": f.severity, **f.detail} for f in findings
             ],
+        },
+    )
+    if run_alignment:
+        await _align_quote(db, quote, premise=result.snippet, aligner=aligner)
+    return row
+
+
+async def _align_quote(
+    db: AsyncSession, quote: Quote, *, premise: str, aligner: ClaimAligner | None
+) -> QuoteVerification:
+    """Advisory claim–citation alignment; persisted as kind='alignment'."""
+    aligner = aligner or get_claim_aligner()
+    hypothesis = quote.text
+    try:
+        alignment = await aligner.align(premise, hypothesis)
+    except Exception as exc:  # any backend failure -> unverifiable, never entailed
+        return await _upsert(
+            db, quote, kind="alignment", status="unverifiable", score=None,
+            method="none", matched_locator=None, detail={"reason": str(exc)},
+        )
+    return await _upsert(
+        db, quote, kind="alignment", status=alignment.status, score=alignment.score,
+        method=alignment.method, matched_locator=None,
+        detail={
+            "premise": premise[:400],
+            "hypothesis": hypothesis[:400],
+            "rationale": alignment.rationale,
+            "findings": [{"rule": "claim_alignment", "severity": "info", "status": alignment.status}],
         },
     )
 

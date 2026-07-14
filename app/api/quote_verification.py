@@ -34,6 +34,7 @@ class VerifyQuoteRequest(BaseModel):
     source_text: str | None = None
     source_content_base64: str | None = None
     mime_type: str = "text/plain"
+    run_alignment: bool = False
 
 
 def _result_dict(row: QuoteVerification) -> dict:
@@ -86,7 +87,9 @@ async def verify_quote_source(
             detail="Source content exceeds the 25 MB limit.",
         )
 
-    row = await verify_quote_against_source(db, quote, source_bytes=source_bytes, mime_type=mime)
+    row = await verify_quote_against_source(
+        db, quote, source_bytes=source_bytes, mime_type=mime, run_alignment=body.run_alignment
+    )
     await db.commit()
     return _result_dict(row)
 

@@ -129,6 +129,9 @@ class Settings(BaseSettings):
     # Literature discovery (docs/LLD_MISSING_FEATURES.md MF1). Network-gated like
     # RESOLVER_ENABLED; off in tests unless a client is injected.
     LITERATURE_SEARCH_ENABLED: bool = True
+    # Claim–citation alignment (docs/LLD_MISSING_FEATURES.md MF2). Advisory,
+    # opt-in; 'off' -> every claim resolves to 'unverifiable' (fail-closed).
+    CLAIM_ALIGNMENT_BACKEND: Literal["off", "llm", "nli"] = "off"
 
     # Research-instrument corpus (docs/LLD.md 3.8). Opt-in, deny-by-default.
     # Corpus export is refused unless all three gates are set; consent is pinned
