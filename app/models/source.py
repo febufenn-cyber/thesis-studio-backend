@@ -68,6 +68,12 @@ class Source(Base):
     canonical_key: Mapped[str | None] = mapped_column(String(120), nullable=True, index=True)
     alternate_keys: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
 
+    # Optional stored source artifact used for quote verification (docs/LLD.md
+    # 3.3). Mirrors the ManuscriptRevision storage columns.
+    artifact_storage_key: Mapped[str | None] = mapped_column(String(700), nullable=True)
+    artifact_mime_type: Mapped[str | None] = mapped_column(String(150), nullable=True)
+    artifact_checksum: Mapped[str | None] = mapped_column(String(64), nullable=True)
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
