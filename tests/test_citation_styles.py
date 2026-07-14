@@ -71,9 +71,33 @@ def test_ieee_never_guesses_missing_fields() -> None:
 
 def test_unknown_style_raises() -> None:
     with pytest.raises(UnknownCitationStyle):
-        get_citation_style("apa-7")  # not yet implemented
+        get_citation_style("chicago-nb-17")  # not yet implemented
 
 
 def test_available_styles_lists_registered() -> None:
     keys = {s["key"] for s in available_styles()}
-    assert {"mla-9", "ieee-2021"} <= keys
+    assert {"mla-9", "ieee-2021", "apa-7"} <= keys
+
+
+def test_apa_is_author_date_and_uses_year_parenthetical() -> None:
+    apa = get_citation_style("apa-7")
+    assert apa.mechanism == "author_date"
+    entry = apa.format_reference(_SOURCES[0])  # Achebe book, 1958
+    text = "".join(run.text for run in entry)
+    assert "(1958)." in text
+    assert any(run.italic and run.text == "Things Fall Apart" for run in entry)
+
+
+def test_apa_reference_list_is_alphabetical() -> None:
+    apa = get_citation_style("apa-7")
+    # Given in book(Achebe), journal(Smith) order; APA sorts alphabetically -> Achebe first.
+    entries = apa.sorted_entries([_SOURCES[1], _SOURCES[0]])
+    first_line = "".join(run.text for run in entries[0])
+    assert first_line.startswith("Achebe")
+
+
+def test_apa_never_guesses_missing_fields() -> None:
+    apa = get_citation_style("apa-7")
+    incomplete = _Src("journal", {"author": "Smith, J.", "title": "X"})  # missing container/vol/...
+    with pytest.raises(MissingCitationField):
+        apa.format_reference(incomplete)
