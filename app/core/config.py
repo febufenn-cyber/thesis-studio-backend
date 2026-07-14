@@ -106,6 +106,11 @@ class Settings(BaseSettings):
     RATE_LIMIT_WEBHOOK: str = "120/minute"
     RATE_LIMIT_DOWNLOAD: str = "30/minute"
 
+    # API versioning. All routers mount under /v1; the legacy root mounts stay on
+    # by default so the current frontend keeps working, and can be turned off once
+    # the frontend has migrated to /v1.
+    SERVE_UNVERSIONED_ROUTES: bool = True
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [o.strip() for o in self.CORS_ORIGINS.split(",") if o.strip()]

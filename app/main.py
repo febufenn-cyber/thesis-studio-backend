@@ -220,7 +220,12 @@ def create_app() -> FastAPI:
     )
     app.mount("/static", StaticFiles(directory=static_dir), name="static")
     for module in API_MODULES:
-        app.include_router(module.router)
+        # Versioned mount. New clients target /v1; the router's own prefix is
+        # preserved (e.g. /v1/auth, /v1/projects).
+        app.include_router(module.router, prefix="/v1")
+        # Legacy unversioned mount for the current frontend, on until it migrates.
+        if settings.SERVE_UNVERSIONED_ROUTES:
+            app.include_router(module.router)
 
     @app.get("/healthz", tags=["meta"])
     async def health() -> dict:
