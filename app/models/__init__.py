@@ -82,6 +82,7 @@ from app.models.review_item import ReviewItem
 from app.models.session import ThesisSession
 from app.models.source import Source
 from app.models.source_field_provenance import SourceFieldProvenance
+from app.models.supervision import BlockComment, CommitteeMembership
 from app.models.style_profile import StyleProfile
 from app.models.tenancy import (
     DataLifecycleRequest,
@@ -108,7 +109,8 @@ __all__ = [
     "Event", "Export", "File", "Institution", "Job", "ManuscriptRevision", "Message",
     "ProjectPresence", "Project", "Quote", "ResearchCandidate", "ReviewItem",
     "ThesisSession", "Source", "SourceFieldProvenance", "ResolutionRecord",
-    "AIUseStatement", "QuoteVerification", "StyleProfile", "UsageEvent", "User", "Department",
+    "AIUseStatement", "QuoteVerification", "CommitteeMembership", "BlockComment",
+    "StyleProfile", "UsageEvent", "User", "Department",
     "OrganizationMembership", "ProjectMembership", "MembershipInvitation",
     "ReviewAssignment", "ProjectHandoff", "Notification", "NotificationPreference",
     "DataLifecycleRequest", "SupportAccessGrant", "ReviewCycle",

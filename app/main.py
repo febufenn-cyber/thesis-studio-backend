@@ -48,6 +48,7 @@ from app.api import (
     review_workspace,
     sessions,
     submissions,
+    supervision,
     support_console,
 )
 from app.commercial.guards import CommercialGuardMiddleware
@@ -70,6 +71,7 @@ API_MODULES = (
     provenance,
     quote_verification,
     interchange,
+    supervision,
     manuscripts,
     resolutions,
     active_registry,

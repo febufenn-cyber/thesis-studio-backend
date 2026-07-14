@@ -47,7 +47,7 @@ jobs:
       LOG_LEVEL: WARNING
       RELEASE_SHA: ${{ github.sha }}
       BUILD_TIME: 2026-07-12T00:00:00+00:00
-      SCHEMA_VERSION: "0024"
+      SCHEMA_VERSION: "0025"
       BILLING_PROVIDER: test
       BILLING_WEBHOOK_SECRET: phase5-final-webhook-test-secret
       SESSION_IDLE_MINUTES: "60"
