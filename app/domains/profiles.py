@@ -182,6 +182,85 @@ _IMRAD_JOURNAL_ARTICLE = DomainProfile(
     ),
 )
 
+_NEURIPS_PAPER = DomainProfile(
+    key="neurips_paper",
+    label="NeurIPS Paper",
+    credential="Conference paper (ML)",
+    default_citation_style="ieee-2021",
+    sections=(
+        SectionSpec("title"),
+        SectionSpec("abstract"),
+        SectionSpec("introduction"),
+        SectionSpec("related_work"),
+        SectionSpec("method"),
+        SectionSpec("experiments"),
+        SectionSpec("results"),
+        SectionSpec("discussion"),
+        SectionSpec("conclusion"),
+        SectionSpec("references"),
+        SectionSpec("broader_impacts"),
+        SectionSpec("reproducibility_checklist"),
+        SectionSpec("appendix", required=False),
+    ),
+    submission_checklist=(
+        "NeurIPS checklist completed",
+        "Broader impacts addressed",
+        "Code/data availability stated",
+        "Within the venue page limit",
+    ),
+)
+
+_ACL_PAPER = DomainProfile(
+    key="acl_paper",
+    label="ACL Paper",
+    credential="Conference paper (NLP)",
+    default_citation_style="ieee-2021",
+    sections=(
+        SectionSpec("title"),
+        SectionSpec("abstract"),
+        SectionSpec("introduction"),
+        SectionSpec("related_work"),
+        SectionSpec("method"),
+        SectionSpec("experiments"),
+        SectionSpec("results"),
+        SectionSpec("conclusion"),
+        SectionSpec("limitations"),
+        SectionSpec("ethics_statement"),
+        SectionSpec("references"),
+        SectionSpec("appendix", required=False),
+    ),
+    submission_checklist=(
+        "Limitations section present (ACL requirement)",
+        "Ethics statement present",
+        "Responsible NLP checklist completed",
+        "Within the venue page limit",
+    ),
+)
+
+_CVPR_PAPER = DomainProfile(
+    key="cvpr_paper",
+    label="CVPR Paper",
+    credential="Conference paper (Vision)",
+    default_citation_style="ieee-2021",
+    sections=(
+        SectionSpec("title"),
+        SectionSpec("abstract"),
+        SectionSpec("introduction"),
+        SectionSpec("related_work"),
+        SectionSpec("method"),
+        SectionSpec("experiments"),
+        SectionSpec("results"),
+        SectionSpec("conclusion"),
+        SectionSpec("references"),
+        SectionSpec("supplementary", required=False),
+    ),
+    submission_checklist=(
+        "Within the venue page limit",
+        "Supplementary material prepared",
+        "Every in-text citation resolves to a numbered reference",
+    ),
+)
+
 
 _PROFILES: dict[str, DomainProfile] = {
     p.key: p
@@ -191,6 +270,9 @@ _PROFILES: dict[str, DomainProfile] = {
         _IEEE_CONFERENCE_PAPER,
         _ENGINEERING_PROJECT_REPORT,
         _IMRAD_JOURNAL_ARTICLE,
+        _NEURIPS_PAPER,
+        _ACL_PAPER,
+        _CVPR_PAPER,
     )
 }
 

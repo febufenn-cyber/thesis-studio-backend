@@ -43,4 +43,5 @@ def test_ieee_conference_paper_requires_reproducibility_checklist():
 
 
 def test_available_domain_profiles_lists_all():
-    assert {p["key"] for p in available_domain_profiles()} == set(_KEYS)
+    # The core five must be present; venue templates (test_venue_profiles) add more.
+    assert set(_KEYS) <= {p["key"] for p in available_domain_profiles()}
