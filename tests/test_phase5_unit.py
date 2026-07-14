@@ -36,7 +36,7 @@ def test_billing_signature_is_timestamped_and_constant_time(monkeypatch) -> None
 
 def test_release_and_log_identity_are_safe() -> None:
     release = release_identity()
-    assert release["schema_version"] == "0027"
+    assert release["schema_version"] == "0028"
     assert "JWT" not in json.dumps(release)
     assert opaque_identifier("student@example.edu") != "student@example.edu"
     assert len(opaque_identifier("student@example.edu")) == 16

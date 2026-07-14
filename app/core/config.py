@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
     RELEASE_SHA: str = ""
     BUILD_TIME: str = ""
-    SCHEMA_VERSION: str = "0027"
+    SCHEMA_VERSION: str = "0028"
     RENDERER_VERSION: str = "phase1-renderer"
     PROMPT_BUNDLE_VERSION: str = "phase3-prompts"
     # Derived from the model constant that migrations stamp and the verifier
@@ -132,6 +132,10 @@ class Settings(BaseSettings):
     # Claim–citation alignment (docs/LLD_MISSING_FEATURES.md MF2). Advisory,
     # opt-in; 'off' -> every claim resolves to 'unverifiable' (fail-closed).
     CLAIM_ALIGNMENT_BACKEND: Literal["off", "llm", "nli"] = "off"
+    # External deposit + ORCID (docs/LLD_MISSING_FEATURES.md MF3). Partner-gated:
+    # an empty ZENODO_TOKEN fails closed (503, no network). Sandbox base default.
+    ZENODO_TOKEN: str = ""
+    ZENODO_BASE_URL: str = "https://sandbox.zenodo.org"
 
     # Research-instrument corpus (docs/LLD.md 3.8). Opt-in, deny-by-default.
     # Corpus export is refused unless all three gates are set; consent is pinned

@@ -29,6 +29,9 @@ class User(Base):
     identity_provider: Mapped[str] = mapped_column(String(30), nullable=False, default="email_otp")
     account_status: Mapped[str] = mapped_column(String(24), nullable=False, default="active")
     affiliation_status: Mapped[str] = mapped_column(String(32), nullable=False, default="affiliation_claimed")
+    # Verified ORCID identity (docs/LLD_MISSING_FEATURES.md MF3).
+    orcid: Mapped[str | None] = mapped_column(String(19), nullable=True)
+    orcid_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     institution_id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True),
