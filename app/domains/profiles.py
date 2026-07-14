@@ -41,6 +41,9 @@ class DomainProfile:
     default_citation_style: str
     sections: tuple[SectionSpec, ...]
     submission_checklist: tuple[str, ...]
+    # Key into app/provenance/templates for the AI Use Statement wording that
+    # matches this credential/venue's disclosure policy. Empty = platform default.
+    disclosure_template_key: str = ""
 
     def required_sections(self) -> tuple[str, ...]:
         return tuple(s.name for s in self.sections if s.required)

@@ -21,7 +21,11 @@ CANONICAL_SCHEMA_VERSION = 3
 # legacy block written before origin tracking existed. The BlockIdentity
 # validator below back-fills manuscript-imported blocks from their import
 # provenance so legacy documents still attribute correctly.
-BlockOrigin = Literal["manuscript_import", "human", "ai_proposal"]
+# ``ai_edited`` marks a block that began as an accepted AI proposal and was then
+# revised by a human (docs/LLD.md 3.1). Widening the vocabulary is backward-safe:
+# existing documents never carry it, and the origin-rollup treats an unknown
+# origin as such rather than guessing.
+BlockOrigin = Literal["manuscript_import", "human", "ai_proposal", "ai_edited"]
 
 # Single source of truth for editorial marker kinds. Both the canonical model
 # (``MarkerBlock.kind``) and the AI proposal validator

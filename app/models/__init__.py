@@ -75,6 +75,7 @@ from app.models.review_collaboration import (
     ReviewCycle,
     SupervisorInstruction,
 )
+from app.models.ai_use_statement import AIUseStatement
 from app.models.resolution_record import ResolutionRecord
 from app.models.review_item import ReviewItem
 from app.models.session import ThesisSession
@@ -106,7 +107,7 @@ __all__ = [
     "Event", "Export", "File", "Institution", "Job", "ManuscriptRevision", "Message",
     "ProjectPresence", "Project", "Quote", "ResearchCandidate", "ReviewItem",
     "ThesisSession", "Source", "SourceFieldProvenance", "ResolutionRecord",
-    "StyleProfile", "UsageEvent", "User", "Department",
+    "AIUseStatement", "StyleProfile", "UsageEvent", "User", "Department",
     "OrganizationMembership", "ProjectMembership", "MembershipInvitation",
     "ReviewAssignment", "ProjectHandoff", "Notification", "NotificationPreference",
     "DataLifecycleRequest", "SupportAccessGrant", "ReviewCycle",
