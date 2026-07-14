@@ -1,6 +1,6 @@
-# Robofox Thesis Studio
+# Acadensia
 
-Robofox Thesis Studio is a FastAPI/PostgreSQL academic-document platform built around five governed layers:
+Acadensia is a FastAPI/PostgreSQL academic-document platform built around five governed layers:
 
 1. **Trusted manuscript conversion** — preserve, inspect, parse, verify and export an uploaded thesis without silent content loss.
 2. **Human review and editing** — correct the canonical thesis through typed, reversible and versioned commands.
