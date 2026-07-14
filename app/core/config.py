@@ -152,6 +152,16 @@ class Settings(BaseSettings):
                 raise ValueError("Production requires MALWARE_SCAN_MODE=clamav")
             if self.MALWARE_SCAN_MODE == "clamav" and not self.CLAMAV_HOST.strip():
                 raise ValueError("CLAMAV_HOST is required when malware scanning is enabled")
+            # The privacy-hash pepper must be a secret distinct from the signing
+            # key. Otherwise effective_privacy_hash_pepper silently reuses
+            # JWT_SECRET, and rotating the signing key would break every stored
+            # privacy hash (IP / user-agent hashes).
+            if not self.PRIVACY_HASH_PEPPER.strip():
+                raise ValueError(
+                    "Production requires a distinct PRIVACY_HASH_PEPPER; it must not fall back to JWT_SECRET"
+                )
+            if self.PRIVACY_HASH_PEPPER.strip() == self.JWT_SECRET.strip():
+                raise ValueError("PRIVACY_HASH_PEPPER must differ from JWT_SECRET")
         return self
 
 
