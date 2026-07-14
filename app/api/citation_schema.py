@@ -5,6 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter
 
 from app.api.deps import CurrentUser
+from app.renderers.source_types import source_type_for_kind
 from app.renderers.styles import DEFAULT_STYLE_KEY, available_styles
 from app.renderers.works_cited import _REQUIRED
 
@@ -35,6 +36,7 @@ async def citation_source_kinds(current_user: CurrentUser) -> dict:
     return {
         "kinds": {
             kind: {
+                "source_type": source_type_for_kind(kind),
                 "required": list(fields),
                 "optional": list(_OPTIONAL.get(kind, ())),
                 "label": kind.replace("_", " ").title(),
