@@ -1,6 +1,6 @@
 [project]
 name = "thesis-studio-backend"
-version = "0.1.0"
+version = "0.7.0"
 description = "Backend for Robofox Thesis Studio — AI-guided MA thesis writing platform"
 requires-python = ">=3.11"
 
