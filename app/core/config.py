@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
     RELEASE_SHA: str = ""
     BUILD_TIME: str = ""
-    SCHEMA_VERSION: str = "0025"
+    SCHEMA_VERSION: str = "0026"
     RENDERER_VERSION: str = "phase1-renderer"
     PROMPT_BUNDLE_VERSION: str = "phase3-prompts"
     # Derived from the model constant that migrations stamp and the verifier
@@ -126,6 +126,14 @@ class Settings(BaseSettings):
     RESOLVER_ENABLED: bool = True
     RESOLUTION_TTL_DAYS: int = 30
     CROSSREF_MAILTO: str = ""
+
+    # Research-instrument corpus (docs/LLD.md 3.8). Opt-in, deny-by-default.
+    # Corpus export is refused unless all three gates are set; consent is pinned
+    # to RESEARCH_TERMS_VERSION and k-anonymity suppresses small buckets.
+    RESEARCH_CORPUS_ENABLED: bool = False
+    RESEARCH_TERMS_VERSION: str = ""
+    RESEARCH_ETHICS_APPROVAL_REF: str = ""
+    RESEARCH_K_ANONYMITY: int = 20
 
     @property
     def cors_origins_list(self) -> list[str]:
