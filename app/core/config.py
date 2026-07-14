@@ -111,6 +111,13 @@ class Settings(BaseSettings):
     # the frontend has migrated to /v1.
     SERVE_UNVERSIONED_ROUTES: bool = True
 
+    # Legacy chat->compile pipeline (app/formatter). It generates whole-thesis
+    # prose and Works-Cited strings with NO verifier/registry cross-check, so it
+    # can emit unverified citations. Quarantined off by default; kept intact in
+    # the repo for later revival as a separate premium feature. See
+    # docs/DOMAIN_EXPANSION.md and the code review.
+    LEGACY_COMPILE_ENABLED: bool = False
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [o.strip() for o in self.CORS_ORIGINS.split(",") if o.strip()]
