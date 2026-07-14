@@ -15,11 +15,13 @@ from app.renderers.styles.apa import APAStyle
 from app.renderers.styles.asce import ASCEStyle
 from app.renderers.styles.asme import ASMEStyle
 from app.renderers.styles.base import CitationStyle, MissingCitationField
+from app.renderers.styles.bluebook import BluebookStyle
 from app.renderers.styles.chicago_ad import ChicagoAuthorDateStyle
 from app.renderers.styles.chicago_nb import ChicagoNBStyle
 from app.renderers.styles.cse import CSEStyle
 from app.renderers.styles.ieee import IEEEStyle
 from app.renderers.styles.mla import MLAStyle
+from app.renderers.styles.oscola import OSCOLAStyle
 from app.renderers.styles.vancouver import VancouverStyle
 
 DEFAULT_STYLE_KEY = "mla-9"
@@ -37,6 +39,8 @@ _STYLES: dict[str, CitationStyle] = {
     AIPStyle.key: AIPStyle(),
     ASMEStyle.key: ASMEStyle(),
     ChicagoNBStyle.key: ChicagoNBStyle(),
+    BluebookStyle.key: BluebookStyle(),
+    OSCOLAStyle.key: OSCOLAStyle(),
 }
 
 

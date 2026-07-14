@@ -71,7 +71,7 @@ def test_ieee_never_guesses_missing_fields() -> None:
 
 def test_unknown_style_raises() -> None:
     with pytest.raises(UnknownCitationStyle):
-        get_citation_style("bluebook-21")  # not yet implemented
+        get_citation_style("turabian-9")  # not implemented
 
 
 def test_available_styles_lists_registered() -> None:
