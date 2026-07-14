@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import CurrentUser, fetch_owned_project
 from app.db.deps import get_db
+from app.importers.csl_import import from_csl_json
 from app.models.source import Source
 from app.renderers.bibtex_import import from_bibtex
 from app.renderers.ris import from_ris
@@ -30,8 +31,11 @@ _MAX_CANDIDATES = 2000
 
 
 class ReferenceImportRequest(BaseModel):
-    format: Literal["bibtex", "ris"]
+    format: Literal["bibtex", "ris", "csl"]
     content: str
+
+
+_PARSERS = {"bibtex": from_bibtex, "ris": from_ris, "csl": from_csl_json}
 
 
 class ReferenceImportResponse(BaseModel):
@@ -58,7 +62,7 @@ async def import_references(
             detail="Import payload exceeds the 2 MB limit.",
         )
 
-    parse = from_bibtex if body.format == "bibtex" else from_ris
+    parse = _PARSERS[body.format]
     candidates = parse(body.content)
 
     if len(candidates) > _MAX_CANDIDATES:
