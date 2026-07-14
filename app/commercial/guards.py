@@ -20,7 +20,9 @@ from app.commercial.entitlements import (
     EntitlementDenied,
     EntitlementQuotaExceeded,
     record_usage,
+    release_usage,
     require_entitlement,
+    reserve_usage,
     resolve_entitlement,
 )
 from app.commercial.sessions import SessionInvalid, validate_session
@@ -156,6 +158,9 @@ class CommercialGuardMiddleware:
         project_id: UUID | None = None
         context = EntitlementContext(institution_id=institution_id, user_id=user.id)
         successful_usage: list[tuple[str, str, Decimal, str, str]] = []
+        # Period-metered reservations made atomically pre-request; released if the
+        # guarded operation ends non-2xx. (key, quantity, reset_period)
+        reserved: list[tuple[str, Decimal, str]] = []
         try:
             async with AsyncSessionLocal() as db:
                 if path == "/projects":
@@ -220,15 +225,31 @@ class CommercialGuardMiddleware:
                             await require_entitlement(db, context, "export.docx")
                         if "pdf" in formats:
                             await require_entitlement(db, context, "export.pdf")
-                            await require_entitlement(
+                            monthly = await resolve_entitlement(
+                                db, context, "export.pdf.monthly", reset_period="month"
+                            )
+                            if not monthly.enabled:
+                                raise EntitlementDenied(
+                                    "export.pdf.monthly is not included in the current edition or contract."
+                                )
+                            # Atomic reserve: concurrent PDF exports serialize on
+                            # the counter row and cannot overrun the monthly cap.
+                            await reserve_usage(
                                 db,
                                 context,
                                 "export.pdf.monthly",
+                                monthly.value,
+                                quantity=1,
                                 reset_period="month",
                             )
+                            reserved.append(("export.pdf.monthly", Decimal(1), "month"))
                             successful_usage.append(
                                 ("export.pdf.monthly", "generate_pdf", Decimal(1), "pdf_export", "month")
                             )
+                if reserved:
+                    # Persist the reservation so it is durable and visible to
+                    # concurrent requests before the guarded handler runs.
+                    await db.commit()
         except EntitlementDenied as exc:
             await self._json_response(send, 403, str(exc))
             return
@@ -262,5 +283,14 @@ class CommercialGuardMiddleware:
                             if request_key
                             else None
                         ),
+                    )
+                await db.commit()
+        elif reserved:
+            # The guarded operation did not succeed; give back the reservation so
+            # a failed request does not permanently consume the metered quota.
+            async with AsyncSessionLocal() as db:
+                for key, quantity, reset_period in reserved:
+                    await release_usage(
+                        db, context, key, quantity=quantity, reset_period=reset_period
                     )
                 await db.commit()
