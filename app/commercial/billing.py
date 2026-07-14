@@ -226,7 +226,11 @@ async def _process_subscription(
     state = str(data.get("state") or row.state)
     row.state = state
     row.access_state = _ACCESS_STATE.get(state, "pending")
-    row.edition_version_id = (await _edition_version(db, data)).id if await _edition_version(db, data) else row.edition_version_id
+    # Resolve the edition once: the previous form awaited the JOIN query twice
+    # (truth test + .id), a redundant round-trip that could also disagree with
+    # itself if the published edition changed between the two awaits.
+    edition_version = await _edition_version(db, data)
+    row.edition_version_id = edition_version.id if edition_version else row.edition_version_id
     row.current_period_start = _event_time(data["current_period_start"]) if data.get("current_period_start") else row.current_period_start
     row.current_period_end = _event_time(data["current_period_end"]) if data.get("current_period_end") else row.current_period_end
     row.cancel_at_period_end = bool(data.get("cancel_at_period_end", row.cancel_at_period_end))

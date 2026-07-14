@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Any
 from uuid import UUID
@@ -191,7 +191,7 @@ async def revoke_manual_grant(
     if row is None:
         raise HTTPException(status_code=404, detail="Entitlement grant not found")
     row.state = "revoked"
-    row.revoked_at = datetime.now().astimezone()
+    row.revoked_at = datetime.now(timezone.utc)
     await db.commit()
     return {"id": row.id, "state": row.state, "revoked_at": row.revoked_at}
 
