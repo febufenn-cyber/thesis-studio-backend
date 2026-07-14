@@ -27,6 +27,7 @@ from app.models.manuscript_revision import ManuscriptRevision
 from app.models.project import Project
 from app.models.quote import Quote
 from app.models.source import Source
+from app.renderers.source_types import source_type_for_kind
 from app.services.storage_service import get_storage_service
 
 
@@ -242,6 +243,7 @@ async def ingest_revision(
                     project_id=project.id,
                     user_id=user_id,
                     kind=candidate.kind,
+                    source_type=source_type_for_kind(candidate.kind),
                     fields=candidate.fields,
                     raw_entry=candidate.raw_entry,
                     parse_status=candidate.parse_status,
