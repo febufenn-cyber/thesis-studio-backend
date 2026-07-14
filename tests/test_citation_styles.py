@@ -101,3 +101,29 @@ def test_apa_never_guesses_missing_fields() -> None:
     incomplete = _Src("journal", {"author": "Smith, J.", "title": "X"})  # missing container/vol/...
     with pytest.raises(MissingCitationField):
         apa.format_reference(incomplete)
+
+
+def test_renderer_uses_the_documents_citation_style() -> None:
+    """The chosen style actually flows through the markdown renderer."""
+    from uuid import uuid4
+
+    from app.canonical.model import ThesisDocument, ThesisMeta, WorksCitedRef
+    from app.renderers.md_renderer import render_md
+    from app.renderers.profiles import resolve_profile
+
+    sid = uuid4()
+    sources = {sid: _SOURCES[0]}  # Achebe book
+    profile = resolve_profile("mla_strict", {})
+
+    def _render(style_key: str) -> str:
+        doc = ThesisDocument(
+            meta=ThesisMeta(title="T", citation_style=style_key),
+            works_cited=[WorksCitedRef(source_id=sid)],
+        )
+        return render_md(doc, sources, profile)
+
+    mla_out = _render("mla-9")
+    ieee_out = _render("ieee-2021")
+    assert "[1] " in ieee_out  # numbered style
+    assert "[1] " not in mla_out  # author-page style
+    assert mla_out != ieee_out

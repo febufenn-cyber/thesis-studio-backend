@@ -16,7 +16,8 @@ from app.canonical.model import (
 )
 from app.renderers.docx_renderer import _roman
 from app.renderers.profiles import ResolvedProfile
-from app.renderers.works_cited import SourceLike, sorted_entries
+from app.renderers.styles import get_citation_style
+from app.renderers.works_cited import SourceLike
 
 _WIDTH = 80
 
@@ -74,7 +75,7 @@ def render_txt(
             if (s := sources.get(ref.source_id) or sources.get(str(ref.source_id)))]
     if used:
         out += ["", "WORKS CITED", "-----------", ""]
-        for entry in sorted_entries(used):
+        for entry in get_citation_style(doc.meta.citation_style).sorted_entries(used):
             text = _runs_txt(entry)
             out.append(textwrap.fill(text, width=_WIDTH, subsequent_indent="    "))
 

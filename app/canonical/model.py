@@ -190,6 +190,9 @@ class ThesisMeta(BaseModel):
     hod: PersonMeta = Field(default_factory=PersonMeta)
     submission: SubmissionMeta = Field(default_factory=SubmissionMeta)
     ai_disclosure: AiDisclosure = Field(default_factory=AiDisclosure)
+    # Citation style key (see app/renderers/styles). Default MLA keeps existing
+    # documents and output byte-for-byte identical.
+    citation_style: str = "mla-9"
 
 
 class WorksCitedRef(BaseModel):
