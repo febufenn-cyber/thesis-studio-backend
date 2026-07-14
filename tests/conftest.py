@@ -27,6 +27,9 @@ os.environ.setdefault(
 os.environ.setdefault("MALWARE_SCAN_MODE", "disabled")
 os.environ.setdefault("PRODUCTION_REQUIRE_MALWARE_SCAN", "false")
 os.environ.setdefault("RATE_LIMIT_ENABLED", "false")
+# Reference resolvers never touch the network in tests unless a mock client is
+# injected; resolution API tests enable + mock explicitly.
+os.environ.setdefault("RESOLVER_ENABLED", "false")
 # Legacy compile is quarantined off by default in production; enable it here so
 # the existing compile suite exercises it. test_legacy_quarantine covers the
 # disabled path explicitly.

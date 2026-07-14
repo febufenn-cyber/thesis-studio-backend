@@ -75,9 +75,11 @@ from app.models.review_collaboration import (
     ReviewCycle,
     SupervisorInstruction,
 )
+from app.models.resolution_record import ResolutionRecord
 from app.models.review_item import ReviewItem
 from app.models.session import ThesisSession
 from app.models.source import Source
+from app.models.source_field_provenance import SourceFieldProvenance
 from app.models.style_profile import StyleProfile
 from app.models.tenancy import (
     DataLifecycleRequest,
@@ -103,7 +105,8 @@ __all__ = [
     "CitationResolution", "DocumentCommand", "DocumentPreview", "DocumentSnapshot",
     "Event", "Export", "File", "Institution", "Job", "ManuscriptRevision", "Message",
     "ProjectPresence", "Project", "Quote", "ResearchCandidate", "ReviewItem",
-    "ThesisSession", "Source", "StyleProfile", "UsageEvent", "User", "Department",
+    "ThesisSession", "Source", "SourceFieldProvenance", "ResolutionRecord",
+    "StyleProfile", "UsageEvent", "User", "Department",
     "OrganizationMembership", "ProjectMembership", "MembershipInvitation",
     "ReviewAssignment", "ProjectHandoff", "Notification", "NotificationPreference",
     "DataLifecycleRequest", "SupportAccessGrant", "ReviewCycle",

@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
     RELEASE_SHA: str = ""
     BUILD_TIME: str = ""
-    SCHEMA_VERSION: str = "0021"
+    SCHEMA_VERSION: str = "0022"
     RENDERER_VERSION: str = "phase1-renderer"
     PROMPT_BUNDLE_VERSION: str = "phase3-prompts"
     # Derived from the model constant that migrations stamp and the verifier
@@ -117,6 +117,15 @@ class Settings(BaseSettings):
     # the repo for later revival as a separate premium feature. See
     # docs/DOMAIN_EXPANSION.md and the code review.
     LEGACY_COMPILE_ENABLED: bool = False
+
+    # Reference enrichment (docs/LLD.md 3.2). Resolves [VERIFY] placeholders
+    # against Crossref/OpenAlex/arXiv/OpenLibrary. Network access is only used
+    # when RESOLVER_ENABLED is true (or a client is injected, as in tests).
+    # CROSSREF_MAILTO joins the Crossref "polite pool"; RESOLUTION_TTL_DAYS is the
+    # cache lifetime for a resolved identifier.
+    RESOLVER_ENABLED: bool = True
+    RESOLUTION_TTL_DAYS: int = 30
+    CROSSREF_MAILTO: str = ""
 
     @property
     def cors_origins_list(self) -> list[str]:

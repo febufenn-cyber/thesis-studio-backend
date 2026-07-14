@@ -58,6 +58,16 @@ class Source(Base):
     verification_method: Mapped[str | None] = mapped_column(String(40), nullable=True)
 
     consulted_flag: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+    # Reference-enrichment provenance (docs/LLD.md 3.2). resolution_status:
+    # None (never attempted) | resolved | unresolved | ambiguous. retraction_status:
+    # None | none | retracted | concern. canonical_key collapses the same work
+    # cited multiple ways; alternate_keys preserves the other identifiers seen.
+    resolution_status: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    retraction_status: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    canonical_key: Mapped[str | None] = mapped_column(String(120), nullable=True, index=True)
+    alternate_keys: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
