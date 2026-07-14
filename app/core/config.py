@@ -99,6 +99,13 @@ class Settings(BaseSettings):
     PRIVACY_HASH_PEPPER: str = ""
     CORS_ORIGINS: str = "http://localhost:3000"
 
+    # Application-layer rate limiting (slowapi). Defense-in-depth on top of any
+    # edge WAF; per-process in-memory counters. Disabled in tests.
+    RATE_LIMIT_ENABLED: bool = True
+    RATE_LIMIT_AUTH: str = "10/minute"
+    RATE_LIMIT_WEBHOOK: str = "120/minute"
+    RATE_LIMIT_DOWNLOAD: str = "30/minute"
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [o.strip() for o in self.CORS_ORIGINS.split(",") if o.strip()]

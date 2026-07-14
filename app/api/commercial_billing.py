@@ -15,6 +15,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import CurrentApplicationSession, CurrentUser
 from app.collaboration.capabilities import require_institution_capability
 from app.commercial.billing import BillingEventError, BillingSignatureError, ingest_webhook, replay_event
+from app.core.config import get_settings
+from app.core.rate_limit import limiter
 from app.commercial.entitlements import EntitlementContext, grant_entitlement, resolve_entitlement
 from app.commercial.sessions import require_recent_reauthentication
 from app.db.deps import get_db
@@ -69,6 +71,7 @@ def _billing_event_institution_id(row: BillingEvent) -> UUID | None:
 
 
 @router.post("/billing/webhooks/{provider}")
+@limiter.limit(get_settings().RATE_LIMIT_WEBHOOK)
 async def billing_webhook(
     provider: str,
     request: Request,

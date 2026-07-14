@@ -26,6 +26,7 @@ os.environ.setdefault(
 )
 os.environ.setdefault("MALWARE_SCAN_MODE", "disabled")
 os.environ.setdefault("PRODUCTION_REQUIRE_MALWARE_SCAN", "false")
+os.environ.setdefault("RATE_LIMIT_ENABLED", "false")
 
 from app.core.security import create_access_token  # noqa: E402
 from app.db.deps import get_db  # noqa: E402

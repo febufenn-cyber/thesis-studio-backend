@@ -11,12 +11,14 @@ import secrets
 from datetime import datetime, timezone
 from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import FileResponse, RedirectResponse, Response
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import get_settings
+from app.core.rate_limit import limiter
 from app.db.deps import get_db
 from app.models.export import Export
 from app.models.institutional_governance import ExternalReviewGrant, SubmissionPackage
@@ -38,7 +40,9 @@ def _token_hash(value: str) -> str:
 
 
 @router.post("/external-review/download")
+@limiter.limit(get_settings().RATE_LIMIT_DOWNLOAD)
 async def download_external_review(
+    request: Request,
     body: ExternalDownloadRequest,
     db: AsyncSession = Depends(get_db),
 ) -> Response:

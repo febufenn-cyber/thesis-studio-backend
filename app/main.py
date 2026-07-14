@@ -48,6 +48,7 @@ from app.commercial.guards import CommercialGuardMiddleware
 from app.commercial.observability import JourneyTracingMiddleware, release_identity
 from app.core.config import get_settings
 from app.core.exceptions import register_exception_handlers
+from app.core.rate_limit import limiter
 from app.services.readiness_service import readiness_report
 
 
@@ -200,6 +201,13 @@ def create_app() -> FastAPI:
         docs_url="/docs" if settings.DEBUG else None,
         redoc_url=None,
     )
+    # Rate limiting: expose the limiter on app state and translate limit breaches
+    # into 429s. Individual routes opt in with @limiter.limit(...).
+    from slowapi import _rate_limit_exceeded_handler
+    from slowapi.errors import RateLimitExceeded
+
+    app.state.limiter = limiter
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
     app.add_middleware(JourneyTracingMiddleware)
     app.add_middleware(CommercialGuardMiddleware)
     app.add_middleware(
