@@ -64,6 +64,16 @@ jobs:
         run: |
           pip install -r requirements.txt
           pip install pip-audit bandit
+      - name: Lint and type check (non-blocking)
+        # ruff and mypy are pinned in requirements. Informational for now: the
+        # repo has a backlog of style/typing findings (mostly mechanical), so
+        # these run and are captured as evidence but do not fail the build. Make
+        # them blocking after a dedicated cleanup pass.
+        continue-on-error: true
+        shell: bash
+        run: |
+          ruff check . 2>&1 | tee /tmp/main-rc-ruff.log || true
+          mypy app 2>&1 | tee /tmp/main-rc-mypy.log || true
       - name: Compile and import exact commit
         run: |
           python -m compileall -q app tests scripts
