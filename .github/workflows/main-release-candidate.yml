@@ -51,7 +51,7 @@ jobs:
       LOG_LEVEL: WARNING
       RELEASE_SHA: ${{ github.sha }}
       BUILD_TIME: 2026-07-12T00:00:00+00:00
-      SCHEMA_VERSION: '0026'
+      SCHEMA_VERSION: '0027'
       BILLING_PROVIDER: test
       BILLING_WEBHOOK_SECRET: main-release-candidate-webhook-secret
     steps:

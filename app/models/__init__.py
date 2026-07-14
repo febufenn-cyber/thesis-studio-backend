@@ -76,6 +76,7 @@ from app.models.review_collaboration import (
     SupervisorInstruction,
 )
 from app.models.ai_use_statement import AIUseStatement
+from app.models.api_key import ApiKey
 from app.models.quote_verification import QuoteVerification
 from app.models.research_consent import ResearchConsent
 from app.models.resolution_record import ResolutionRecord
@@ -111,7 +112,7 @@ __all__ = [
     "ProjectPresence", "Project", "Quote", "ResearchCandidate", "ReviewItem",
     "ThesisSession", "Source", "SourceFieldProvenance", "ResolutionRecord",
     "AIUseStatement", "QuoteVerification", "CommitteeMembership", "BlockComment",
-    "ResearchConsent", "StyleProfile", "UsageEvent", "User", "Department",
+    "ResearchConsent", "ApiKey", "StyleProfile", "UsageEvent", "User", "Department",
     "OrganizationMembership", "ProjectMembership", "MembershipInvitation",
     "ReviewAssignment", "ProjectHandoff", "Notification", "NotificationPreference",
     "DataLifecycleRequest", "SupportAccessGrant", "ReviewCycle",

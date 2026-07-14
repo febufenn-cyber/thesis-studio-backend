@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+from datetime import datetime, timezone
 from typing import Annotated
 from uuid import UUID
 
@@ -14,10 +16,17 @@ from app.commercial.sessions import SessionInvalid, validate_session
 from app.core.config import get_settings
 from app.core.security import decode_access_token_claims
 from app.db.deps import get_db
+from app.models.api_key import ApiKey
 from app.models.commercial import ApplicationSession
 from app.models.project import Project
 from app.models.session import ThesisSession
 from app.models.user import User
+
+API_KEY_PREFIX = "ak_"
+
+
+def hash_api_key(raw: str) -> str:
+    return hashlib.sha256(raw.encode()).hexdigest()
 
 
 _UNAUTH = HTTPException(
@@ -51,12 +60,39 @@ async def _claims_and_token(
     return claims, token
 
 
+async def _api_key_user(db: AsyncSession, raw_key: str) -> User:
+    """Resolve a user from a bearer API key (hash lookup, revocation-aware)."""
+    row = (
+        await db.execute(
+            select(ApiKey).where(
+                ApiKey.key_hash == hash_api_key(raw_key),
+                ApiKey.revoked_at.is_(None),
+            )
+        )
+    ).scalar_one_or_none()
+    if row is None:
+        raise _UNAUTH
+    row.last_used_at = datetime.now(timezone.utc)
+    user = (
+        await db.execute(select(User).where(User.id == row.user_id))
+    ).scalar_one_or_none()
+    if user is None or getattr(user, "account_status", "active") != "active":
+        raise _UNAUTH
+    return user
+
+
 async def get_current_user(
     db: Annotated[AsyncSession, Depends(get_db)],
     access_token: Annotated[str | None, Cookie()] = None,
     authorization: Annotated[str | None, Header()] = None,
 ) -> User:
-    """Resolve a user only while the signed token and server session are active."""
+    """Resolve a user via cookie/JWT or a bearer API key."""
+    # Bearer API keys (ak_...) are a distinct auth path; try them before JWT.
+    if authorization and authorization.lower().startswith("bearer "):
+        candidate = authorization[7:].strip()
+        if candidate.startswith(API_KEY_PREFIX):
+            return await _api_key_user(db, candidate)
+
     claims, token = await _claims_and_token(access_token, authorization)
     if claims.session_id is not None:
         try:

@@ -16,6 +16,7 @@ from sqlalchemy import select, update
 from app.api import (
     active_registry,
     ai_partner,
+    api_keys,
     auth,
     chat,
     citation_schema,
@@ -80,6 +81,7 @@ API_MODULES = (
     locales,
     research,
     integrity,
+    api_keys,
     manuscripts,
     resolutions,
     active_registry,
