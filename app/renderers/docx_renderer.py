@@ -34,7 +34,8 @@ from app.renderers.pagination import (
     suppress_first_page_number,
 )
 from app.renderers.profiles import ResolvedProfile
-from app.renderers.works_cited import SourceLike, sorted_entries
+from app.renderers.styles import get_citation_style
+from app.renderers.works_cited import SourceLike
 
 
 class RenderError(Exception):
@@ -352,7 +353,8 @@ def render_docx(
     wc_entries: list[list[Run]] = []
     if used_sources:
         try:
-            wc_entries = sorted_entries(used_sources)
+            style = get_citation_style(doc_model.meta.citation_style)
+            wc_entries = style.sorted_entries(used_sources)
         except MissingCitationField as exc:
             problems.append(str(exc))
     if problems:

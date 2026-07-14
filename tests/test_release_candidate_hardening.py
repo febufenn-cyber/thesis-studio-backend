@@ -68,8 +68,8 @@ def test_production_requires_clamav() -> None:
         )
 
 
-def test_production_accepts_configured_clamav() -> None:
-    settings = _settings(
+def _valid_production_overrides(**extra):
+    values = dict(
         ENV="production",
         RELEASE_SHA="a" * 40,
         STORAGE_BACKEND="r2",
@@ -81,8 +81,28 @@ def test_production_accepts_configured_clamav() -> None:
         PRODUCTION_REQUIRE_MALWARE_SCAN=True,
         MALWARE_SCAN_MODE="clamav",
         CLAMAV_HOST="clamav.internal",
+        # Distinct from JWT_SECRET ("x" * 64 in _settings); production now
+        # requires the privacy pepper to be set and to differ from the signing key.
+        PRIVACY_HASH_PEPPER="p" * 48,
     )
+    values.update(extra)
+    return values
+
+
+def test_production_accepts_configured_clamav() -> None:
+    settings = _settings(**_valid_production_overrides())
     assert settings.MALWARE_SCAN_MODE == "clamav"
+
+
+def test_production_requires_privacy_pepper_set() -> None:
+    with pytest.raises(ValidationError, match="PRIVACY_HASH_PEPPER"):
+        _settings(**_valid_production_overrides(PRIVACY_HASH_PEPPER=""))
+
+
+def test_production_privacy_pepper_must_differ_from_jwt_secret() -> None:
+    with pytest.raises(ValidationError, match="differ from JWT_SECRET"):
+        # _settings sets JWT_SECRET to "x" * 64; reuse it as the pepper.
+        _settings(**_valid_production_overrides(PRIVACY_HASH_PEPPER="x" * 64))
 
 
 def test_docx_preflight_records_nonproduction_scan_state(tmp_path: Path) -> None:

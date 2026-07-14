@@ -31,6 +31,11 @@ class Source(Base):
     )
 
     kind: Mapped[str] = mapped_column(String(40), nullable=False)
+    # Style-agnostic source type (article, book, conference_paper, standard,
+    # patent, dataset, software, ...). Distinct from `kind`, which is the MLA
+    # template key. Nullable for back-compat; populated as multi-style support
+    # lands. See docs/DOMAIN_EXPANSION.md.
+    source_type: Mapped[str | None] = mapped_column(String(40), nullable=True)
     fields: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
     raw_entry: Mapped[str | None] = mapped_column(Text, nullable=True)
     parse_status: Mapped[str] = mapped_column(

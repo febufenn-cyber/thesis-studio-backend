@@ -101,8 +101,12 @@ class StructuredAIProvider:
                 system_path,
                 "--output-format",
                 "json",
-                user_prompt,
             ]
+            # The prompt carries the student's canonical content, sources and
+            # quotations. Passing it via stdin instead of a CLI positional arg
+            # keeps it out of the process table (`ps`, /proc/<pid>/cmdline) and
+            # avoids ARG_MAX limits on large scopes. `claude -p` reads the prompt
+            # from stdin when no positional prompt is supplied.
             log.info(
                 "grounded AI subprocess mode=%s model=%s prompt_chars=%d",
                 task_mode,
@@ -111,12 +115,16 @@ class StructuredAIProvider:
             )
             proc = await asyncio.create_subprocess_exec(
                 *args,
+                stdin=asyncio.subprocess.PIPE,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
                 cwd=tempfile.gettempdir(),
             )
             try:
-                stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=_TIMEOUT_SECONDS)
+                stdout, stderr = await asyncio.wait_for(
+                    proc.communicate(input=user_prompt.encode("utf-8")),
+                    timeout=_TIMEOUT_SECONDS,
+                )
             except asyncio.TimeoutError as exc:
                 proc.kill()
                 await proc.wait()

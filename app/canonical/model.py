@@ -9,13 +9,35 @@ Phase 2 extends the Phase 1 correctness contract:
 
 from __future__ import annotations
 
-from typing import Annotated, Literal, Union
+from typing import Annotated, Literal, Union, get_args
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 CANONICAL_SCHEMA_VERSION = 3
+
+# Authorship of a structural block. ``None`` means the origin is unknown — a
+# legacy block written before origin tracking existed. The BlockIdentity
+# validator below back-fills manuscript-imported blocks from their import
+# provenance so legacy documents still attribute correctly.
+BlockOrigin = Literal["manuscript_import", "human", "ai_proposal"]
+
+# Single source of truth for editorial marker kinds. Both the canonical model
+# (``MarkerBlock.kind``) and the AI proposal validator
+# (``app/ai/proposal_engine._ALLOWED_MARKERS``) derive from this set, so the two
+# can never drift apart and let a human-accepted proposal carry a marker kind
+# that then crashes when the MarkerBlock is constructed at apply time.
+MarkerKind = Literal[
+    "QUOTE_NEEDED",
+    "VERIFY",
+    "SOURCE_NEEDED",
+    "UNSUPPORTED",
+    "REVIEW_REQUIRED",
+    "STRUCTURE_REVIEW",
+    "EVIDENCE_NEEDED",
+]
+MARKER_KINDS: frozenset[str] = frozenset(get_args(MarkerKind))
 ReviewStatus = Literal[
     "imported",
     "needs_review",
@@ -38,6 +60,17 @@ class BlockIdentity(BaseModel):
     id: UUID = Field(default_factory=uuid4)
     source_revision_id: UUID | None = None
     source_paragraph_index: int | None = None
+    origin: BlockOrigin | None = None
+
+    @model_validator(mode="after")
+    def _infer_origin(self) -> BlockIdentity:
+        # Blocks imported before origin tracking carry manuscript provenance but
+        # no explicit origin; treat those as manuscript-imported. Blocks authored
+        # by a human editor or an AI proposal set ``origin`` explicitly and are
+        # left untouched here.
+        if self.origin is None and self.source_revision_id is not None:
+            self.origin = "manuscript_import"
+        return self
 
 
 class ParagraphBlock(BlockIdentity):
@@ -69,7 +102,7 @@ class MarkerBlock(BlockIdentity):
     """Explicit unresolved item; all marker kinds block a final export."""
 
     type: Literal["marker"] = "marker"
-    kind: Literal["QUOTE_NEEDED", "VERIFY", "SOURCE_NEEDED", "UNSUPPORTED", "REVIEW_REQUIRED"]
+    kind: MarkerKind
     note: str
     evidence: dict = Field(default_factory=dict)
 
@@ -157,6 +190,12 @@ class ThesisMeta(BaseModel):
     hod: PersonMeta = Field(default_factory=PersonMeta)
     submission: SubmissionMeta = Field(default_factory=SubmissionMeta)
     ai_disclosure: AiDisclosure = Field(default_factory=AiDisclosure)
+    # Citation style key (see app/renderers/styles). Default MLA keeps existing
+    # documents and output byte-for-byte identical.
+    citation_style: str = "mla-9"
+    # Domain-profile key that seeded this document (see app/domains/profiles).
+    # Empty string means no profile was declared at creation.
+    domain_profile: str = ""
 
 
 class WorksCitedRef(BaseModel):

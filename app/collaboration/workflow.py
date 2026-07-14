@@ -243,8 +243,20 @@ async def decide_review(
     allowed = {"approved", "approved_with_minor_changes", "changes_requested", "not_ready", "withdrawn"}
     if decision not in allowed:
         raise WorkflowError("Unsupported review decision.")
-    if decision in {"approved", "approved_with_minor_changes"} and "project.approve_chapter" not in capabilities and "project.approve_academic" not in capabilities:
-        raise WorkflowError("The current role cannot approve academic content.")
+    if decision in {"approved", "approved_with_minor_changes"}:
+        if cycle.scope_type == "project":
+            # Approving the whole project (-> academically_approved) requires
+            # project-level academic authority; a chapter-only approver must not
+            # be able to sign off the entire thesis.
+            if "project.approve_academic" not in capabilities:
+                raise WorkflowError(
+                    "Approving the whole project requires project-level academic approval authority."
+                )
+        elif (
+            "project.approve_chapter" not in capabilities
+            and "project.approve_academic" not in capabilities
+        ):
+            raise WorkflowError("The current role cannot approve academic content.")
 
     cycle.status = "decided"
     cycle.decision = decision

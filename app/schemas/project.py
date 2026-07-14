@@ -16,6 +16,7 @@ class ProjectCreate(BaseModel):
     mode: Literal["student", "operator"] = "operator"
     doc_type: str = "ma_dissertation"
     format_profile: str = "tn_university"
+    domain_profile: str | None = None
 
 
 class ProjectResponse(BaseModel):

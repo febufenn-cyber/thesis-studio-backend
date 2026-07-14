@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
     RELEASE_SHA: str = ""
     BUILD_TIME: str = ""
-    SCHEMA_VERSION: str = "0018"
+    SCHEMA_VERSION: str = "0021"
     RENDERER_VERSION: str = "phase1-renderer"
     PROMPT_BUNDLE_VERSION: str = "phase3-prompts"
     # Derived from the model constant that migrations stamp and the verifier
@@ -99,6 +99,25 @@ class Settings(BaseSettings):
     PRIVACY_HASH_PEPPER: str = ""
     CORS_ORIGINS: str = "http://localhost:3000"
 
+    # Application-layer rate limiting (slowapi). Defense-in-depth on top of any
+    # edge WAF; per-process in-memory counters. Disabled in tests.
+    RATE_LIMIT_ENABLED: bool = True
+    RATE_LIMIT_AUTH: str = "10/minute"
+    RATE_LIMIT_WEBHOOK: str = "120/minute"
+    RATE_LIMIT_DOWNLOAD: str = "30/minute"
+
+    # API versioning. All routers mount under /v1; the legacy root mounts stay on
+    # by default so the current frontend keeps working, and can be turned off once
+    # the frontend has migrated to /v1.
+    SERVE_UNVERSIONED_ROUTES: bool = True
+
+    # Legacy chat->compile pipeline (app/formatter). It generates whole-thesis
+    # prose and Works-Cited strings with NO verifier/registry cross-check, so it
+    # can emit unverified citations. Quarantined off by default; kept intact in
+    # the repo for later revival as a separate premium feature. See
+    # docs/DOMAIN_EXPANSION.md and the code review.
+    LEGACY_COMPILE_ENABLED: bool = False
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [o.strip() for o in self.CORS_ORIGINS.split(",") if o.strip()]
@@ -152,6 +171,16 @@ class Settings(BaseSettings):
                 raise ValueError("Production requires MALWARE_SCAN_MODE=clamav")
             if self.MALWARE_SCAN_MODE == "clamav" and not self.CLAMAV_HOST.strip():
                 raise ValueError("CLAMAV_HOST is required when malware scanning is enabled")
+            # The privacy-hash pepper must be a secret distinct from the signing
+            # key. Otherwise effective_privacy_hash_pepper silently reuses
+            # JWT_SECRET, and rotating the signing key would break every stored
+            # privacy hash (IP / user-agent hashes).
+            if not self.PRIVACY_HASH_PEPPER.strip():
+                raise ValueError(
+                    "Production requires a distinct PRIVACY_HASH_PEPPER; it must not fall back to JWT_SECRET"
+                )
+            if self.PRIVACY_HASH_PEPPER.strip() == self.JWT_SECRET.strip():
+                raise ValueError("PRIVACY_HASH_PEPPER must differ from JWT_SECRET")
         return self
 
 

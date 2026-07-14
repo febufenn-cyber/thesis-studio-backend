@@ -13,12 +13,15 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from fastapi.responses import FileResponse as FileDownloadResponse
-from fastapi.responses import RedirectResponse
+from fastapi.responses import PlainTextResponse, RedirectResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import CurrentUser, fetch_owned_project
+from app.canonical.model import ThesisMeta
 from app.db.deps import get_db
+from app.domains.profiles import UnknownDomainProfile, get_domain_profile
+from app.renderers.bibtex import to_bibtex
 from app.models.event import Event
 from app.models.export import Export
 from app.models.project import Project
@@ -85,6 +88,15 @@ async def create_project(
         format_profile=body.format_profile,
         document_version=1,
     )
+    if body.domain_profile is not None:
+        try:
+            profile = get_domain_profile(body.domain_profile)
+        except UnknownDomainProfile:
+            raise HTTPException(status_code=422, detail="Unknown domain profile")
+        meta = ThesisMeta()
+        meta.citation_style = profile.default_citation_style
+        meta.domain_profile = profile.key
+        project.meta = meta.model_dump(mode="json")
     db.add(project)
     await db.commit()
     await db.refresh(project)
@@ -95,6 +107,8 @@ async def create_project(
 async def list_projects(
     current_user: CurrentUser,
     db: AsyncSession = Depends(get_db),
+    limit: int = Query(default=100, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
 ) -> list[Project]:
     return list(
         (
@@ -102,6 +116,8 @@ async def list_projects(
                 select(Project)
                 .where(Project.user_id == current_user.id, Project.archived.is_(False))
                 .order_by(Project.created_at.desc())
+                .limit(limit)
+                .offset(offset)
             )
         ).scalars()
     )
@@ -217,6 +233,8 @@ async def list_sources(
     project_id: UUID,
     current_user: CurrentUser,
     db: AsyncSession = Depends(get_db),
+    limit: int = Query(default=200, ge=1, le=1000),
+    offset: int = Query(default=0, ge=0),
 ) -> list[Source]:
     await fetch_owned_project(db, project_id, current_user.id)
     return list(
@@ -225,9 +243,31 @@ async def list_sources(
                 select(Source)
                 .where(Source.project_id == project_id, Source.user_id == current_user.id)
                 .order_by(Source.created_at.asc())
+                .limit(limit)
+                .offset(offset)
             )
         ).scalars()
     )
+
+
+@router.get("/projects/{project_id}/references.bib", response_class=PlainTextResponse)
+async def export_references_bibtex(
+    project_id: UUID,
+    current_user: CurrentUser,
+    db: AsyncSession = Depends(get_db),
+) -> PlainTextResponse:
+    """Export the project's citation registry as a BibTeX (.bib) document."""
+    await fetch_owned_project(db, project_id, current_user.id)
+    sources = list(
+        (
+            await db.execute(
+                select(Source)
+                .where(Source.project_id == project_id, Source.user_id == current_user.id)
+                .order_by(Source.created_at.asc())
+            )
+        ).scalars()
+    )
+    return PlainTextResponse(to_bibtex(sources), media_type="application/x-bibtex")
 
 
 @router.delete(
@@ -311,6 +351,8 @@ async def list_quotes(
     project_id: UUID,
     current_user: CurrentUser,
     db: AsyncSession = Depends(get_db),
+    limit: int = Query(default=200, ge=1, le=1000),
+    offset: int = Query(default=0, ge=0),
 ) -> list[Quote]:
     await fetch_owned_project(db, project_id, current_user.id)
     return list(
@@ -319,6 +361,8 @@ async def list_quotes(
                 select(Quote)
                 .where(Quote.project_id == project_id, Quote.user_id == current_user.id)
                 .order_by(Quote.created_at.asc())
+                .limit(limit)
+                .offset(offset)
             )
         ).scalars()
     )
@@ -433,6 +477,8 @@ async def list_exports(
     project_id: UUID,
     current_user: CurrentUser,
     db: AsyncSession = Depends(get_db),
+    limit: int = Query(default=100, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
 ) -> list[Export]:
     await fetch_owned_project(db, project_id, current_user.id)
     return list(
@@ -441,6 +487,8 @@ async def list_exports(
                 select(Export)
                 .where(Export.project_id == project_id, Export.user_id == current_user.id)
                 .order_by(Export.created_at.desc())
+                .limit(limit)
+                .offset(offset)
             )
         ).scalars()
     )

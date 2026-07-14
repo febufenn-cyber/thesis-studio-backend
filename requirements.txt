@@ -20,9 +20,17 @@ email-validator==2.2.0
 # Auth & security
 PyJWT==2.13.0
 cryptography==49.0.0
-passlib[bcrypt]==1.7.4
+# passlib[bcrypt] removed: it was declared but imported nowhere (auth is
+# passwordless magic-link/OTP over SHA-256), and passlib is unmaintained with a
+# known bcrypt 4.x incompatibility. Nothing to migrate.
 
 defusedxml==0.7.1
+
+# Rate limiting (application-layer defense-in-depth on auth/webhook/download)
+slowapi==0.1.9
+limits==5.8.0
+Deprecated==1.3.1
+wrapt==2.1.2
 
 # HTTP client (for Resend email + R2)
 httpx==0.28.1

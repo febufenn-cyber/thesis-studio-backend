@@ -24,6 +24,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import CurrentUser, fetch_owned_session
+from app.core.config import get_settings
 from app.db.deps import get_db
 from app.models.file import FILE_TYPE_DOCX, File
 from app.models.message import ROLE_ASSISTANT, Message
@@ -54,7 +55,16 @@ async def trigger_compile(
     Raises:
       409 if there are no assistant messages yet (nothing to compile).
       409 if a compile job is already running for this session.
+      404 if the legacy compile feature is disabled (quarantined by default).
     """
+    if not get_settings().LEGACY_COMPILE_ENABLED:
+        # Quarantined: the legacy chat->compile path emits whole-thesis prose and
+        # Works-Cited strings with no verifier. Disabled by default; 404 keeps it
+        # opaque. Kept intact for later revival (see config.LEGACY_COMPILE_ENABLED).
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="The legacy compile feature is not enabled.",
+        )
     session = await fetch_owned_session(db, session_id, current_user.id)
 
     # Guard: refuse if the coaching conversation has not started yet.

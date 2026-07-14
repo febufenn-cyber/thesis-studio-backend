@@ -183,11 +183,17 @@ async def _customer(db: AsyncSession, provider: str, data: dict[str, Any]) -> Bi
 
 
 async def _process_customer(
-    db: AsyncSession, provider: str, data: dict[str, Any]
+    db: AsyncSession, provider: str, event: BillingEvent, data: dict[str, Any]
 ) -> BillingCustomer:
     row = await _customer(db, provider, data)
+    # Ignore stale replays: a customer.* event older than the last applied one
+    # must not overwrite newer state (mirrors the subscription ordering guard).
+    if row.last_event_at is not None and event.occurred_at < row.last_event_at:
+        event.state = "ignored_out_of_order"
+        return row
     row.state = str(data.get("state") or row.state)
     row.metadata_json = {**(row.metadata_json or {}), **dict(data.get("customer_metadata") or {})}
+    row.last_event_at = event.occurred_at
     return row
 
 
@@ -226,7 +232,11 @@ async def _process_subscription(
     state = str(data.get("state") or row.state)
     row.state = state
     row.access_state = _ACCESS_STATE.get(state, "pending")
-    row.edition_version_id = (await _edition_version(db, data)).id if await _edition_version(db, data) else row.edition_version_id
+    # Resolve the edition once: the previous form awaited the JOIN query twice
+    # (truth test + .id), a redundant round-trip that could also disagree with
+    # itself if the published edition changed between the two awaits.
+    edition_version = await _edition_version(db, data)
+    row.edition_version_id = edition_version.id if edition_version else row.edition_version_id
     row.current_period_start = _event_time(data["current_period_start"]) if data.get("current_period_start") else row.current_period_start
     row.current_period_end = _event_time(data["current_period_end"]) if data.get("current_period_end") else row.current_period_end
     row.cancel_at_period_end = bool(data.get("cancel_at_period_end", row.cancel_at_period_end))
@@ -239,7 +249,9 @@ async def _process_subscription(
     return row
 
 
-async def _process_invoice(db: AsyncSession, provider: str, data: dict[str, Any]) -> Invoice:
+async def _process_invoice(
+    db: AsyncSession, provider: str, event: BillingEvent, data: dict[str, Any]
+) -> Invoice:
     customer = await _customer(db, provider, data)
     external_id = str(data.get("invoice_id") or "")
     if not external_id:
@@ -272,12 +284,18 @@ async def _process_invoice(db: AsyncSession, provider: str, data: dict[str, Any]
             currency=str(data.get("currency") or "INR").upper(),
         )
         db.add(row)
+    # Ignore stale replays: an invoice.* event older than the last applied one
+    # must not overwrite newer totals/state (mirrors the subscription guard).
+    if row.last_event_at is not None and event.occurred_at < row.last_event_at:
+        event.state = "ignored_out_of_order"
+        return row
     row.state = str(data.get("state") or row.state)
     row.subtotal_minor = int(data.get("subtotal_minor") or 0)
     row.tax_minor = int(data.get("tax_minor") or 0)
     row.total_minor = int(data.get("total_minor") or 0)
     row.due_at = _event_time(data["due_at"]) if data.get("due_at") else row.due_at
     row.paid_at = _event_time(data["paid_at"]) if data.get("paid_at") else row.paid_at
+    row.last_event_at = event.occurred_at
     row.metadata_json = dict(data.get("invoice_metadata") or row.metadata_json or {})
     return row
 
@@ -331,11 +349,11 @@ async def process_event(db: AsyncSession, event: BillingEvent) -> BillingEvent:
     data = dict(envelope.get("data") or {})
     try:
         if event.event_type.startswith("customer."):
-            await _process_customer(db, event.provider, data)
+            await _process_customer(db, event.provider, event, data)
         elif event.event_type.startswith("subscription."):
             await _process_subscription(db, event.provider, event, data)
         elif event.event_type.startswith("invoice."):
-            await _process_invoice(db, event.provider, data)
+            await _process_invoice(db, event.provider, event, data)
         elif event.event_type.startswith("payment.") or event.event_type.startswith("refund."):
             await _process_payment(db, event.provider, data)
         else:

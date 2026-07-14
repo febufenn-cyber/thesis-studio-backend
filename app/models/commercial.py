@@ -154,6 +154,43 @@ class UsageLedgerEntry(Base):
     )
 
 
+class UsageCounter(Base):
+    """Atomic per-(scope, entitlement, period) counter for hard quota enforcement.
+
+    The usage ledger is an append-only audit log; summing it and then inserting is
+    not atomic, so concurrent requests can each read "under limit" and overrun. This
+    single lockable row is incremented with a conditional upsert
+    (consumed + qty <= limit), which serializes concurrent reservations and blocks
+    at the limit. ``scope_hash`` folds the nullable (institution, user, project)
+    scope into one deterministic key so the unique index behaves (Postgres treats
+    NULLs as distinct in unique constraints).
+    """
+
+    __tablename__ = "usage_counters"
+
+    id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
+    scope_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    institution_id: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("institutions.id", ondelete="SET NULL"), nullable=True
+    )
+    user_id: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    project_id: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("projects.id", ondelete="SET NULL"), nullable=True
+    )
+    entitlement_key: Mapped[str] = mapped_column(String(120), nullable=False)
+    period_key: Mapped[str] = mapped_column(String(40), nullable=False)
+    consumed: Mapped[Decimal] = mapped_column(Numeric(18, 6), nullable=False, default=0)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+    __table_args__ = (
+        UniqueConstraint("scope_hash", "entitlement_key", "period_key", name="uq_usage_counter_scope"),
+    )
+
+
 class CostLedgerEntry(Base):
     __tablename__ = "cost_ledger"
 
@@ -197,6 +234,7 @@ class BillingCustomer(Base):
     )
     billing_email_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
     state: Mapped[str] = mapped_column(String(24), nullable=False, default="active")
+    last_event_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     metadata_json: Mapped[dict] = mapped_column("metadata", JSONB, nullable=False, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
@@ -274,6 +312,7 @@ class Invoice(Base):
     total_minor: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
     due_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     paid_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_event_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     metadata_json: Mapped[dict] = mapped_column("metadata", JSONB, nullable=False, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 

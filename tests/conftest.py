@@ -26,6 +26,11 @@ os.environ.setdefault(
 )
 os.environ.setdefault("MALWARE_SCAN_MODE", "disabled")
 os.environ.setdefault("PRODUCTION_REQUIRE_MALWARE_SCAN", "false")
+os.environ.setdefault("RATE_LIMIT_ENABLED", "false")
+# Legacy compile is quarantined off by default in production; enable it here so
+# the existing compile suite exercises it. test_legacy_quarantine covers the
+# disabled path explicitly.
+os.environ.setdefault("LEGACY_COMPILE_ENABLED", "true")
 
 from app.core.security import create_access_token  # noqa: E402
 from app.db.deps import get_db  # noqa: E402

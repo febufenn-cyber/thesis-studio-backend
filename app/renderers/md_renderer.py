@@ -18,7 +18,8 @@ from app.canonical.model import (
 )
 from app.renderers.docx_renderer import _roman
 from app.renderers.profiles import ResolvedProfile
-from app.renderers.works_cited import SourceLike, sorted_entries
+from app.renderers.styles import get_citation_style
+from app.renderers.works_cited import SourceLike
 
 
 def _runs_md(runs: list[Run]) -> str:
@@ -70,7 +71,7 @@ def render_md(
             if (s := sources.get(ref.source_id) or sources.get(str(ref.source_id)))]
     if used:
         out += ["## WORKS CITED", ""]
-        for entry in sorted_entries(used):
+        for entry in get_citation_style(doc.meta.citation_style).sorted_entries(used):
             out += [_runs_md(entry), ""]
 
     return "\n".join(out).rstrip() + "\n"

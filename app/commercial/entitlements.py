@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
+import hashlib
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import and_, func, or_, select
+from sqlalchemy import and_, func, or_, select, update
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
@@ -17,6 +19,7 @@ from app.models.commercial import (
     EditionVersion,
     EntitlementGrant,
     Subscription,
+    UsageCounter,
     UsageLedgerEntry,
 )
 
@@ -340,6 +343,100 @@ async def record_usage(
     db.add(row)
     await db.flush()
     return row
+
+
+def _scope_hash(context: EntitlementContext) -> str:
+    """Deterministic key for the (institution, user, project) scope.
+
+    Folds the nullable scope into one string so the usage_counters unique index
+    works (Postgres treats NULLs as distinct in unique constraints).
+    """
+    raw = f"{context.institution_id}|{context.user_id}|{context.project_id}"
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
+async def reserve_usage(
+    db: AsyncSession,
+    context: EntitlementContext,
+    key: str,
+    limit: Decimal | int | float,
+    *,
+    quantity: Decimal | int | float = 1,
+    reset_period: str = "month",
+    now: datetime | None = None,
+) -> Decimal:
+    """Atomically reserve ``quantity`` against ``limit`` for the current period.
+
+    Uses a single conditional upsert on the per-scope counter row so concurrent
+    callers cannot both slip under the limit: the ``WHERE consumed + qty <= limit``
+    on the ON CONFLICT branch is evaluated under the row lock, so it serializes.
+    Raises EntitlementQuotaExceeded when the reservation would exceed the limit.
+    Returns the new consumed total. Pair with ``release_usage`` to compensate when
+    the guarded operation ultimately fails.
+    """
+    qty = Decimal(str(quantity))
+    lim = Decimal(str(limit))
+    pkey = period_key(reset_period, now)
+    scope = _scope_hash(context)
+    if qty > lim:
+        # Even the first unit does not fit; nothing to reserve.
+        raise EntitlementQuotaExceeded(
+            f"{key} allowance is exhausted for {pkey}; contact the account administrator or wait for the next period."
+        )
+    stmt = (
+        pg_insert(UsageCounter)
+        .values(
+            scope_hash=scope,
+            institution_id=context.institution_id,
+            user_id=context.user_id,
+            project_id=context.project_id,
+            entitlement_key=key,
+            period_key=pkey,
+            consumed=qty,
+        )
+        .on_conflict_do_update(
+            index_elements=["scope_hash", "entitlement_key", "period_key"],
+            set_={"consumed": UsageCounter.consumed + qty, "updated_at": func.now()},
+            where=(UsageCounter.consumed + qty <= lim),
+        )
+        .returning(UsageCounter.consumed)
+    )
+    consumed = (await db.execute(stmt)).scalar_one_or_none()
+    if consumed is None:
+        # Conflict occurred and the WHERE guard rejected the increment: over limit.
+        raise EntitlementQuotaExceeded(
+            f"{key} allowance is exhausted for {pkey}; contact the account administrator or wait for the next period."
+        )
+    await db.flush()
+    return Decimal(str(consumed))
+
+
+async def release_usage(
+    db: AsyncSession,
+    context: EntitlementContext,
+    key: str,
+    *,
+    quantity: Decimal | int | float = 1,
+    reset_period: str = "month",
+    now: datetime | None = None,
+) -> None:
+    """Give back a previously reserved ``quantity`` (compensation on failure)."""
+    qty = Decimal(str(quantity))
+    pkey = period_key(reset_period, now)
+    scope = _scope_hash(context)
+    await db.execute(
+        update(UsageCounter)
+        .where(
+            UsageCounter.scope_hash == scope,
+            UsageCounter.entitlement_key == key,
+            UsageCounter.period_key == pkey,
+        )
+        .values(
+            consumed=func.greatest(Decimal(0), UsageCounter.consumed - qty),
+            updated_at=func.now(),
+        )
+    )
+    await db.flush()
 
 
 async def grant_entitlement(

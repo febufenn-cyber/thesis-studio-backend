@@ -7,6 +7,7 @@ object in storage is never overwritten.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 from datetime import datetime, timezone
@@ -26,6 +27,7 @@ from app.models.manuscript_revision import ManuscriptRevision
 from app.models.project import Project
 from app.models.quote import Quote
 from app.models.source import Source
+from app.renderers.source_types import source_type_for_kind
 from app.services.storage_service import get_storage_service
 
 
@@ -224,9 +226,13 @@ async def ingest_revision(
 
         try:
             local_path = await storage.download_to_temp(revision.storage_key)
-            preflight = inspect_docx(local_path)
-            paragraphs = extract_paragraphs(local_path)
-            parse_result = parse_manuscript(paragraphs, revision.id)
+            # These are CPU/IO-bound and synchronous: inspect_docx streams the
+            # whole file through ClamAV over a socket, and extract/parse run
+            # python-docx. Run them off the event loop so one upload cannot stall
+            # every other request for the scan+parse duration.
+            preflight = await asyncio.to_thread(inspect_docx, local_path)
+            paragraphs = await asyncio.to_thread(extract_paragraphs, local_path)
+            parse_result = await asyncio.to_thread(parse_manuscript, paragraphs, revision.id)
             document = parse_result.document
             document.meta = ThesisMeta.model_validate(project.meta or {})
             candidates = parse_wc_entries(parse_result.wc_raw_entries)
@@ -237,6 +243,7 @@ async def ingest_revision(
                     project_id=project.id,
                     user_id=user_id,
                     kind=candidate.kind,
+                    source_type=source_type_for_kind(candidate.kind),
                     fields=candidate.fields,
                     raw_entry=candidate.raw_entry,
                     parse_status=candidate.parse_status,

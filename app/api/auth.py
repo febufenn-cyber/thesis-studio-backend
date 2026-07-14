@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import CurrentUser
 from app.commercial.sessions import issue_session, revoke_session, validate_session
 from app.core.config import get_settings
+from app.core.rate_limit import limiter
 from app.core.security import (
     decode_access_token_claims,
     generate_magic_link_token,
@@ -42,7 +43,9 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 @router.post("/request-link", response_model=MagicLinkResponse)
+@limiter.limit(get_settings().RATE_LIMIT_AUTH)
 async def request_magic_link(
+    request: Request,
     body: MagicLinkRequest,
     db: AsyncSession = Depends(get_db),
 ) -> MagicLinkResponse:
@@ -87,7 +90,9 @@ async def request_magic_link(
 
 
 @router.post("/request-otp", response_model=OtpResponse)
+@limiter.limit(get_settings().RATE_LIMIT_AUTH)
 async def request_otp(
+    request: Request,
     body: OtpRequest,
     db: AsyncSession = Depends(get_db),
 ) -> OtpResponse:

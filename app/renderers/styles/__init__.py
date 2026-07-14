@@ -1,0 +1,77 @@
+"""Citation-style registry.
+
+Maps a stable style key to its implementation so renderers and profiles can
+select a style by name (``get_citation_style("ieee-2021")``) instead of hardcoding
+MLA. MLA remains the default, so existing behavior is unchanged when no style is
+specified.
+"""
+
+from __future__ import annotations
+
+from app.renderers.styles.acs import ACSStyle
+from app.renderers.styles.aip import AIPStyle
+from app.renderers.styles.ama import AMAStyle
+from app.renderers.styles.apa import APAStyle
+from app.renderers.styles.asce import ASCEStyle
+from app.renderers.styles.asme import ASMEStyle
+from app.renderers.styles.base import CitationStyle, MissingCitationField
+from app.renderers.styles.bluebook import BluebookStyle
+from app.renderers.styles.chicago_ad import ChicagoAuthorDateStyle
+from app.renderers.styles.chicago_nb import ChicagoNBStyle
+from app.renderers.styles.cse import CSEStyle
+from app.renderers.styles.ieee import IEEEStyle
+from app.renderers.styles.mla import MLAStyle
+from app.renderers.styles.oscola import OSCOLAStyle
+from app.renderers.styles.vancouver import VancouverStyle
+
+DEFAULT_STYLE_KEY = "mla-9"
+
+_STYLES: dict[str, CitationStyle] = {
+    MLAStyle.key: MLAStyle(),
+    IEEEStyle.key: IEEEStyle(),
+    APAStyle.key: APAStyle(),
+    VancouverStyle.key: VancouverStyle(),
+    ACSStyle.key: ACSStyle(),
+    AMAStyle.key: AMAStyle(),
+    CSEStyle.key: CSEStyle(),
+    ChicagoAuthorDateStyle.key: ChicagoAuthorDateStyle(),
+    ASCEStyle.key: ASCEStyle(),
+    AIPStyle.key: AIPStyle(),
+    ASMEStyle.key: ASMEStyle(),
+    ChicagoNBStyle.key: ChicagoNBStyle(),
+    BluebookStyle.key: BluebookStyle(),
+    OSCOLAStyle.key: OSCOLAStyle(),
+}
+
+
+class UnknownCitationStyle(KeyError):
+    """The requested citation style key is not registered."""
+
+
+def get_citation_style(key: str | None = None) -> CitationStyle:
+    """Return the style for ``key`` (default MLA). Raises UnknownCitationStyle."""
+    resolved = key or DEFAULT_STYLE_KEY
+    try:
+        return _STYLES[resolved]
+    except KeyError as exc:
+        raise UnknownCitationStyle(
+            f"Unknown citation style {resolved!r}; available: {sorted(_STYLES)}"
+        ) from exc
+
+
+def available_styles() -> list[dict[str, str]]:
+    """Metadata for every registered style (for UI/profile pickers)."""
+    return [
+        {"key": s.key, "edition": s.edition, "mechanism": s.mechanism}
+        for s in _STYLES.values()
+    ]
+
+
+__all__ = [
+    "CitationStyle",
+    "MissingCitationField",
+    "UnknownCitationStyle",
+    "DEFAULT_STYLE_KEY",
+    "get_citation_style",
+    "available_styles",
+]

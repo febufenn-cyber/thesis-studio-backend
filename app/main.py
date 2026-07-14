@@ -30,6 +30,7 @@ from app.api import (
     commercial_sessions,
     compile,
     data_portability,
+    domain_profiles,
     editor,
     external_downloads,
     institutional,
@@ -38,6 +39,7 @@ from app.api import (
     presence,
     previews,
     projects,
+    references_import,
     resolutions,
     review_workspace,
     sessions,
@@ -48,6 +50,7 @@ from app.commercial.guards import CommercialGuardMiddleware
 from app.commercial.observability import JourneyTracingMiddleware, release_identity
 from app.core.config import get_settings
 from app.core.exceptions import register_exception_handlers
+from app.core.rate_limit import limiter
 from app.services.readiness_service import readiness_report
 
 
@@ -58,10 +61,12 @@ API_MODULES = (
     chat,
     compile,
     projects,
+    references_import,
     manuscripts,
     resolutions,
     active_registry,
     citation_schema,
+    domain_profiles,
     editor,
     review_workspace,
     previews,
@@ -200,6 +205,13 @@ def create_app() -> FastAPI:
         docs_url="/docs" if settings.DEBUG else None,
         redoc_url=None,
     )
+    # Rate limiting: expose the limiter on app state and translate limit breaches
+    # into 429s. Individual routes opt in with @limiter.limit(...).
+    from slowapi import _rate_limit_exceeded_handler
+    from slowapi.errors import RateLimitExceeded
+
+    app.state.limiter = limiter
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
     app.add_middleware(JourneyTracingMiddleware)
     app.add_middleware(CommercialGuardMiddleware)
     app.add_middleware(
@@ -212,7 +224,12 @@ def create_app() -> FastAPI:
     )
     app.mount("/static", StaticFiles(directory=static_dir), name="static")
     for module in API_MODULES:
-        app.include_router(module.router)
+        # Versioned mount. New clients target /v1; the router's own prefix is
+        # preserved (e.g. /v1/auth, /v1/projects).
+        app.include_router(module.router, prefix="/v1")
+        # Legacy unversioned mount for the current frontend, on until it migrates.
+        if settings.SERVE_UNVERSIONED_ROUTES:
+            app.include_router(module.router)
 
     @app.get("/healthz", tags=["meta"])
     async def health() -> dict:
