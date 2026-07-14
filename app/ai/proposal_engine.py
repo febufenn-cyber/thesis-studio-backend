@@ -20,7 +20,7 @@ from app.ai.schemas import AIOperation, AIProposalPayload, ProposalDecision
 from app.ai.settings import get_ai_settings
 from app.ai.task_registry import TaskSpec
 from app.canonical.migrations import project_payload
-from app.canonical.model import HeadingBlock, ParagraphBlock, ThesisDocument
+from app.canonical.model import MARKER_KINDS, HeadingBlock, ParagraphBlock, ThesisDocument
 from app.models.ai_memory import AIMemory
 from app.models.ai_proposal import AIProposal
 from app.models.document_command import DocumentCommand
@@ -43,14 +43,11 @@ class ProposalStaleError(RuntimeError):
 
 
 _RISK_RANK = {"low": 0, "medium": 1, "high": 2}
-_ALLOWED_MARKERS = {
-    "QUOTE_NEEDED",
-    "SOURCE_NEEDED",
-    "VERIFY",
-    "STRUCTURE_REVIEW",
-    "REVIEW_REQUIRED",
-    "EVIDENCE_NEEDED",
-}
+# Derived from the canonical model so the proposal validator and MarkerBlock.kind
+# can never disagree. Previously this was a hand-maintained set that included
+# kinds (STRUCTURE_REVIEW, EVIDENCE_NEEDED) the model rejected, so an accepted
+# proposal using them crashed when the marker block was built at apply time.
+_ALLOWED_MARKERS = MARKER_KINDS
 _LONG_QUOTED_TEXT = re.compile(r"[\"“][^\"”\n]{20,}[\"”]")
 
 
@@ -280,7 +277,7 @@ async def _translate_operation(
             "payload": {
                 "chapter_id": str(payload["chapter_id"]),
                 "after_block_id": str(payload["after_block_id"]) if payload.get("after_block_id") else None,
-                "block": {"type": "paragraph", "runs": runs},
+                "block": {"type": "paragraph", "runs": runs, "origin": "ai_proposal"},
             },
         }
     if operation.kind == "insert_marker":
@@ -290,6 +287,7 @@ async def _translate_operation(
                 "block_id": str(payload["block_id"]),
                 "kind": payload["kind"],
                 "note": payload["note"],
+                "origin": "ai_proposal",
                 "evidence": {"origin": "ai_proposal", "reason": operation.reason},
             },
         }
@@ -339,6 +337,7 @@ async def _translate_operation(
                     "text": quote.text,
                     "citation": citation,
                     "quote_id": str(quote.id),
+                    "origin": "ai_proposal",
                 },
             },
         }

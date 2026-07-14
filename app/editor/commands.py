@@ -189,6 +189,7 @@ def _preserved_identity(block: Block) -> dict:
         "id": block.id,
         "source_revision_id": block.source_revision_id,
         "source_paragraph_index": block.source_paragraph_index,
+        "origin": block.origin,
     }
 
 
@@ -499,6 +500,9 @@ def apply_command(
         inverse = _restore_container_inverse(chapter)
         block_payload = deepcopy(payload.get("block") or {"type": "paragraph", "runs": [{"text": ""}]})
         block_payload.setdefault("id", str(uuid4()))
+        # Editor inserts are human-authored. The AI proposal path passes an
+        # explicit ``origin`` in the block dict, so setdefault leaves it intact.
+        block_payload.setdefault("origin", "human")
         block = _BLOCK_ADAPTER.validate_python(block_payload)
         if any(existing.id == block.id for existing in chapter.blocks):
             raise CommandError("Block ID already exists in this chapter.")
@@ -568,6 +572,7 @@ def apply_command(
             "source_revision_id", str(block.source_revision_id) if block.source_revision_id else None
         )
         replacement_payload.setdefault("source_paragraph_index", block.source_paragraph_index)
+        replacement_payload.setdefault("origin", block.origin)
         replacement = _BLOCK_ADAPTER.validate_python(replacement_payload)
         if replacement.type != block.type:
             raise CommandError("Use change_block_type for structural conversion.")
@@ -638,7 +643,9 @@ def apply_command(
         if not left or not right:
             raise CommandError("Split must leave text on both sides.")
         block.runs = left
-        new_block = ParagraphBlock(runs=right)
+        # The split-off paragraph shares the authorship of the paragraph it came
+        # from; a split is a human editing action, not new authorship.
+        new_block = ParagraphBlock(runs=right, origin=block.origin)
         blocks.insert(index + 1, new_block)
         changed_blocks.add(new_block.id)
         summary = "Split paragraph"
@@ -667,6 +674,7 @@ def apply_command(
             kind=payload.get("kind", "REVIEW_REQUIRED"),
             note=str(payload.get("note", "Review required")),
             evidence=payload.get("evidence", {}),
+            origin=payload.get("origin"),
         )
         blocks.insert(index + 1, marker)
         changed_blocks.add(marker.id)
