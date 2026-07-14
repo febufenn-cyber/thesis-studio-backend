@@ -9,7 +9,7 @@ import tempfile
 from datetime import datetime, timezone
 from uuid import UUID, uuid4
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from fastapi.responses import FileResponse as FileDownloadResponse
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
@@ -228,6 +228,8 @@ async def list_revisions(
     project_id: UUID,
     current_user: CurrentUser,
     db: AsyncSession = Depends(get_db),
+    limit: int = Query(default=100, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
 ) -> list[ManuscriptRevision]:
     await fetch_owned_project(db, project_id, current_user.id)
     return list(
@@ -239,6 +241,8 @@ async def list_revisions(
                     ManuscriptRevision.user_id == current_user.id,
                 )
                 .order_by(ManuscriptRevision.revision_number.desc())
+                .limit(limit)
+                .offset(offset)
             )
         ).scalars()
     )

@@ -95,6 +95,8 @@ async def create_project(
 async def list_projects(
     current_user: CurrentUser,
     db: AsyncSession = Depends(get_db),
+    limit: int = Query(default=100, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
 ) -> list[Project]:
     return list(
         (
@@ -102,6 +104,8 @@ async def list_projects(
                 select(Project)
                 .where(Project.user_id == current_user.id, Project.archived.is_(False))
                 .order_by(Project.created_at.desc())
+                .limit(limit)
+                .offset(offset)
             )
         ).scalars()
     )
@@ -217,6 +221,8 @@ async def list_sources(
     project_id: UUID,
     current_user: CurrentUser,
     db: AsyncSession = Depends(get_db),
+    limit: int = Query(default=200, ge=1, le=1000),
+    offset: int = Query(default=0, ge=0),
 ) -> list[Source]:
     await fetch_owned_project(db, project_id, current_user.id)
     return list(
@@ -225,6 +231,8 @@ async def list_sources(
                 select(Source)
                 .where(Source.project_id == project_id, Source.user_id == current_user.id)
                 .order_by(Source.created_at.asc())
+                .limit(limit)
+                .offset(offset)
             )
         ).scalars()
     )
@@ -311,6 +319,8 @@ async def list_quotes(
     project_id: UUID,
     current_user: CurrentUser,
     db: AsyncSession = Depends(get_db),
+    limit: int = Query(default=200, ge=1, le=1000),
+    offset: int = Query(default=0, ge=0),
 ) -> list[Quote]:
     await fetch_owned_project(db, project_id, current_user.id)
     return list(
@@ -319,6 +329,8 @@ async def list_quotes(
                 select(Quote)
                 .where(Quote.project_id == project_id, Quote.user_id == current_user.id)
                 .order_by(Quote.created_at.asc())
+                .limit(limit)
+                .offset(offset)
             )
         ).scalars()
     )
@@ -433,6 +445,8 @@ async def list_exports(
     project_id: UUID,
     current_user: CurrentUser,
     db: AsyncSession = Depends(get_db),
+    limit: int = Query(default=100, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
 ) -> list[Export]:
     await fetch_owned_project(db, project_id, current_user.id)
     return list(
@@ -441,6 +455,8 @@ async def list_exports(
                 select(Export)
                 .where(Export.project_id == project_id, Export.user_id == current_user.id)
                 .order_by(Export.created_at.desc())
+                .limit(limit)
+                .offset(offset)
             )
         ).scalars()
     )
