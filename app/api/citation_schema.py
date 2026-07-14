@@ -5,10 +5,17 @@ from __future__ import annotations
 from fastapi import APIRouter
 
 from app.api.deps import CurrentUser
+from app.renderers.styles import DEFAULT_STYLE_KEY, available_styles
 from app.renderers.works_cited import _REQUIRED
 
 
 router = APIRouter(tags=["phase2-citations"])
+
+
+@router.get("/citation-styles")
+async def citation_styles(current_user: CurrentUser) -> dict:
+    """Available citation styles (key, edition, mechanism) and the default."""
+    return {"styles": available_styles(), "default": DEFAULT_STYLE_KEY}
 
 _OPTIONAL: dict[str, tuple[str, ...]] = {
     "book": ("edition", "doi_or_url"),

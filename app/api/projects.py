@@ -13,12 +13,13 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from fastapi.responses import FileResponse as FileDownloadResponse
-from fastapi.responses import RedirectResponse
+from fastapi.responses import PlainTextResponse, RedirectResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import CurrentUser, fetch_owned_project
 from app.db.deps import get_db
+from app.renderers.bibtex import to_bibtex
 from app.models.event import Event
 from app.models.export import Export
 from app.models.project import Project
@@ -236,6 +237,26 @@ async def list_sources(
             )
         ).scalars()
     )
+
+
+@router.get("/projects/{project_id}/references.bib", response_class=PlainTextResponse)
+async def export_references_bibtex(
+    project_id: UUID,
+    current_user: CurrentUser,
+    db: AsyncSession = Depends(get_db),
+) -> PlainTextResponse:
+    """Export the project's citation registry as a BibTeX (.bib) document."""
+    await fetch_owned_project(db, project_id, current_user.id)
+    sources = list(
+        (
+            await db.execute(
+                select(Source)
+                .where(Source.project_id == project_id, Source.user_id == current_user.id)
+                .order_by(Source.created_at.asc())
+            )
+        ).scalars()
+    )
+    return PlainTextResponse(to_bibtex(sources), media_type="application/x-bibtex")
 
 
 @router.delete(
