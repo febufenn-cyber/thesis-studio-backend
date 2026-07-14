@@ -126,6 +126,9 @@ class Settings(BaseSettings):
     RESOLVER_ENABLED: bool = True
     RESOLUTION_TTL_DAYS: int = 30
     CROSSREF_MAILTO: str = ""
+    # Literature discovery (docs/LLD_MISSING_FEATURES.md MF1). Network-gated like
+    # RESOLVER_ENABLED; off in tests unless a client is injected.
+    LITERATURE_SEARCH_ENABLED: bool = True
 
     # Research-instrument corpus (docs/LLD.md 3.8). Opt-in, deny-by-default.
     # Corpus export is refused unless all three gates are set; consent is pinned

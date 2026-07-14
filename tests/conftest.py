@@ -30,6 +30,7 @@ os.environ.setdefault("RATE_LIMIT_ENABLED", "false")
 # Reference resolvers never touch the network in tests unless a mock client is
 # injected; resolution API tests enable + mock explicitly.
 os.environ.setdefault("RESOLVER_ENABLED", "false")
+os.environ.setdefault("LITERATURE_SEARCH_ENABLED", "false")
 # Research donation: a terms version so the consent flow is exercisable; the
 # corpus-export governance gates stay off unless a test sets them.
 os.environ.setdefault("RESEARCH_TERMS_VERSION", "2026-07")
