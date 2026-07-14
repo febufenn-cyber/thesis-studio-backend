@@ -200,6 +200,11 @@ class ThesisMeta(BaseModel):
     # Domain-profile key that seeded this document (see app/domains/profiles).
     # Empty string means no profile was declared at creation.
     domain_profile: str = ""
+    # BCP-47 locale governing citation norms and typography (docs/LLD.md 3.7).
+    # Empty string == English; keeps existing documents byte-for-byte identical.
+    locale: str = ""
+    # Author-name script policy: keep source script, transliterate, or both.
+    name_script: Literal["source", "translit", "both"] = "source"
 
 
 class WorksCitedRef(BaseModel):
