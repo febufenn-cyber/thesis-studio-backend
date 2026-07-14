@@ -9,9 +9,11 @@ specified.
 from __future__ import annotations
 
 from app.renderers.styles.acs import ACSStyle
+from app.renderers.styles.aip import AIPStyle
 from app.renderers.styles.ama import AMAStyle
 from app.renderers.styles.apa import APAStyle
 from app.renderers.styles.asce import ASCEStyle
+from app.renderers.styles.asme import ASMEStyle
 from app.renderers.styles.base import CitationStyle, MissingCitationField
 from app.renderers.styles.chicago_ad import ChicagoAuthorDateStyle
 from app.renderers.styles.cse import CSEStyle
@@ -31,6 +33,8 @@ _STYLES: dict[str, CitationStyle] = {
     CSEStyle.key: CSEStyle(),
     ChicagoAuthorDateStyle.key: ChicagoAuthorDateStyle(),
     ASCEStyle.key: ASCEStyle(),
+    AIPStyle.key: AIPStyle(),
+    ASMEStyle.key: ASMEStyle(),
 }
 
 

@@ -24,8 +24,11 @@ _JOURNAL = _Src("journal", {
     "volume": "3", "number": "2", "year": "2020", "pages": "10-20",
 })
 
-_NEW_STYLES = ["vancouver-icmje", "acs-2020", "ama-11", "cse-8-nameyear", "chicago-ad-17", "asce"]
-_NUMBERED = ["vancouver-icmje", "acs-2020", "ama-11"]
+_NEW_STYLES = [
+    "vancouver-icmje", "acs-2020", "ama-11", "cse-8-nameyear", "chicago-ad-17", "asce",
+    "aip", "asme",
+]
+_NUMBERED = ["vancouver-icmje", "acs-2020", "ama-11", "aip", "asme"]
 _AUTHOR_DATE = ["cse-8-nameyear", "chicago-ad-17", "asce"]
 
 
@@ -67,5 +70,5 @@ def test_author_date_styles_are_alphabetical(key: str) -> None:
 def test_all_new_styles_are_listed() -> None:
     keys = {s["key"] for s in available_styles()}
     assert set(_NEW_STYLES) <= keys
-    # Full catalogue is now 9 styles across three mechanism families.
-    assert len(keys) >= 9
+    # Full catalogue is now 11 styles across three mechanism families.
+    assert len(keys) >= 11
