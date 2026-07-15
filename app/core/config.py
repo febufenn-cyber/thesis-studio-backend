@@ -156,6 +156,13 @@ class Settings(BaseSettings):
     # repository only when CSL_ENABLED. Network-gated; off in tests unless a style
     # is bundled or a client is injected.
     CSL_ENABLED: bool = True
+    # Pandoc universal interop (enterprise E6). Convert the rendered manuscript to
+    # extra formats and offer a non-mutating preview converter. Requires the
+    # pandoc binary; the feature reports unavailable (503) when it is missing.
+    # pandoc runs with --sandbox under a timeout.
+    PANDOC_ENABLED: bool = True
+    PANDOC_BIN: str = "pandoc"
+    PANDOC_TIMEOUT_SECONDS: float = 20.0
     # External deposit + ORCID (docs/LLD_MISSING_FEATURES.md MF3). Partner-gated:
     # an empty ZENODO_TOKEN fails closed (503, no network). Sandbox base default.
     ZENODO_TOKEN: str = ""
