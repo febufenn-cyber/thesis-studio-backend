@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Acadensia — Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    /* validated dataviz surfaces + calm scholarly system */
+    --surface:#fcfcfb; --raise:#ffffff; --sunken:#f4f2ee; --line:#e8e5df; --line-soft:#f0eee9;
+    --ink:#141414; --ink-2:#52514e; --ink-3:#8a877f;
+    --accent:#2a78d6; --accent-soft:#eaf1fc; --accent-ink:#184f95;
+    /* status — validated palette, always paired with an icon+label */
+    --good:#0ca30c; --good-soft:#e7f6e7; --warn:#c98500; --warn-soft:#fbf0d8;
+    --crit:#d03b3b; --crit-soft:#fbe8e8; --neutral:#8a877f; --neutral-soft:#efedea;
+    /* provenance categorical (fixed order) */
+    --c-human:#8a877f; --c-ai:#4a3aa7; --c-imported:#1baf7a; --c-unknown:#cfccc4;
+    --serif:"Newsreader",Georgia,"Times New Roman",serif;
+    --sans:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    --mono:ui-monospace,"SF Mono",Menlo,monospace;
+    --sh-1:0 1px 2px rgba(20,20,20,.04); --sh-2:0 2px 8px rgba(20,20,20,.05),0 12px 32px rgba(20,20,20,.06);
+    --r:14px;
+  }
+  :root[data-theme="dark"]{
+    --surface:#151513; --raise:#1c1c1a; --sunken:#111110; --line:#2a2a27; --line-soft:#232320;
+    --ink:#f2f1ec; --ink-2:#bdbbb1; --ink-3:#86847b;
+    --accent:#4f95e8; --accent-soft:#1a2a3f; --accent-ink:#bcd6f5;
+    --good:#3fbf3f; --good-soft:#122412; --warn:#e0a94a; --warn-soft:#2a2214;
+    --crit:#e66767; --crit-soft:#2c1919; --neutral:#86847b; --neutral-soft:#232320;
+    --c-human:#86847b; --c-ai:#9085e9; --c-imported:#199e70; --c-unknown:#3a3a36;
+    --sh-1:none; --sh-2:0 12px 40px rgba(0,0,0,.4);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{font-family:var(--sans);color:var(--ink);background:var(--surface);font-size:14.5px;line-height:1.55;-webkit-font-smoothing:antialiased}
+  button{font-family:inherit;cursor:pointer;color:inherit}
+  .mono{font-family:var(--mono)}
+  ::selection{background:var(--accent-soft)}
+
+  .app{display:grid;grid-template-columns:74px 1fr;height:100vh}
+
+  /* ---------- nav rail ---------- */
+  .rail{background:var(--raise);border-right:1px solid var(--line);display:flex;flex-direction:column;align-items:center;padding:14px 0;gap:6px}
+  .brand{width:38px;height:38px;border-radius:11px;background:linear-gradient(150deg,var(--accent),#5a45c8);color:#fff;display:grid;place-items:center;font-weight:700;font-family:var(--serif);font-size:20px;margin-bottom:12px}
+  .nav{display:flex;flex-direction:column;gap:4px;flex:1}
+  .navb{width:52px;height:50px;border:0;background:transparent;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:var(--ink-3);font-size:9.5px;font-weight:600;letter-spacing:.02em}
+  .navb .g{font-size:18px;line-height:1}
+  .navb:hover{background:var(--sunken);color:var(--ink-2)}
+  .navb.on{background:var(--accent-soft);color:var(--accent)}
+  .rail .foot{display:flex;flex-direction:column;gap:6px;align-items:center}
+  .avatar{width:34px;height:34px;border-radius:50%;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;font-weight:700;font-size:13px}
+
+  /* ---------- main ---------- */
+  .main{overflow-y:auto;position:relative}
+  .topbar{position:sticky;top:0;z-index:10;display:flex;align-items:center;gap:14px;padding:15px 30px;background:color-mix(in srgb,var(--surface) 86%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--line-soft)}
+  .crumb{font-size:13px;color:var(--ink-3)} .crumb b{color:var(--ink);font-weight:600}
+  .grow{flex:1}
+  .kbd{font-size:11px;color:var(--ink-3);border:1px solid var(--line);border-radius:7px;padding:4px 8px;background:var(--raise)}
+  .ghost{border:1px solid var(--line);background:var(--raise);border-radius:9px;height:34px;padding:0 11px;font-weight:600;font-size:12.5px;display:inline-flex;align-items:center;gap:7px}
+  .ghost:hover{border-color:var(--ink-3)}
+  .icon{width:34px;height:34px;border:1px solid var(--line);background:var(--raise);border-radius:9px;display:grid;place-items:center;color:var(--ink-2)}
+  .icon:hover{color:var(--ink)}
+
+  /* ambient readiness pill */
+  .ready-pill{display:inline-flex;align-items:center;gap:9px;height:34px;padding:0 12px 0 8px;border-radius:999px;border:1px solid var(--line);background:var(--raise);font-weight:600;font-size:12.5px}
+  .ready-pill:hover{border-color:var(--ink-3)}
+  .ring-mini{--p:60;width:22px;height:22px;border-radius:50%;background:conic-gradient(var(--good) calc(var(--p)*1%),var(--neutral-soft) 0);display:grid;place-items:center}
+  .ring-mini::after{content:"";width:14px;height:14px;border-radius:50%;background:var(--raise)}
+
+  .screen{display:none;padding:30px 34px 80px;max-width:1120px;margin:0 auto}
+  .screen.on{display:block;animation:fade .35s ease}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .h-disp{font-family:var(--serif);font-size:30px;font-weight:600;letter-spacing:-.01em;margin:0 0 4px}
+  .lead{color:var(--ink-2);font-size:15px;margin:0 0 26px}
+  h2.sec{font-size:12px;text-transform:uppercase;letter-spacing:.1em;color:var(--ink-3);margin:30px 0 12px;font-weight:700}
+
+  /* status badge — icon + label, never color alone */
+  .badge{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;padding:3px 9px;border-radius:999px;white-space:nowrap}
+  .b-good{background:var(--good-soft);color:var(--good)} .b-warn{background:var(--warn-soft);color:var(--warn)}
+  .b-crit{background:var(--crit-soft);color:var(--crit)} .b-neutral{background:var(--neutral-soft);color:var(--neutral)}
+  .b-run{background:var(--accent-soft);color:var(--accent)}
+
+  .card{background:var(--raise);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--sh-1)}
+  .grid{display:grid;gap:16px}
+
+  /* ---------- HOME ---------- */
+  .continue{padding:22px 24px;display:flex;align-items:center;gap:22px;background:linear-gradient(120deg,var(--accent-soft),transparent 70%)}
+  .continue .body{flex:1}
+  .continue h3{font-family:var(--serif);font-size:20px;margin:0 0 4px}
+  .btn{border:0;background:var(--accent);color:#fff;height:40px;padding:0 18px;border-radius:11px;font-weight:600;font-size:14px;display:inline-flex;align-items:center;gap:8px}
+  .btn:hover{filter:brightness(1.06)} .btn.sm{height:32px;padding:0 13px;font-size:12.5px;border-radius:9px}
+  .btn.soft{background:var(--sunken);color:var(--ink);border:1px solid var(--line)}
+  .btn.soft:hover{border-color:var(--ink-3)}
+  .proj-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
+  .proj{padding:18px 20px;display:flex;gap:16px;align-items:center}
+  .proj:hover{border-color:var(--ink-3);cursor:pointer}
+  .proj .info h4{margin:0 0 3px;font-size:15px;font-weight:600} .proj .info p{margin:0;color:var(--ink-3);font-size:12.5px}
+  .ring{position:relative;flex:none}
+  .ring svg{transform:rotate(-90deg)} .ring .lbl{position:absolute;inset:0;display:grid;place-items:center;font-weight:700;font-size:14px;font-family:var(--serif)}
+
+  /* ---------- COMPOSE ---------- */
+  .compose{max-width:720px;margin:0 auto}
+  .sheet p,.sheet blockquote,.sheet h2{font-family:var(--serif)}
+  .sheet h1{font-family:var(--serif);font-size:29px;font-weight:600;line-height:1.22;margin:0 0 6px;letter-spacing:-.01em}
+  .sheet .meta{color:var(--ink-3);font-size:12.5px;margin-bottom:30px}
+  .sheet h2{font-size:20px;margin:32px 0 10px;font-weight:600}
+  .sheet p{font-size:18px;line-height:1.78;margin:0 0 18px;position:relative;color:var(--ink)}
+  .sheet blockquote{font-size:17px;font-style:italic;color:var(--ink-2);margin:20px 0;padding-left:20px;border-left:2px solid var(--line)}
+  .chip{font-family:var(--sans);font-style:normal;font-size:10px;font-weight:700;letter-spacing:.04em;padding:1px 6px;border-radius:5px;vertical-align:2px;margin-left:4px;cursor:default;opacity:.62;transition:opacity .2s}
+  .sheet p:hover .chip{opacity:1}
+  .ch-h{background:var(--neutral-soft);color:var(--neutral)} .ch-ai{background:var(--c-ai);color:#fff;opacity:.5} .sheet p:hover .ch-ai{opacity:.9} .ch-i{background:var(--good-soft);color:var(--imported,#199e70)}
+  .verify-inline{font-family:var(--sans);font-style:normal;font-size:12px;font-weight:600;color:var(--warn);background:var(--warn-soft);border:1px solid transparent;border-radius:7px;padding:1px 8px;cursor:pointer;white-space:nowrap}
+  .verify-inline:hover{border-color:var(--warn)}
+  .q-ok{font-family:var(--sans);font-style:normal;font-size:11px;font-weight:700;color:var(--good);margin-left:6px;vertical-align:3px}
+  .cite{color:var(--accent);text-decoration:none;border-bottom:1px solid var(--accent-soft)}
+  .gutter{position:absolute;left:-40px;top:3px;width:26px;height:26px;border-radius:8px;background:var(--raise);border:1px solid var(--line);display:grid;place-items:center;color:var(--accent);font-size:12px;opacity:0;transition:opacity .2s}
+  .sheet p:hover .gutter{opacity:1}
+  /* in-flow AI suggestion card */
+  .suggest{border:1px solid var(--accent);background:var(--accent-soft);border-radius:12px;padding:13px 15px;margin:6px 0 20px;font-family:var(--sans)}
+  .suggest .k{font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.05em}
+  .suggest p{font-family:var(--serif);font-size:16px;margin:6px 0 10px;color:var(--ink)}
+  .suggest .row{display:flex;gap:8px}
+
+  /* ---------- READINESS ---------- */
+  .ready-hero{display:flex;gap:28px;align-items:center;padding:26px 28px;margin-bottom:22px}
+  .ready-hero .big-ring{flex:none}
+  .ready-hero h3{font-family:var(--serif);font-size:24px;margin:0 0 4px}
+  .ready-hero p{margin:0;color:var(--ink-2)}
+  .task{display:flex;align-items:center;gap:14px;padding:15px 18px}
+  .task+.task{border-top:1px solid var(--line-soft)}
+  .task .ti{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;font-size:14px;flex:none}
+  .ti.warn{background:var(--warn-soft);color:var(--warn)} .ti.crit{background:var(--crit-soft);color:var(--crit)} .ti.ok{background:var(--good-soft);color:var(--good)}
+  .task .tx{flex:1} .task .tx h4{margin:0 0 2px;font-size:14.5px;font-weight:600} .task .tx p{margin:0;color:var(--ink-3);font-size:12.5px}
+  .done .tx h4{color:var(--ink-2)}
+  .stat-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:8px}
+  .stat{padding:16px 18px} .stat .n{font-family:var(--serif);font-size:26px;font-weight:600} .stat .l{color:var(--ink-3);font-size:12px;margin-top:2px}
+
+  /* ---------- LIBRARY ---------- */
+  .toolbar{display:flex;gap:10px;align-items:center;margin-bottom:14px}
+  .search{flex:1;display:flex;align-items:center;gap:9px;border:1px solid var(--line);background:var(--raise);border-radius:11px;padding:10px 13px}
+  .search input{border:0;background:transparent;outline:none;font-family:inherit;font-size:14px;color:var(--ink);flex:1}
+  .tbl{width:100%;border-collapse:collapse;font-size:13.5px}
+  .tbl th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--ink-3);font-weight:700;padding:0 14px 10px}
+  .tbl td{padding:13px 14px;border-top:1px solid var(--line-soft);vertical-align:middle}
+  .tbl tr:hover td{background:var(--sunken)}
+  .tbl .t{font-weight:600} .tbl .a{color:var(--ink-3);font-size:12px}
+
+  /* ---------- SUBMIT ---------- */
+  .submit-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .panel{padding:20px 22px} .panel h3{font-family:var(--serif);font-size:18px;margin:0 0 12px}
+  .stepper{display:flex;margin:14px 0}
+  .step{flex:1;text-align:center;font-size:11.5px;color:var(--ink-3);position:relative;padding-top:26px}
+  .step::before{content:"";position:absolute;top:5px;left:50%;transform:translateX(-50%);width:15px;height:15px;border-radius:50%;background:var(--line);z-index:2}
+  .step::after{content:"";position:absolute;top:11px;left:50%;width:100%;height:2px;background:var(--line)} .step:last-child::after{display:none}
+  .step.done{color:var(--good)} .step.done::before{background:var(--good)} .step.cur{color:var(--accent);font-weight:700} .step.cur::before{background:var(--accent)}
+  .statement{background:var(--sunken);border:1px solid var(--line);border-radius:12px;padding:15px 16px;font-size:13.5px;line-height:1.62;color:var(--ink-2)}
+  .assert{background:var(--accent-soft);color:var(--accent-ink);border-radius:11px;padding:11px 14px;font-size:12.5px;font-weight:500;line-height:1.5}
+
+  /* ---------- command palette ---------- */
+  .cmdk{position:fixed;inset:0;background:rgba(20,20,20,.4);backdrop-filter:blur(3px);display:none;align-items:flex-start;justify-content:center;padding-top:12vh;z-index:60}
+  .cmdk.on{display:flex;animation:fade .18s ease}
+  .cmd{width:560px;max-width:92vw;background:var(--raise);border:1px solid var(--line);border-radius:16px;box-shadow:var(--sh-2);overflow:hidden}
+  .cmd .in{display:flex;align-items:center;gap:11px;padding:16px 18px;border-bottom:1px solid var(--line-soft)}
+  .cmd input{border:0;background:transparent;outline:none;font-family:inherit;font-size:16px;color:var(--ink);flex:1}
+  .cmd .list{max-height:340px;overflow-y:auto;padding:8px}
+  .cmd .it{display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:10px;font-size:14px}
+  .cmd .it:hover,.cmd .it.sel{background:var(--accent-soft)}
+  .cmd .it .g{width:22px;text-align:center;color:var(--ink-3)} .cmd .it .k{margin-left:auto;font-size:11px;color:var(--ink-3)}
+  .muted{color:var(--ink-3)} .mt{margin-top:14px}
+  .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--ink);color:var(--surface);padding:11px 18px;border-radius:11px;font-size:13px;font-weight:500;opacity:0;transition:.3s;z-index:70;box-shadow:var(--sh-2)}
+  .toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- NAV RAIL -->
+  <nav class="rail">
+    <div class="brand">A</div>
+    <div class="nav">
+      <button class="navb on" data-screen="home" onclick="go('home')"><span class="g">◇</span>Home</button>
+      <button class="navb" data-screen="compose" onclick="go('compose')"><span class="g">✎</span>Write</button>
+      <button class="navb" data-screen="ready" onclick="go('ready')"><span class="g">◎</span>Ready</button>
+      <button class="navb" data-screen="library" onclick="go('library')"><span class="g">❋</span>Library</button>
+      <button class="navb" data-screen="submit" onclick="go('submit')"><span class="g">➜</span>Submit</button>
+    </div>
+    <div class="foot">
+      <button class="navb" onclick="toggleTheme()"><span class="g">◐</span>Theme</button>
+      <div class="avatar">FW</div>
+    </div>
+  </nav>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="topbar">
+      <div class="crumb" id="crumb"><b>Attention, Verified</b> · PhD thesis</div>
+      <div class="grow"></div>
+      <button class="ready-pill" onclick="go('ready')" title="Submission readiness">
+        <span class="ring-mini" id="pillRing" style="--p:60"></span>
+        <span id="pillTxt">3 to resolve</span>
+      </button>
+      <button class="ghost" onclick="openCmd()">⌘K <span class="muted">Actions</span></button>
+    </div>
+
+    <!-- ===== HOME ===== -->
+    <section class="screen on" id="s-home">
+      <h1 class="h-disp">Good evening, Febin.</h1>
+      <p class="lead">You’re close on <b>Attention, Verified</b> — three things left before it’s submission-ready.</p>
+
+      <div class="card continue">
+        <div class="ring" style="width:64px;height:64px">
+          <svg width="64" height="64"><circle cx="32" cy="32" r="27" fill="none" stroke="var(--neutral-soft)" stroke-width="6"/><circle cx="32" cy="32" r="27" fill="none" stroke="var(--good)" stroke-width="6" stroke-linecap="round" stroke-dasharray="170" stroke-dashoffset="68"/></svg>
+          <span class="lbl">60%</span>
+        </div>
+        <div class="body">
+          <h3>Continue writing — Chapter 1, Introduction</h3>
+          <p class="muted">Last edited 12 minutes ago · 86 blocks · 14 references</p>
+        </div>
+        <button class="btn" onclick="go('compose')">Resume ✎</button>
+      </div>
+
+      <h2 class="sec">Your projects</h2>
+      <div class="proj-grid">
+        <div class="card proj" onclick="go('compose')">
+          <div class="ring" style="width:52px;height:52px"><svg width="52" height="52"><circle cx="26" cy="26" r="21" fill="none" stroke="var(--neutral-soft)" stroke-width="5"/><circle cx="26" cy="26" r="21" fill="none" stroke="var(--good)" stroke-width="5" stroke-linecap="round" stroke-dasharray="132" stroke-dashoffset="53"/></svg><span class="lbl">60%</span></div>
+          <div class="info"><h4>Attention, Verified</h4><p>PhD · 3 to resolve · NeurIPS</p></div>
+        </div>
+        <div class="card proj">
+          <div class="ring" style="width:52px;height:52px"><svg width="52" height="52"><circle cx="26" cy="26" r="21" fill="none" stroke="var(--neutral-soft)" stroke-width="5"/><circle cx="26" cy="26" r="21" fill="none" stroke="var(--good)" stroke-width="5" stroke-linecap="round" stroke-dasharray="132" stroke-dashoffset="6"/></svg><span class="lbl">95%</span></div>
+          <div class="info"><h4>Corpus Methods Survey</h4><p>Journal · nearly ready · IMRaD</p></div>
+        </div>
+        <div class="card proj" style="border-style:dashed;justify-content:center;color:var(--ink-3);cursor:pointer"><div style="text-align:center"><div style="font-size:22px">＋</div><div style="font-size:13px;font-weight:600;margin-top:4px">New project</div></div></div>
+      </div>
+    </section>
+
+    <!-- ===== COMPOSE ===== -->
+    <section class="screen" id="s-compose">
+      <div class="compose">
+        <div class="sheet">
+          <h1>Attention, Verified: Provenance-Grounded Sequence Modeling</h1>
+          <div class="meta">Chapter 1 · Introduction — everything below is quiet until you ask to look.</div>
+
+          <p><span class="gutter" title="Advisor comment">💬</span>
+            Sequence transduction models have converged on attention as the dominant mechanism for modeling long-range dependencies.<span class="chip ch-h">HUMAN</span></p>
+
+          <p>We revisit the transformer and ask whether its citations and claims can be made <em>verifiable by construction</em> rather than checked after the fact.<span class="chip ch-ai">AI · EDITED</span></p>
+
+          <div class="suggest" id="aiSuggest">
+            <div class="k">✎ Suggestion · accepting stamps its provenance</div>
+            <p>“This reframes integrity from a post-hoc audit into a property of the manuscript itself.”</p>
+            <div class="row"><button class="btn sm" onclick="acceptSuggest()">Accept</button><button class="btn sm soft" onclick="dismissSuggest()">Dismiss</button></div>
+          </div>
+
+          <blockquote>“Attention allows modeling of dependencies without regard to their distance in the input or output sequences.” <a class="cite">(Vaswani et al., 2017)</a><span class="q-ok">✓ verified · p.6</span></blockquote>
+
+          <p>Recent surveys report that citation fabrication is now the highest-risk failure mode of AI-assisted writing
+            <span class="verify-inline" id="vfy" onclick="resolveInline()">⚠ needs a source — Resolve</span>, motivating a registry where every reference is resolved and every quotation is checked.<span class="chip ch-i">IMPORTED</span></p>
+
+          <h2>1.1 Contributions</h2>
+          <p>We introduce a governed canonical model in which authorship provenance, citation resolution, and quotation verification are first-class, and show that submission-readiness can be computed, not asserted.<span class="chip ch-h">HUMAN</span></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== READINESS ===== -->
+    <section class="screen" id="s-ready">
+      <h1 class="h-disp">Getting ready to submit</h1>
+      <p class="lead">This is a checklist toward a goal — not an audit. Resolve what’s left and the ring closes.</p>
+
+      <div class="card ready-hero">
+        <div class="ring big-ring" style="width:112px;height:112px">
+          <svg width="112" height="112"><circle cx="56" cy="56" r="46" fill="none" stroke="var(--neutral-soft)" stroke-width="9"/><circle id="bigRing" cx="56" cy="56" r="46" fill="none" stroke="var(--good)" stroke-width="9" stroke-linecap="round" stroke-dasharray="289" stroke-dashoffset="116" style="transition:stroke-dashoffset .7s ease"/></svg>
+          <span class="lbl" id="bigLbl" style="font-size:22px">60%</span>
+        </div>
+        <div>
+          <h3 id="readyH">Three things to resolve</h3>
+          <p id="readyP">Everything else — provenance, 12 verified references, your AI-use statement — is already in place.</p>
+        </div>
+      </div>
+
+      <div class="card" id="taskList"></div>
+
+      <h2 class="sec">Already in place</h2>
+      <div class="stat-row">
+        <div class="card stat"><div class="n" style="color:var(--good)">12</div><div class="l">references verified</div></div>
+        <div class="card stat"><div class="n" style="color:var(--good)">7</div><div class="l">quotes checked</div></div>
+        <div class="card stat"><div class="n">18%</div><div class="l">AI-origin blocks</div></div>
+        <div class="card stat"><div class="n" style="color:var(--good)">✓</div><div class="l">AI-use statement</div></div>
+      </div>
+    </section>
+
+    <!-- ===== LIBRARY ===== -->
+    <section class="screen" id="s-library">
+      <h1 class="h-disp">Reference library</h1>
+      <p class="lead">A managed space, separate from writing. Import from Zotero or discover new sources — everything resolves and verifies here.</p>
+      <div class="toolbar">
+        <div class="search">🔎 <input placeholder="Search 14 references…"></div>
+        <button class="ghost" onclick="openCmd('discover')">🔍 Discover</button>
+        <button class="ghost">⇪ Import · Zotero</button>
+      </div>
+      <div class="card" style="padding:6px 8px 8px">
+        <table class="tbl">
+          <thead><tr><th>Reference</th><th>Type</th><th>Status</th><th></th></tr></thead>
+          <tbody>
+            <tr><td><div class="t">Attention Is All You Need</div><div class="a">Vaswani et al. · 2017</div></td><td class="muted">article</td><td><span class="badge b-good">✓ Verified</span></td><td class="muted">crossref</td></tr>
+            <tr><td><div class="t">Layer Normalization</div><div class="a">Ba et al. · <span class="mono">missing: container, pages</span></div></td><td class="muted">article</td><td><span class="badge b-warn">⚠ [VERIFY]</span></td><td><button class="btn sm soft" onclick="toast('Resolved from Crossref ✓')">Resolve</button></td></tr>
+            <tr><td><div class="t">Deep Residual Learning (mirror)</div><div class="a">flagged by Crossref</div></td><td class="muted">article</td><td><span class="badge b-crit">✕ Retracted</span></td><td><button class="btn sm soft">Review</button></td></tr>
+            <tr><td><div class="t">On the Opportunities and Risks of Foundation Models</div><div class="a">Bommasani et al. · resolving…</div></td><td class="muted">report</td><td><span class="badge b-run">● Resolving</span></td><td></td></tr>
+            <tr><td><div class="t">BERT: Pre-training of Deep Bidirectional Transformers</div><div class="a">Devlin et al. · 2019</div></td><td class="muted">article</td><td><span class="badge b-good">✓ Verified</span></td><td class="muted">openalex</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ===== SUBMIT ===== -->
+    <section class="screen" id="s-submit">
+      <h1 class="h-disp">Submit with confidence</h1>
+      <p class="lead">Everything you’ve verified travels with the manuscript — as a disclosable, attestable record.</p>
+      <div class="submit-grid">
+        <div class="card panel">
+          <h3>Author identity</h3>
+          <div class="task done" style="padding:6px 0"><div class="ti ok">✓</div><div class="tx"><h4>ORCID linked & verified</h4><p>0000-0002-1825-0097</p></div></div>
+          <h3 style="margin-top:20px">Integrity attestation</h3>
+          <div class="assert">This asserts <b>provenance</b> — it does not detect plagiarism or AI text. Absence of a signal is shown as unknown, never as clean.</div>
+          <div class="mt" style="font-size:12.5px;line-height:2">
+            <div>✓ 12 references verified · 1 retracted flagged</div>
+            <div>✓ 7 quotations checked against source</div>
+            <div>✓ AI-use statement generated &amp; bound to v14</div>
+            <div class="mono muted mt">checksum 3a7c…e9f1 · v14</div>
+          </div>
+        </div>
+        <div class="card panel">
+          <h3>Deposit to Zenodo</h3>
+          <div class="stepper"><div class="step done">Draft</div><div class="step done">Uploaded</div><div class="step cur" id="pubStep">Publish</div><div class="step" id="doiStep">DOI</div></div>
+          <button class="btn" onclick="publish(this)">Publish &amp; mint DOI</button>
+          <div class="statement mt" id="doiOut" style="display:none"></div>
+
+          <h3 style="margin-top:22px">AI Use Statement</h3>
+          <div class="statement">Large language models assisted preparation of this manuscript. 24 operations across 9 proposals were each reviewed and accepted by the author, who verified correctness and takes full responsibility. No citations were fabricated; all references derive from human-verified registry records.</div>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<!-- COMMAND PALETTE -->
+<div class="cmdk" id="cmdk" onclick="if(event.target===this)closeCmd()">
+  <div class="cmd">
+    <div class="in">⌘ <input id="cmdInput" placeholder="Type a command or search…" oninput="filterCmd()" /></div>
+    <div class="list" id="cmdList"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  const CMDS=[
+    {g:'✎',t:'Insert a verified citation',k:'/cite',act:()=>{go('compose');toast('Only verified sources can be inserted');}},
+    {g:'🔍',t:'Discover a new source',k:'/discover',act:()=>{go('library');toast('Searching OpenAlex + Crossref…');}},
+    {g:'⚠',t:'Resolve all [VERIFY] references',k:'',act:()=>{toast('Resolving 1 reference…');setTimeout(()=>resolveInline(),500);}},
+    {g:'◎',t:'Go to Readiness',k:'',act:()=>go('ready')},
+    {g:'✓',t:'Generate AI Use Statement',k:'',act:()=>{go('submit');toast('Statement bound to v14 ✓');}},
+    {g:'➜',t:'Prepare submission',k:'',act:()=>go('submit')},
+  ];
+  let remaining=3;
+  function go(s){
+    document.querySelectorAll('.screen').forEach(x=>x.classList.remove('on'));
+    document.getElementById('s-'+s).classList.add('on');
+    document.querySelectorAll('.navb[data-screen]').forEach(b=>b.classList.toggle('on',b.dataset.screen===s));
+    document.querySelector('.main').scrollTo({top:0,behavior:'instant'});
+    if(s==='ready')renderTasks();
+  }
+  function toggleTheme(){const e=document.documentElement;e.dataset.theme=e.dataset.theme==='dark'?'light':'dark';}
+
+  // compose interactions
+  function resolveInline(){
+    const v=document.getElementById('vfy'); if(!v||v.dataset.done)return;
+    v.textContent='● resolving…'; v.style.color='var(--accent)'; v.style.background='var(--accent-soft)';
+    setTimeout(()=>{ v.outerHTML='<a class="cite">(Bommasani et al., 2021)</a><span class="q-ok">✓ verified</span>';
+      remaining=Math.max(0,remaining-1); updateReady(); toast('Resolved from Crossref ✓');},1100);
+  }
+  function acceptSuggest(){const s=document.getElementById('aiSuggest');s.style.transition='.3s';s.style.opacity='0';setTimeout(()=>s.remove(),300);toast('Accepted — provenance stamped as AI·accepted');}
+  function dismissSuggest(){const s=document.getElementById('aiSuggest');s.style.opacity='0';setTimeout(()=>s.remove(),250);}
+
+  // readiness
+  const TASKS=[
+    {id:'ref',ic:'warn',g:'⚠',h:'Resolve 1 unverified reference',s:'“Layer Normalization” is missing container & pages'},
+    {id:'ret',ic:'crit',g:'✕',h:'Address 1 retracted source',s:'A cited mirror was flagged by Crossref'},
+    {id:'mark',ic:'warn',g:'⚠',h:'Resolve 1 open marker',s:'A SOURCE_NEEDED marker in §1 needs a citation'},
+  ];
+  let doneSet=new Set();
+  function renderTasks(){
+    const el=document.getElementById('taskList');
+    const open=TASKS.filter(t=>!doneSet.has(t.id));
+    const done=TASKS.filter(t=>doneSet.has(t.id));
+    el.innerHTML = open.map(t=>`<div class="task"><div class="ti ${t.ic}">${t.g}</div><div class="tx"><h4>${t.h}</h4><p>${t.s}</p></div><button class="btn sm" onclick="fixTask('${t.id}')">Fix</button></div>`).join('')
+      + done.map(t=>`<div class="task done"><div class="ti ok">✓</div><div class="tx"><h4>${t.h}</h4><p>Resolved</p></div><span class="badge b-good">✓ done</span></div>`).join('');
+    updateReady();
+  }
+  function fixTask(id){doneSet.add(id);remaining=TASKS.length-doneSet.size;renderTasks();toast('Fixed ✓');}
+  function updateReady(){
+    const total=TASKS.length, left=Math.max(remaining, total-doneSet.size===total?remaining:total-doneSet.size);
+    const openCount = TASKS.length - doneSet.size;
+    const pct = Math.round(((TASKS.length-openCount)/TASKS.length)*40 + 60 - (openCount* (60/ TASKS.length)) );
+    const p = Math.min(100, Math.round(60 + (doneSet.size/TASKS.length)*40));
+    // rings
+    const circ=289, off=circ*(1-p/100);
+    const big=document.getElementById('bigRing'); if(big)big.setAttribute('stroke-dashoffset',off);
+    const bl=document.getElementById('bigLbl'); if(bl)bl.textContent=p+'%';
+    document.getElementById('pillRing').style.setProperty('--p',p);
+    const rt=document.getElementById('pillTxt'), rh=document.getElementById('readyH'), rp=document.getElementById('readyP');
+    if(openCount===0){
+      if(rt)rt.textContent='Submission-ready';
+      document.getElementById('pillRing').style.background='conic-gradient(var(--good) 100%,var(--good) 0)';
+      if(rh)rh.textContent='You’re submission-ready';
+      if(rp)rp.textContent='Every check passes. Provenance, references, quotations and markers are all in place.';
+      if(bl){bl.textContent='✓';bl.style.color='var(--good)';}
+    }else{
+      if(rt)rt.textContent=openCount+' to resolve';
+      if(rh)rh.textContent=(openCount===1?'One thing':openCount+' things')+' to resolve';
+    }
+  }
+
+  // submit
+  function publish(btn){
+    btn.textContent='Publishing…';btn.disabled=true;
+    document.getElementById('pubStep').classList.add('done');document.getElementById('pubStep').classList.remove('cur');
+    setTimeout(()=>{document.getElementById('doiStep').classList.add('done','cur');
+      const o=document.getElementById('doiOut');o.style.display='block';
+      o.innerHTML='Published to Zenodo — DOI <b>10.5281/zenodo.999</b><div class="mono muted mt">sandbox.zenodo.org/records/999 · author ORCID bound</div>';
+      btn.textContent='Published ✓';toast('DOI minted 🎉');},1100);
+  }
+
+  // command palette
+  function openCmd(pre){document.getElementById('cmdk').classList.add('on');const i=document.getElementById('cmdInput');i.value=pre?'/'+pre:'';i.focus();filterCmd();}
+  function closeCmd(){document.getElementById('cmdk').classList.remove('on');}
+  function filterCmd(){
+    const q=document.getElementById('cmdInput').value.toLowerCase().replace('/','');
+    const list=CMDS.filter(c=>(c.t+c.k).toLowerCase().includes(q));
+    document.getElementById('cmdList').innerHTML=list.map((c,i)=>`<div class="it${i===0?' sel':''}" onclick="runCmd(${CMDS.indexOf(c)})"><span class="g">${c.g}</span>${c.t}<span class="k">${c.k||''}</span></div>`).join('')||'<div class="it muted">No matches</div>';
+  }
+  function runCmd(i){closeCmd();CMDS[i].act();}
+  function toast(t){const el=document.getElementById('toast');el.textContent=t;el.classList.add('on');clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove('on'),2200);}
+
+  document.addEventListener('keydown',e=>{
+    if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){e.preventDefault();openCmd();}
+    else if(e.key==='Escape')closeCmd();
+    else if(e.key==='Enter'&&document.getElementById('cmdk').classList.contains('on')){const s=document.querySelector('.cmd .it.sel');if(s)s.click();}
+  });
+  renderTasks();
+</script>
+</body>
+</html>
