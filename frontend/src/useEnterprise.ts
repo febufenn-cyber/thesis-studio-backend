@@ -68,6 +68,17 @@ export function sourceLabel(s: RegistrySource): string {
 export const useSources = (projectId: string) =>
   useResource<RegistrySource[]>(`/projects/${projectId}/sources`);
 
+export interface RegistryQuote {
+  id: string;
+  source_id: string;
+  text: string;
+  page_or_loc: string;
+  verified: boolean;
+}
+
+export const useQuotes = (projectId: string) =>
+  useResource<RegistryQuote[]>(`/projects/${projectId}/quotes`);
+
 /* ================= E1 · Source & Journal Trust ================= */
 
 export interface SourceTrust {
