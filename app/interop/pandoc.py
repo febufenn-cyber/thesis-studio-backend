@@ -61,6 +61,11 @@ OUTPUT_FORMATS = frozenset(
 BINARY_OUTPUTS = frozenset({"docx", "odt", "epub", "rtf"})
 # Inputs that are binary and must be written to a file for pandoc to read.
 _BINARY_INPUTS = frozenset({"docx", "odt", "epub"})
+# Readers that can pull external files/entities (\\input, \\include, XML external
+# entities). Binary outputs run without --sandbox (pandoc needs its own data
+# files), so pairing an include-capable reader with a binary writer is refused —
+# it would let untrusted input read arbitrary host files into the output.
+_INCLUDE_CAPABLE_INPUTS = frozenset({"latex", "html", "jats", "docbook"})
 
 _MAX_OUTPUT_BYTES = 25 * 1024 * 1024
 
@@ -87,6 +92,13 @@ async def convert(content: str | bytes, *, from_fmt: str, to_fmt: str) -> bytes:
         raise PandocError(f"Unsupported input format: {from_fmt}")
     if to_fmt not in OUTPUT_FORMATS:
         raise PandocError(f"Unsupported output format: {to_fmt}")
+    if to_fmt in BINARY_OUTPUTS and from_fmt in _INCLUDE_CAPABLE_INPUTS:
+        # Binary writers disable --sandbox; an include-capable reader could then
+        # read host files. Refuse rather than widen the attack surface.
+        raise PandocError(
+            f"Converting {from_fmt} to a binary format ({to_fmt}) is not permitted; "
+            "use a text output format instead."
+        )
     binary = _pandoc_bin()
     if binary is None or not getattr(get_settings(), "PANDOC_ENABLED", True):
         raise PandocUnavailableError("pandoc is not available")

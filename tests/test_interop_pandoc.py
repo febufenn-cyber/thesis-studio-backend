@@ -45,6 +45,18 @@ async def test_convert_rejects_unknown_format() -> None:
         await convert("x", from_fmt="malware", to_fmt="html")
 
 
+async def test_include_capable_input_to_binary_is_refused() -> None:
+    # latex -> docx would run without --sandbox; \input could read host files.
+    with pytest.raises(PandocError):
+        await convert(r"\input{/etc/passwd}", from_fmt="latex", to_fmt="docx")
+    with pytest.raises(PandocError):
+        await convert("<x/>", from_fmt="html", to_fmt="odt")
+    # The common, safe case still works: markdown is not include-capable.
+    if _HAS_PANDOC:
+        out = await convert("# H", from_fmt="markdown", to_fmt="docx")
+        assert out[:2] == b"PK"
+
+
 async def test_convert_disabled_fails_closed(monkeypatch) -> None:
     monkeypatch.setattr(
         pd, "get_settings", lambda: type("S", (), {"PANDOC_ENABLED": False, "PANDOC_BIN": "pandoc"})()
