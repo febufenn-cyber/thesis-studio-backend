@@ -34,6 +34,7 @@ os.environ.setdefault("LITERATURE_SEARCH_ENABLED", "false")
 os.environ.setdefault("SOURCE_TRUST_ENABLED", "false")
 os.environ.setdefault("IDENTITY_LOOKUP_ENABLED", "false")
 os.environ.setdefault("COPILOT_ENABLED", "false")
+os.environ.setdefault("FULLTEXT_ENABLED", "false")
 # Research donation: a terms version so the consent flow is exercisable; the
 # corpus-export governance gates stay off unless a test sets them.
 os.environ.setdefault("RESEARCH_TERMS_VERSION", "2026-07")

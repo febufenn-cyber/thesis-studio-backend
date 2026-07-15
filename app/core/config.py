@@ -144,6 +144,12 @@ class Settings(BaseSettings):
     # higher limits). Network-gated; off in tests.
     COPILOT_ENABLED: bool = True
     SEMANTIC_SCHOLAR_API_KEY: str = ""
+    # Open-access full text + auto quote-verify (enterprise E4). Europe PMC full
+    # text (free, keyless) feeds Phase 3 quote verification; Unpaywall gives a
+    # best-OA "read the source" link (needs a free email). Network-gated; off in
+    # tests. Fail-closed: no OA text -> quote is 'unverifiable', never 'verified'.
+    FULLTEXT_ENABLED: bool = True
+    UNPAYWALL_EMAIL: str = ""
     # External deposit + ORCID (docs/LLD_MISSING_FEATURES.md MF3). Partner-gated:
     # an empty ZENODO_TOKEN fails closed (503, no network). Sandbox base default.
     ZENODO_TOKEN: str = ""
