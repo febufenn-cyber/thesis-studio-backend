@@ -295,6 +295,17 @@ def create_app() -> FastAPI:
     async def frontend_legacy() -> Response:
         return _serve_frontend(static_dir / "index.html", "legacy")
 
+    # Phase B SPA (docs/FRONTEND_LLD.md §19). Served at /app; the catch-all
+    # returns the shell so client-side routes (e.g. /app/projects/{id}/library)
+    # resolve. Its assets live under /static/spa/ (StaticFiles mount above).
+    @app.get("/app", include_in_schema=False)
+    async def frontend_spa() -> Response:
+        return _serve_frontend(static_dir / "spa" / "index.html", "spa")
+
+    @app.get("/app/{spa_path:path}", include_in_schema=False)
+    async def frontend_spa_routes(spa_path: str) -> Response:
+        return _serve_frontend(static_dir / "spa" / "index.html", "spa")
+
     register_exception_handlers(app)
     return app
 

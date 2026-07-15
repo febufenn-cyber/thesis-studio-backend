@@ -4,15 +4,18 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "build": "tsc --noEmit && vite build",
-    "build:fast": "vite build",
+    "build": "tsc --noEmit && vite build && vite build --config vite.config.app.ts",
+    "build:islands": "vite build",
+    "build:spa": "vite build --config vite.config.app.ts",
     "typecheck": "tsc --noEmit",
     "dev": "vite build --watch"
   },
   "dependencies": {
+    "@tanstack/react-query": "5.51.23",
     "dompurify": "3.1.6",
     "react": "18.3.1",
-    "react-dom": "18.3.1"
+    "react-dom": "18.3.1",
+    "react-router-dom": "6.26.1"
   },
   "devDependencies": {
     "@types/dompurify": "3.0.5",
