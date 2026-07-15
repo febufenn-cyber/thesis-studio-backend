@@ -137,6 +137,9 @@ class Settings(BaseSettings):
     # RESOLVER_ENABLED; off in tests unless a client is injected.
     SOURCE_TRUST_ENABLED: bool = True
     SHERPA_ROMEO_API_KEY: str = ""
+    # Verified identity (enterprise E2). ROR + ORCID public APIs (free, keyless).
+    # Network-gated; off in tests.
+    IDENTITY_LOOKUP_ENABLED: bool = True
     # External deposit + ORCID (docs/LLD_MISSING_FEATURES.md MF3). Partner-gated:
     # an empty ZENODO_TOKEN fails closed (503, no network). Sandbox base default.
     ZENODO_TOKEN: str = ""

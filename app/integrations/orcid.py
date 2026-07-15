@@ -24,12 +24,26 @@ class OrcidClient:
 
     async def verify(self, orcid: str) -> bool:
         """Return True only if the ORCID is well-formed and resolves publicly."""
+        return (await self.resolve(orcid)) is not None
+
+    async def resolve(self, orcid: str) -> dict | None:
+        """Return {orcid, name} from the public ORCID record, or None (fail-closed)."""
         if not is_well_formed(orcid):
-            return False
+            return None
         try:
             response = await self._client.get(
                 f"{self._base}/{orcid}/person", headers={"Accept": "application/json"}
             )
         except httpx.HTTPError:
-            return False
-        return response.status_code == 200
+            return None
+        if response.status_code != 200:
+            return None
+        try:
+            data = response.json() or {}
+        except ValueError:
+            return None
+        name = data.get("name") or {}
+        given = ((name.get("given-names") or {}) or {}).get("value", "")
+        family = ((name.get("family-name") or {}) or {}).get("value", "")
+        full = " ".join(p for p in (given, family) if p).strip()
+        return {"orcid": orcid, "name": full or None}
