@@ -1,0 +1,18 @@
+{
+  "attestation_schema": "robofox.main-validation-attestation.v1",
+  "attested_at": "2026-07-15T07:28:14.240283+00:00",
+  "deployment_triggered": false,
+  "errors": 0,
+  "external_evidence_complete": false,
+  "failures": 0,
+  "image_build": "passed",
+  "migration": "head -> 0016 -> head passed",
+  "production_approved": false,
+  "ref": "refs/heads/main",
+  "schema": "robofox.main-release-candidate.v1",
+  "security": "pip-audit, Bandit and secret-pattern gates passed",
+  "sha": "3696c8482b8193da594d278c72b91904f4c2a46f",
+  "skipped": 6,
+  "tests": 496,
+  "validation_run_url": "https://github.com/febufenn-cyber/Acadensia/actions/runs/29397282549"
+}
