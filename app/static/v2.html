@@ -35,7 +35,7 @@
       <div class="toolbar-actions"><button id="uploadOpenBtn" class="button">Upload revision</button><button id="checkpointBtn" class="button">Checkpoint</button><button id="undoBtn" class="button" disabled aria-keyshortcuts="Control+Z Meta+Z">Undo</button><button id="redoBtn" class="button" disabled aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z">Redo</button></div>
     </div>
     <nav id="modeTabs" class="mode-tabs" aria-label="Workspace sections">
-      <button data-mode="editor" class="active">Editor</button><button data-mode="review">Integrity review <span id="reviewTabCount" class="count"></span></button><button data-mode="collaboration">Collaboration <span id="collaborationCount" class="count"></span></button><button data-mode="metadata">Front matter</button><button data-mode="registry">Sources</button><button data-mode="ai">Robofox Scholar <span id="aiRunCount" class="count"></span></button><button data-mode="preview">Preview</button><button data-mode="history">History</button>
+      <button data-mode="editor" class="active">Editor</button><button data-mode="review">Integrity review <span id="reviewTabCount" class="count"></span></button><button data-mode="collaboration">Collaboration <span id="collaborationCount" class="count"></span></button><button data-mode="metadata">Front matter</button><button data-mode="registry">Sources</button><button data-mode="ai">Robofox Scholar <span id="aiRunCount" class="count"></span></button><button data-mode="preview">Preview</button><button data-mode="history">History</button><button data-mode="tools">Bibliography &amp; tools</button>
     </nav>
     <div id="studioNotice" class="notice" hidden role="alert"></div>
 
@@ -96,6 +96,8 @@
         <section id="previewMode" class="mode-panel" hidden><div class="preview-toolbar"><div><p class="eyebrow">Authoritative output preview</p><h2>Rendered PDF</h2><p class="muted">Generated through the same DOCX and LibreOffice pipeline used for final output.</p></div><button id="generatePreviewBtn" class="button primary">Generate preview</button></div><div id="previewStatus" class="panel"></div><iframe id="previewFrame" title="Authoritative thesis PDF preview" hidden></iframe><div class="panel"><h3>Fast structural preview</h3><div id="structuralPreview" class="paper-preview"></div></div></section>
 
         <section id="historyMode" class="mode-panel" hidden><div class="history-columns"><section><div class="content-head"><h2>Change history</h2></div><div id="commandList" class="history-list"></div></section><section><div class="content-head"><h2>Checkpoints</h2></div><div id="snapshotList" class="history-list"></div></section></div><div id="comparisonPanel" class="panel" hidden></div><div class="panel"><h2>Exports</h2><div id="exportList" class="history-list"></div></div></section>
+
+        <section id="toolsMode" class="mode-panel" hidden><div class="content-head"><div><p class="eyebrow">Scholarly tooling · all free / open data</p><h2>Bibliography &amp; research tools</h2><p class="muted">Source &amp; journal trust, research insight, 10,000+ citation styles, universal export and private writing polish. Advisory signals — never a substitute for human verification.</p></div></div><div id="toolsIsland"></div></section>
       </section>
 
       <aside id="contextPane" class="sidebar context-sidebar" aria-label="Selected item context"><div class="sidebar-head"><h2>Context</h2><button id="closeContextBtn" class="icon-button" aria-label="Close context">×</button></div><div id="contextEmpty" class="empty-state">Select a block, review cycle, comment, suggestion or approval to inspect its evidence and version.</div><div id="contextContent" hidden></div></aside>
@@ -111,5 +113,33 @@
 <script src="/static/phase2-integrity.js"></script>
 <script src="/static/phase3-ai.js"></script>
 <script src="/static/phase4-collaboration.js"></script>
+<!-- Enterprise E1–E7 island bridge (FRONTEND_LLD Phase A). React kit mounted into the served app. -->
+<script src="/static/app/acadensia-kit.iife.js"></script>
+<script>
+(function () {
+  var App = window.App;
+  if (!App || !window.AcadensiaKit) return;
+  var mountedProject = null;
+  function mountTools() {
+    var el = document.getElementById('toolsIsland');
+    var pid = App.state && App.state.project && App.state.project.id;
+    if (!el || !pid) return;
+    // Re-mount when the open project changes; the kit reuses the root otherwise.
+    window.AcadensiaKit.mountEnterprise(el, { projectId: String(pid) });
+    mountedProject = pid;
+  }
+  // Chain onto the existing modeChanged hook rather than replace it.
+  var prev = App.hooks && App.hooks.modeChanged;
+  if (App.hooks) {
+    App.hooks.modeChanged = function (mode) {
+      if (typeof prev === 'function') { try { prev(mode); } catch (e) {} }
+      if (mode === 'tools') mountTools();
+    };
+  }
+  // Fallback: also mount on a direct click of the Tools tab (covers first open).
+  var tab = document.querySelector('#modeTabs [data-mode="tools"]');
+  if (tab) tab.addEventListener('click', function () { setTimeout(mountTools, 0); });
+})();
+</script>
 </body>
 </html>

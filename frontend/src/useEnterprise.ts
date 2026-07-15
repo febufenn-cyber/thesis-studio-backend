@@ -45,6 +45,29 @@ function useResource<T>(path: string | null): Async<T> {
   return { data, loading, error, reload };
 }
 
+/* ================= sources (registry) ================= */
+
+export interface RegistrySource {
+  id: string;
+  kind: string;
+  fields: Record<string, unknown>;
+  verified: boolean;
+}
+
+/** A short display label for a source (title, else author, else kind). */
+export function sourceLabel(s: RegistrySource): string {
+  const f = s.fields || {};
+  return (
+    (f.title as string) ||
+    (f.author as string) ||
+    (f.container as string) ||
+    `${s.kind} source`
+  );
+}
+
+export const useSources = (projectId: string) =>
+  useResource<RegistrySource[]>(`/projects/${projectId}/sources`);
+
 /* ================= E1 · Source & Journal Trust ================= */
 
 export interface SourceTrust {

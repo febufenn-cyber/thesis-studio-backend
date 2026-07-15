@@ -5,18 +5,19 @@ import type { CSSProperties } from "react";
 import { BibliographyPanel } from "./BibliographyPanel";
 import { ExportMenu } from "./ExportMenu";
 import { IdentityLookup } from "./IdentityLookup";
+import { SourceIntelligencePanel } from "./SourceIntelligencePanel";
 import { WritingPanel } from "./WritingPanel";
 
 /**
- * EnterprisePanel — a single surface grouping the project-level enterprise
- * features: bibliography rendering (E5), universal export (E6), private writing
- * polish (E7) and verified-identity lookup (E2). Per-source intelligence (E1/E3)
- * and per-quote auto-verify (E4) live next to their sources/quotes via
- * <SourceIntelligence> and <AutoVerifyButton>.
+ * EnterprisePanel — a single surface grouping the enterprise features: source &
+ * journal trust + insight (E1/E3), bibliography rendering (E5), universal export
+ * (E6), private writing polish (E7) and verified-identity lookup (E2). Per-quote
+ * auto-verify (E4) lives next to quotes via <AutoVerifyButton>.
  */
-type Tab = "bibliography" | "export" | "writing" | "identity";
+type Tab = "sources" | "bibliography" | "export" | "writing" | "identity";
 
 const TABS: { key: Tab; label: string }[] = [
+  { key: "sources", label: "Sources" },
   { key: "bibliography", label: "Bibliography" },
   { key: "export", label: "Export" },
   { key: "writing", label: "Writing" },
@@ -24,7 +25,7 @@ const TABS: { key: Tab; label: string }[] = [
 ];
 
 export function EnterprisePanel({ projectId }: { projectId: string }) {
-  const [tab, setTab] = useState<Tab>("bibliography");
+  const [tab, setTab] = useState<Tab>("sources");
   return (
     <section style={S.panel}>
       <div style={S.tabs}>
@@ -39,6 +40,7 @@ export function EnterprisePanel({ projectId }: { projectId: string }) {
         ))}
       </div>
       <div style={S.body}>
+        {tab === "sources" && <SourceIntelligencePanel projectId={projectId} />}
         {tab === "bibliography" && <BibliographyPanel projectId={projectId} />}
         {tab === "export" && <ExportMenu projectId={projectId} />}
         {tab === "writing" && <WritingPanel projectId={projectId} />}

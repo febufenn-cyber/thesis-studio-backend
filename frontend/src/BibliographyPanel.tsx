@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { CSSProperties } from "react";
 import { renderBibliography, useBibliographyStyles, type RenderedBibliography } from "./useEnterprise";
+import { sanitizeHtml } from "./sanitize";
 
 /**
  * BibliographyPanel — E5 CSL rendering. Pick a style (friendly alias or any CSL
@@ -68,7 +69,7 @@ export function BibliographyPanel({ projectId }: { projectId: string }) {
           <ol style={S.list}>
             {result.entries.map((e, i) =>
               result.output === "html" ? (
-                <li key={i} style={S.entry} dangerouslySetInnerHTML={{ __html: e }} />
+                <li key={i} style={S.entry} dangerouslySetInnerHTML={{ __html: sanitizeHtml(e) }} />
               ) : (
                 <li key={i} style={S.entry}>
                   {e}
