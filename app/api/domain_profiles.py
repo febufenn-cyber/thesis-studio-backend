@@ -20,7 +20,9 @@ from app.domains.profiles import (
     available_domain_profiles,
     get_domain_profile,
 )
+from app.domains.validators import ComplianceContext, PageInfo, run_profile
 from app.models.project import Project
+from app.services.export_service import build_thesis_document
 
 
 router = APIRouter(tags=["domain-profiles"])
@@ -36,6 +38,10 @@ _GENERIC_SECTIONS: tuple[str, ...] = (
     "results",
     "discussion",
     "conclusion",
+    "reproducibility_checklist",
+    "broader_impacts",
+    "limitations",
+    "ethics_statement",
 )
 
 
@@ -65,6 +71,9 @@ async def get_domain_profile_detail(key: str, current_user: CurrentUser) -> dict
             for s in profile.sections
         ],
         "submission_checklist": list(profile.submission_checklist),
+        "validators": list(profile.validators),
+        "page_limit": profile.page_limit,
+        "enforced": profile.enforces(),
     }
 
 
@@ -129,5 +138,50 @@ async def project_domain_readiness(
         "profile": profile.key,
         "ready": not missing_sections,
         "missing_sections": missing_sections,
+        "checklist": list(profile.submission_checklist),
+    }
+
+
+@router.get("/projects/{project_id}/compliance")
+async def project_compliance(
+    project_id: UUID,
+    current_user: CurrentUser,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Enforce the project's venue profile: page budget, anonymization, repro.
+
+    Advisory by default (no profile / non-enforcing profile → soft ``ready``);
+    a ``block`` finding means not submission-ready. Page count is estimated here
+    (no PDF stack in this path); a real measurement can be supplied by the
+    compile/seal path later.
+    """
+    project = await fetch_owned_project(db, project_id, current_user.id)
+
+    key = (project.meta or {}).get("domain_profile")
+    soft = {"profile": key or None, "enforced": False, "ready": True, "findings": [], "checklist": []}
+    if not key:
+        return soft
+    try:
+        profile = get_domain_profile(key)
+    except UnknownDomainProfile:
+        return {**soft, "profile": None}
+    if not profile.enforces():
+        return {**soft, "profile": profile.key, "checklist": list(profile.submission_checklist)}
+
+    document = build_thesis_document(project)
+    context = ComplianceContext(
+        document=document,
+        profile=profile,
+        page_info=PageInfo(page_count=None, measured_by="estimate"),
+        reproducibility_answers=(project.meta or {}).get("reproducibility", {}),
+        present_sections=frozenset(_present_section_identifiers(project)),
+    )
+    findings = run_profile(context)
+    return {
+        "profile": profile.key,
+        "enforced": True,
+        "ready": not any(f.severity == "block" for f in findings),
+        "page_limit": profile.page_limit,
+        "findings": [f.to_dict() for f in findings],
         "checklist": list(profile.submission_checklist),
     }

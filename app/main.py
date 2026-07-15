@@ -16,7 +16,9 @@ from sqlalchemy import select, update
 from app.api import (
     active_registry,
     ai_partner,
+    api_keys,
     auth,
+    bibliography,
     chat,
     citation_schema,
     collaboration,
@@ -30,21 +32,36 @@ from app.api import (
     commercial_sessions,
     compile,
     data_portability,
+    deposits,
     domain_profiles,
     editor,
     external_downloads,
     institutional,
     institutional_lifecycle,
+    integrity,
+    interchange,
+    interop_pandoc,
+    locales,
     manuscripts,
     presence,
     previews,
     projects,
+    provenance,
+    quote_verification,
     references_import,
+    references_resolve,
+    references_search,
+    source_trust,
+    identity,
+    copilot,
+    research,
     resolutions,
     review_workspace,
     sessions,
     submissions,
+    supervision,
     support_console,
+    writing,
 )
 from app.commercial.guards import CommercialGuardMiddleware
 from app.commercial.observability import JourneyTracingMiddleware, release_identity
@@ -62,6 +79,23 @@ API_MODULES = (
     compile,
     projects,
     references_import,
+    references_resolve,
+    references_search,
+    source_trust,
+    identity,
+    copilot,
+    bibliography,
+    writing,
+    provenance,
+    quote_verification,
+    interchange,
+    interop_pandoc,
+    supervision,
+    locales,
+    research,
+    integrity,
+    api_keys,
+    deposits,
     manuscripts,
     resolutions,
     active_registry,
@@ -260,6 +294,17 @@ def create_app() -> FastAPI:
     @app.get("/legacy", include_in_schema=False)
     async def frontend_legacy() -> Response:
         return _serve_frontend(static_dir / "index.html", "legacy")
+
+    # Phase B SPA (docs/FRONTEND_LLD.md §19). Served at /app; the catch-all
+    # returns the shell so client-side routes (e.g. /app/projects/{id}/library)
+    # resolve. Its assets live under /static/spa/ (StaticFiles mount above).
+    @app.get("/app", include_in_schema=False)
+    async def frontend_spa() -> Response:
+        return _serve_frontend(static_dir / "spa" / "index.html", "spa")
+
+    @app.get("/app/{spa_path:path}", include_in_schema=False)
+    async def frontend_spa_routes(spa_path: str) -> Response:
+        return _serve_frontend(static_dir / "spa" / "index.html", "spa")
 
     register_exception_handlers(app)
     return app

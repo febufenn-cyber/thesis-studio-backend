@@ -27,6 +27,18 @@ os.environ.setdefault(
 os.environ.setdefault("MALWARE_SCAN_MODE", "disabled")
 os.environ.setdefault("PRODUCTION_REQUIRE_MALWARE_SCAN", "false")
 os.environ.setdefault("RATE_LIMIT_ENABLED", "false")
+# Reference resolvers never touch the network in tests unless a mock client is
+# injected; resolution API tests enable + mock explicitly.
+os.environ.setdefault("RESOLVER_ENABLED", "false")
+os.environ.setdefault("LITERATURE_SEARCH_ENABLED", "false")
+os.environ.setdefault("SOURCE_TRUST_ENABLED", "false")
+os.environ.setdefault("IDENTITY_LOOKUP_ENABLED", "false")
+os.environ.setdefault("COPILOT_ENABLED", "false")
+os.environ.setdefault("FULLTEXT_ENABLED", "false")
+os.environ.setdefault("CSL_ENABLED", "false")
+# Research donation: a terms version so the consent flow is exercisable; the
+# corpus-export governance gates stay off unless a test sets them.
+os.environ.setdefault("RESEARCH_TERMS_VERSION", "2026-07")
 # Legacy compile is quarantined off by default in production; enable it here so
 # the existing compile suite exercises it. test_legacy_quarantine covers the
 # disabled path explicitly.

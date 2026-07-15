@@ -17,7 +17,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import CurrentUser, fetch_owned_project
 from app.db.deps import get_db
+from app.importers.csl_import import from_csl_json
+from app.importers.zotero import ZoteroError, fetch_library, import_zotero
 from app.models.source import Source
+from app.references.http import build_client
 from app.renderers.bibtex_import import from_bibtex
 from app.renderers.ris import from_ris
 
@@ -30,8 +33,11 @@ _MAX_CANDIDATES = 2000
 
 
 class ReferenceImportRequest(BaseModel):
-    format: Literal["bibtex", "ris"]
+    format: Literal["bibtex", "ris", "csl"]
     content: str
+
+
+_PARSERS = {"bibtex": from_bibtex, "ris": from_ris, "csl": from_csl_json}
 
 
 class ReferenceImportResponse(BaseModel):
@@ -58,7 +64,7 @@ async def import_references(
             detail="Import payload exceeds the 2 MB limit.",
         )
 
-    parse = from_bibtex if body.format == "bibtex" else from_ris
+    parse = _PARSERS[body.format]
     candidates = parse(body.content)
 
     if len(candidates) > _MAX_CANDIDATES:
@@ -89,3 +95,47 @@ async def import_references(
 
     await db.commit()
     return ReferenceImportResponse(imported=imported, kinds=kinds)
+
+
+class ZoteroImportRequest(BaseModel):
+    api_key: str
+    library_id: str
+    library_type: Literal["user", "group"] = "user"
+    since_version: int | None = None
+    enrich: bool = False
+
+
+@router.post("/projects/{project_id}/references/zotero/import")
+async def import_zotero_library(
+    project_id: UUID,
+    body: ZoteroImportRequest,
+    current_user: CurrentUser,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Import a Zotero library (CSL-JSON) as unverified registry sources."""
+    project = await fetch_owned_project(db, project_id, current_user.id)
+    client = build_client()
+    try:
+        items, version = await fetch_library(
+            client, body.api_key, body.library_id,
+            library_type=body.library_type, since_version=body.since_version,
+        )
+    except ZoteroError as exc:
+        await client.aclose()
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    if len(items) > _MAX_CANDIDATES:
+        await client.aclose()
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"Zotero import exceeds the {_MAX_CANDIDATES}-item limit.",
+        )
+    try:
+        # Reuse the same client for enrichment resolution.
+        result = await import_zotero(
+            db, project, items, user_id=current_user.id, enrich=body.enrich, client=client
+        )
+    finally:
+        await client.aclose()
+    await db.commit()
+    result["library_version"] = version
+    return result

@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
     RELEASE_SHA: str = ""
     BUILD_TIME: str = ""
-    SCHEMA_VERSION: str = "0021"
+    SCHEMA_VERSION: str = "0028"
     RENDERER_VERSION: str = "phase1-renderer"
     PROMPT_BUNDLE_VERSION: str = "phase3-prompts"
     # Derived from the model constant that migrations stamp and the verifier
@@ -117,6 +117,73 @@ class Settings(BaseSettings):
     # the repo for later revival as a separate premium feature. See
     # docs/DOMAIN_EXPANSION.md and the code review.
     LEGACY_COMPILE_ENABLED: bool = False
+
+    # Reference enrichment (docs/LLD.md 3.2). Resolves [VERIFY] placeholders
+    # against Crossref/OpenAlex/arXiv/OpenLibrary. Network access is only used
+    # when RESOLVER_ENABLED is true (or a client is injected, as in tests).
+    # CROSSREF_MAILTO joins the Crossref "polite pool"; RESOLUTION_TTL_DAYS is the
+    # cache lifetime for a resolved identifier.
+    RESOLVER_ENABLED: bool = True
+    RESOLUTION_TTL_DAYS: int = 30
+    CROSSREF_MAILTO: str = ""
+    # Literature discovery (docs/LLD_MISSING_FEATURES.md MF1). Network-gated like
+    # RESOLVER_ENABLED; off in tests unless a client is injected.
+    LITERATURE_SEARCH_ENABLED: bool = True
+    # Claim–citation alignment (docs/LLD_MISSING_FEATURES.md MF2). Advisory,
+    # opt-in; 'off' -> every claim resolves to 'unverifiable' (fail-closed).
+    CLAIM_ALIGNMENT_BACKEND: Literal["off", "llm", "nli"] = "off"
+    # Source & Journal Trust (enterprise E1). Free OpenAlex/Crossref signals;
+    # Sherpa Romeo self-archiving needs a free key (optional). Network-gated like
+    # RESOLVER_ENABLED; off in tests unless a client is injected.
+    SOURCE_TRUST_ENABLED: bool = True
+    SHERPA_ROMEO_API_KEY: str = ""
+    # Verified identity (enterprise E2). ROR + ORCID public APIs (free, keyless).
+    # Network-gated; off in tests.
+    IDENTITY_LOOKUP_ENABLED: bool = True
+    # Research copilot (enterprise E3). Semantic Scholar (free; optional key for
+    # higher limits). Network-gated; off in tests.
+    COPILOT_ENABLED: bool = True
+    SEMANTIC_SCHOLAR_API_KEY: str = ""
+    # Open-access full text + auto quote-verify (enterprise E4). Europe PMC full
+    # text (free, keyless) feeds Phase 3 quote verification; Unpaywall gives a
+    # best-OA "read the source" link (needs a free email). Network-gated; off in
+    # tests. Fail-closed: no OA text -> quote is 'unverifiable', never 'verified'.
+    FULLTEXT_ENABLED: bool = True
+    UNPAYWALL_EMAIL: str = ""
+    # CSL bibliography rendering (enterprise E5). citeproc engine formats registry
+    # sources in any of the 10,000+ Citation Style Language styles. The bundled
+    # 'harvard1' style renders offline; other styles are fetched from the CSL
+    # repository only when CSL_ENABLED. Network-gated; off in tests unless a style
+    # is bundled or a client is injected.
+    CSL_ENABLED: bool = True
+    # Pandoc universal interop (enterprise E6). Convert the rendered manuscript to
+    # extra formats and offer a non-mutating preview converter. Requires the
+    # pandoc binary; the feature reports unavailable (503) when it is missing.
+    # pandoc runs with --sandbox under a timeout.
+    PANDOC_ENABLED: bool = True
+    PANDOC_BIN: str = "pandoc"
+    PANDOC_TIMEOUT_SECONDS: float = 20.0
+    # Private writing polish (enterprise E7). Advisory grammar/style suggestions
+    # from a LanguageTool server. Point LANGUAGETOOL_URL at a self-hosted instance
+    # so manuscript text never leaves the deployment. Disabled by default (no URL
+    # configured); the API returns 503 until enabled. Never mutates the manuscript.
+    LANGUAGETOOL_ENABLED: bool = False
+    LANGUAGETOOL_URL: str = ""
+    LANGUAGETOOL_LANGUAGE: str = "en-US"
+    LANGUAGETOOL_API_KEY: str = ""
+    LANGUAGETOOL_USERNAME: str = ""
+    # External deposit + ORCID (docs/LLD_MISSING_FEATURES.md MF3). Partner-gated:
+    # an empty ZENODO_TOKEN fails closed (503, no network). Sandbox base default.
+    ZENODO_TOKEN: str = ""
+    ZENODO_BASE_URL: str = "https://sandbox.zenodo.org"
+
+    # Research-instrument corpus (docs/LLD.md 3.8). Opt-in, deny-by-default.
+    # Corpus export is refused unless all three gates are set; consent is pinned
+    # to RESEARCH_TERMS_VERSION and k-anonymity suppresses small buckets.
+    RESEARCH_CORPUS_ENABLED: bool = False
+    RESEARCH_TERMS_VERSION: str = ""
+    RESEARCH_ETHICS_APPROVAL_REF: str = ""
+    RESEARCH_K_ANONYMITY: int = 20
 
     @property
     def cors_origins_list(self) -> list[str]:
