@@ -150,6 +150,12 @@ class Settings(BaseSettings):
     # tests. Fail-closed: no OA text -> quote is 'unverifiable', never 'verified'.
     FULLTEXT_ENABLED: bool = True
     UNPAYWALL_EMAIL: str = ""
+    # CSL bibliography rendering (enterprise E5). citeproc engine formats registry
+    # sources in any of the 10,000+ Citation Style Language styles. The bundled
+    # 'harvard1' style renders offline; other styles are fetched from the CSL
+    # repository only when CSL_ENABLED. Network-gated; off in tests unless a style
+    # is bundled or a client is injected.
+    CSL_ENABLED: bool = True
     # External deposit + ORCID (docs/LLD_MISSING_FEATURES.md MF3). Partner-gated:
     # an empty ZENODO_TOKEN fails closed (503, no network). Sandbox base default.
     ZENODO_TOKEN: str = ""
