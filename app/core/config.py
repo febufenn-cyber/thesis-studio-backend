@@ -140,6 +140,10 @@ class Settings(BaseSettings):
     # Verified identity (enterprise E2). ROR + ORCID public APIs (free, keyless).
     # Network-gated; off in tests.
     IDENTITY_LOOKUP_ENABLED: bool = True
+    # Research copilot (enterprise E3). Semantic Scholar (free; optional key for
+    # higher limits). Network-gated; off in tests.
+    COPILOT_ENABLED: bool = True
+    SEMANTIC_SCHOLAR_API_KEY: str = ""
     # External deposit + ORCID (docs/LLD_MISSING_FEATURES.md MF3). Partner-gated:
     # an empty ZENODO_TOKEN fails closed (503, no network). Sandbox base default.
     ZENODO_TOKEN: str = ""
