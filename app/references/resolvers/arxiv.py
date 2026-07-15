@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-import xml.etree.ElementTree as ET
+from defusedxml import ElementTree as ET  # nosec B314 - safe, entity-expansion-guarded parser
 
 import httpx
 

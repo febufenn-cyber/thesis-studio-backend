@@ -8,8 +8,8 @@ from app.canonical.model import Run
 from app.renderers.locale.profile import LocaleProfile
 
 # Unicode directional isolates.
-_FSI = "⁨"  # First Strong Isolate
-_PDI = "⁩"  # Pop Directional Isolate
+_FSI = "⁨"  # First Strong Isolate -- intentional, not obfuscation  # nosec B613
+_PDI = "⁩"  # Pop Directional Isolate -- intentional, not obfuscation  # nosec B613
 
 Script = Literal["latin", "arabic", "hebrew", "han", "kana", "other", "mixed"]
 
