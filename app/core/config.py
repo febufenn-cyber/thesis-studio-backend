@@ -132,6 +132,11 @@ class Settings(BaseSettings):
     # Claim–citation alignment (docs/LLD_MISSING_FEATURES.md MF2). Advisory,
     # opt-in; 'off' -> every claim resolves to 'unverifiable' (fail-closed).
     CLAIM_ALIGNMENT_BACKEND: Literal["off", "llm", "nli"] = "off"
+    # Source & Journal Trust (enterprise E1). Free OpenAlex/Crossref signals;
+    # Sherpa Romeo self-archiving needs a free key (optional). Network-gated like
+    # RESOLVER_ENABLED; off in tests unless a client is injected.
+    SOURCE_TRUST_ENABLED: bool = True
+    SHERPA_ROMEO_API_KEY: str = ""
     # External deposit + ORCID (docs/LLD_MISSING_FEATURES.md MF3). Partner-gated:
     # an empty ZENODO_TOKEN fails closed (503, no network). Sandbox base default.
     ZENODO_TOKEN: str = ""
