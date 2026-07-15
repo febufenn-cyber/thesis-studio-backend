@@ -35,7 +35,7 @@ export function HomeView() {
         {projects.data?.map((p) => (
           <Link key={p.id} to={`/projects/${p.id}/library`} style={card}>
             <div style={{ fontWeight: 700, fontSize: 15 }}>{p.title}</div>
-            {p.document_type && <div style={muted}>{p.document_type}</div>}
+            {p.doc_type && <div style={muted}>{p.doc_type.replace(/_/g, " ")}</div>}
           </Link>
         ))}
       </div>

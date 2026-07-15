@@ -16,14 +16,15 @@ export interface Me {
 export interface ProjectSummary {
   id: string;
   title: string;
-  document_type?: string | null;
+  doc_type?: string | null;
+  status?: string | null;
   updated_at?: string | null;
 }
 
 export function useMe() {
   return useQuery({
     queryKey: ["me"],
-    queryFn: () => apiGet<Me>("/me"),
+    queryFn: () => apiGet<Me>("/auth/me"),
     retry: false, // a 401 must surface immediately as "signed out", not retry
   });
 }
