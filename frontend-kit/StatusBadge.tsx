@@ -9,6 +9,7 @@ import type { CSSProperties } from "react";
  */
 export type Status =
   | "verified"
+  | "resolved" // machine-resolved / advisory — NEVER green
   | "verify" // [VERIFY] / needs attention
   | "retracted"
   | "resolving"
@@ -18,6 +19,9 @@ export type Status =
 
 const STYLES: Record<Status, { label: string; fg: string; bg: string }> = {
   verified: { label: "VERIFIED", fg: "#1f9d6b", bg: "#e5f4ee" },
+  // Resolved is advisory (a machine match / score), not human verification, so
+  // it is shown in neutral slate — never the earned green. See AI safety rule 11.
+  resolved: { label: "RESOLVED", fg: "#4b4bd6", bg: "#ecebfb" },
   verify: { label: "[VERIFY]", fg: "#c98a1a", bg: "#fbf1dc" },
   retracted: { label: "RETRACTED", fg: "#d64545", bg: "#fbe7e7" },
   resolving: { label: "RESOLVING", fg: "#4b4bd6", bg: "#ecebfb" },
@@ -38,7 +42,8 @@ export function toStatus(raw: string | null | undefined): Status {
     case "unverifiable":
       return "unverifiable";
     case "resolved":
-      return "verified";
+      // Resolved is advisory, NOT verified — it must not render in green.
+      return "resolved";
     case "retracted":
       return "retracted";
     default:
