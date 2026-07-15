@@ -163,6 +163,15 @@ class Settings(BaseSettings):
     PANDOC_ENABLED: bool = True
     PANDOC_BIN: str = "pandoc"
     PANDOC_TIMEOUT_SECONDS: float = 20.0
+    # Private writing polish (enterprise E7). Advisory grammar/style suggestions
+    # from a LanguageTool server. Point LANGUAGETOOL_URL at a self-hosted instance
+    # so manuscript text never leaves the deployment. Disabled by default (no URL
+    # configured); the API returns 503 until enabled. Never mutates the manuscript.
+    LANGUAGETOOL_ENABLED: bool = False
+    LANGUAGETOOL_URL: str = ""
+    LANGUAGETOOL_LANGUAGE: str = "en-US"
+    LANGUAGETOOL_API_KEY: str = ""
+    LANGUAGETOOL_USERNAME: str = ""
     # External deposit + ORCID (docs/LLD_MISSING_FEATURES.md MF3). Partner-gated:
     # an empty ZENODO_TOKEN fails closed (503, no network). Sandbox base default.
     ZENODO_TOKEN: str = ""

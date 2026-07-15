@@ -6,8 +6,9 @@ uses: exporting the *already-rendered* canonical manuscript to more formats
 document (it never touches the citation registry or canonical model).
 
 Safety posture:
-- pandoc runs with ``--sandbox`` so a malicious input cannot read arbitrary
-  files, and under a wall-clock timeout with a bounded output size.
+- pandoc runs with ``--sandbox`` for text outputs so a malicious input cannot
+  read arbitrary files (binary writers need pandoc's own data files, which
+  ``--sandbox`` forbids), always under a wall-clock timeout and output-size cap.
 - Formats are allow-listed; an unknown format is refused, not passed through.
 - Fail-closed: if pandoc is absent or errors, callers raise/return an explicit
   error — never a fabricated or partial document presented as complete.
@@ -132,7 +133,7 @@ async def convert(content: str | bytes, *, from_fmt: str, to_fmt: str) -> bytes:
             stdout, stderr = await asyncio.wait_for(
                 proc.communicate(input=stdin_data), timeout=timeout
             )
-        except asyncio.TimeoutError as exc:
+        except TimeoutError as exc:
             proc.kill()
             await proc.wait()
             raise PandocError(f"pandoc timed out after {timeout:.0f}s") from exc

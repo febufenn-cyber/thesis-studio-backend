@@ -61,6 +61,7 @@ from app.api import (
     submissions,
     supervision,
     support_console,
+    writing,
 )
 from app.commercial.guards import CommercialGuardMiddleware
 from app.commercial.observability import JourneyTracingMiddleware, release_identity
@@ -84,6 +85,7 @@ API_MODULES = (
     identity,
     copilot,
     bibliography,
+    writing,
     provenance,
     quote_verification,
     interchange,
