@@ -1,7 +1,9 @@
+import { useEffect, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
 import { useMe } from "./domain";
 import { FloatingGuide } from "../FloatingGuide";
+import { PresenceDots } from "../PresenceDots";
 import { ENV_BG, T, overline } from "../theme";
 
 /**
@@ -50,8 +52,10 @@ const PROJECT_NAV = [
 ];
 
 const GLOBAL_NAV = [
+  { to: "/supervise", label: "Supervision desk", icon: I.supervision },
   { to: "/identity", label: "Identity lookup", icon: I.identity },
-  { to: "/keys", label: "API keys", icon: I.keys },
+  { to: "/keys", label: "API keys & security", icon: I.keys },
+  { to: "/institution", label: "Institution", icon: I.deposit },
 ];
 
 /** Warm orb monogram — the same glow as the guide fox. */
@@ -79,6 +83,18 @@ const STARS = [
   [53, 5], [59, 14], [64, 27], [70, 7], [76, 18], [82, 4], [88, 12], [94, 21],
   [8, 34], [21, 30], [37, 33], [51, 36], [66, 31], [79, 35], [91, 29], [97, 38],
 ].map(([x, y], i) => `${x}vw ${y}vh 0 ${i % 3 === 0 ? "1px" : "0"} rgba(255,255,255,${0.25 + (i % 4) * 0.12})`).join(",");
+
+function ReleaseBadge() {
+  const [rel, setRel] = useState<string | null>(null);
+  useEffect(() => {
+    fetch("/meta/release", { credentials: "include" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => j && setRel(String(j.release ?? j.version ?? j.sha ?? "").slice(0, 12)))
+      .catch(() => undefined);
+  }, []);
+  if (!rel) return null;
+  return <div style={{ fontSize: 10, color: "rgba(255,255,255,0.32)", marginTop: 6, fontFamily: T.mono }}>build {rel}</div>;
+}
 
 export function AppShell({ children, title }: { children: ReactNode; title?: string }) {
   const { projectId } = useParams();
@@ -165,13 +181,17 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
 
         <div style={S.sidebarFoot} className="railfoot">
           <a href="/" style={S.legacyLink}>Classic workspace ↗</a>
+          <ReleaseBadge />
         </div>
       </aside>
 
       <div style={S.mainCol}>
         <header style={S.topbar}>
           <span style={S.crumb}>{title ?? ""}</span>
-          <span style={S.user}>{me.data?.email ?? ""}</span>
+          <span style={{ display: "inline-flex", alignItems: "center" }}>
+            {projectId && <PresenceDots projectId={projectId} />}
+            <span style={S.user}>{me.data?.email ?? ""}</span>
+          </span>
         </header>
         <main style={S.main}>{children}</main>
       </div>

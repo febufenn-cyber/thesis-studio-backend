@@ -33,6 +33,7 @@ class CurrentUserResponse(BaseModel):
     register_number: str | None
     institution_name: str
     institution_short_name: str
+    institution_id: str
 
 
 class OtpRequest(BaseModel):

@@ -5,6 +5,7 @@ import type { CSSProperties } from "react";
 import { ApiKeysPanel } from "./ApiKeysPanel";
 import { BibliographyPanel } from "./BibliographyPanel";
 import { DepositPanel } from "./DepositPanel";
+import { DomainReadiness } from "./DomainReadiness";
 import { ExportMenu } from "./ExportMenu";
 import { IdentityLookup } from "./IdentityLookup";
 import { ImportPanel } from "./ImportPanel";
@@ -22,7 +23,7 @@ import { WritingPanel } from "./WritingPanel";
  */
 type Tab =
   | "sources" | "import" | "bibliography" | "export" | "deposit"
-  | "writing" | "identity" | "supervision" | "keys" | "settings";
+  | "writing" | "identity" | "supervision" | "readiness" | "keys" | "settings";
 
 const TABS: { key: Tab; label: string }[] = [
   { key: "sources", label: "Sources" },
@@ -33,6 +34,7 @@ const TABS: { key: Tab; label: string }[] = [
   { key: "writing", label: "Writing" },
   { key: "identity", label: "Identity" },
   { key: "supervision", label: "Supervision" },
+  { key: "readiness", label: "Readiness" },
   { key: "keys", label: "API keys" },
   { key: "settings", label: "Settings" },
 ];
@@ -61,6 +63,7 @@ export function EnterprisePanel({ projectId }: { projectId: string }) {
         {tab === "writing" && <WritingPanel projectId={projectId} />}
         {tab === "identity" && <IdentityLookup />}
         {tab === "supervision" && <SupervisionPanel projectId={projectId} />}
+        {tab === "readiness" && <DomainReadiness projectId={projectId} />}
         {tab === "keys" && <ApiKeysPanel />}
         {tab === "settings" && <SettingsPanel projectId={projectId} />}
       </div>

@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { CSSProperties } from "react";
 import { AutoVerifyButton } from "./AutoVerifyButton";
 import { EmptyState, GLYPHS } from "./EmptyState";
+import { PasteVerify } from "./PasteVerify";
 import { SourceIntelligence } from "./SourceIntelligence";
 import { sourceLabel, useQuotes, useSources } from "./useEnterprise";
 
@@ -54,6 +55,7 @@ export function SourceIntelligencePanel({ projectId }: { projectId: string }) {
               <blockquote style={S.qText}>“{q.text}”</blockquote>
               {q.page_or_loc && <div style={S.qLoc}>{q.page_or_loc}</div>}
               <AutoVerifyButton projectId={projectId} quoteId={q.id} />
+              <PasteVerify projectId={projectId} quoteId={q.id} />
             </div>
           ))
         )}

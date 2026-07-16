@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 import { Link, useParams } from "react-router-dom";
-import { useMe, useProjects } from "./domain";
+import { useCollabProjects, useMe, useProjects } from "./domain";
 import { AppShell } from "./AppShell";
 import { ApiKeysPanel } from "../ApiKeysPanel";
 import { BibliographyPanel } from "../BibliographyPanel";
@@ -13,7 +13,10 @@ import { SourceIntelligencePanel } from "../SourceIntelligencePanel";
 import { SupervisionPanel } from "../SupervisionPanel";
 import { TrustPanel } from "../TrustPanel";
 import { WritingPanel } from "../WritingPanel";
+import { AccountSecurity } from "../AccountSecurity";
+import { DomainReadiness } from "../DomainReadiness";
 import { EmptyState, GLYPHS } from "../EmptyState";
+import { InstitutionConsole } from "../InstitutionConsole";
 import { T, display, overline } from "../theme";
 
 /** Signed-out gate: /auth/me 401 → point users at the main app to sign in. */
@@ -117,8 +120,13 @@ export const ProjectWriting = projectView(
 
 export const ProjectTrust = projectView(
   "Integrity",
-  "Provenance, quote verification, compliance and the integrity report.",
-  (p) => <TrustPanel projectId={p.projectId} />,
+  "Provenance, quote verification, domain readiness and the integrity report.",
+  (p) => (
+    <>
+      <DomainReadiness projectId={p.projectId} />
+      <TrustPanel projectId={p.projectId} />
+    </>
+  ),
 );
 
 export const ProjectSupervision = projectView(
@@ -144,11 +152,60 @@ export function IdentityView() {
 }
 
 export function ApiKeysView() {
+  const me = useMe();
   return (
-    <AppShell title="API keys">
-      <h1 style={h1}>API keys</h1>
-      <p style={muted}>Bearer keys for Word, Overleaf and other non-browser clients.</p>
+    <AppShell title="API keys & security">
+      <h1 style={h1}>API keys & security</h1>
+      <p style={muted}>Bearer keys for non-browser clients, your active sessions, and your data.</p>
       <ApiKeysPanel />
+      <div style={{ height: 18 }} />
+      <AccountSecurity email={me.data?.email} />
+    </AppShell>
+  );
+}
+
+export function SupervisorDeskView() {
+  const me = useMe();
+  const collab = useCollabProjects(!!me.data);
+  const supervised = (collab.data ?? []).filter((p) => (p.role ?? "student") !== "student");
+  return (
+    <AppShell title="Supervision desk">
+      <h1 style={h1}>Supervision desk</h1>
+      <p style={muted}>Manuscripts where you serve as advisor, examiner, chair or reader.</p>
+      {collab.isLoading && <p style={muted}>Loading…</p>}
+      {collab.isError && <p style={err}>Couldn't load assignments.</p>}
+      {collab.data && supervised.length === 0 && (
+        <EmptyState
+          glyph={GLYPHS.seal}
+          title="No manuscripts under your supervision"
+          hint="When a department or student adds you to a committee, the manuscript appears here with its review state."
+        />
+      )}
+      <div style={grid}>
+        {supervised.map((p) => (
+          <a key={p.id} href="/" className="mcard" style={card}>
+            <div style={cardOverline}>{(p.role ?? "").replace(/_/g, " ")}</div>
+            <div style={cardTitle}>{p.title}</div>
+            <div style={{ fontSize: 12, color: T.muted, marginBottom: 10 }}>
+              {(p.doc_type ?? "thesis").replace(/_/g, " ")} · {(p.workflow_state ?? "draft").replace(/_/g, " ")}
+            </div>
+            <div style={cardFoot}>Open in studio →</div>
+          </a>
+        ))}
+      </div>
+    </AppShell>
+  );
+}
+
+export function InstitutionView() {
+  const me = useMe();
+  return (
+    <AppShell title="Institution">
+      <h1 style={h1}>Institution console</h1>
+      <p style={muted}>Read-only visibility into analytics, operations, billing, reliability and entitlements.</p>
+      {me.data?.institution_id
+        ? <InstitutionConsole institutionId={me.data.institution_id} />
+        : <p style={muted}>Loading institution…</p>}
     </AppShell>
   );
 }

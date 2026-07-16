@@ -11,6 +11,17 @@ export interface Me {
   id: string;
   email: string;
   name?: string | null;
+  institution_id?: string;
+}
+
+export interface CollabProject {
+  id: string;
+  title: string;
+  role?: string | null;
+  mode?: string | null;
+  doc_type?: string | null;
+  workflow_state?: string | null;
+  updated_at?: string | null;
 }
 
 export interface ProjectSummary {
@@ -34,5 +45,14 @@ export function useProjects(enabled: boolean) {
     queryKey: ["projects"],
     queryFn: () => apiGet<ProjectSummary[]>("/projects"),
     enabled,
+  });
+}
+
+export function useCollabProjects(enabled: boolean) {
+  return useQuery({
+    queryKey: ["collab-projects"],
+    queryFn: () => apiGet<CollabProject[]>("/collaboration/projects"),
+    enabled,
+    retry: false,
   });
 }
