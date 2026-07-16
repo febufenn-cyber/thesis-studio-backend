@@ -128,6 +128,12 @@
     window.AcadensiaKit.mountEnterprise(el, { projectId: String(pid) });
     mountedProject = pid;
   }
+  // Robofox floating guide: on every screen, reads the open project live.
+  var guideHost = document.createElement('div');
+  document.body.appendChild(guideHost);
+  window.AcadensiaKit.mountGuide(guideHost, { getProjectId: function () {
+    return (App.state && App.state.project && App.state.project.id) ? String(App.state.project.id) : null;
+  }});
   // Chain onto the existing modeChanged hook rather than replace it.
   var prev = App.hooks && App.hooks.modeChanged;
   if (App.hooks) {

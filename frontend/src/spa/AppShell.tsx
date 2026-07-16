@@ -1,6 +1,7 @@
 import type { CSSProperties, ReactNode } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
 import { useMe } from "./domain";
+import { FloatingGuide } from "../FloatingGuide";
 
 /**
  * AppShell — familiar workspace layout: fixed left sidebar (project navigation,
@@ -79,6 +80,7 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
         </header>
         <main style={S.main}>{children}</main>
       </div>
+      <FloatingGuide getProjectId={() => projectId ?? null} />
     </div>
   );
 }

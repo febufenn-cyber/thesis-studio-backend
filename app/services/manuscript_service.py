@@ -346,51 +346,40 @@ async def ingest_revision(
                     }
                 )
 
-            # Inline run-in quotations (FRICTION_LOG F6). MLA prose quotes live
-            # inside paragraphs — "..." (Surname 123) — not only in indented
-            # blocks. When the paragraph's parenthetical citation resolved to a
-            # registry source, each substantial quoted span becomes an
-            # UNVERIFIED Quote so the verification workflow has real material.
-            # Conservative: 40-600 chars, resolved citation required.
-            inline_quote_re = re.compile(r"[\u201c\"](?P<t>[^\u201d\"]{40,600})[\u201d\"]")
-            for chapter_number, block in _iter_blocks(document):
-                if not isinstance(block, ParagraphBlock):
-                    continue
-                citation_result = citation_by_block.get(str(block.id))
-                if not citation_result or not citation_result.get("resolved_source_id"):
-                    continue
-                text = "".join(run.text for run in block.runs)
-                for match in inline_quote_re.finditer(text):
-                    span = match.group("t").strip()
-                    quote = Quote(
-                        source_id=UUID(citation_result["resolved_source_id"]),
-                        project_id=project.id,
-                        user_id=user_id,
-                        page_or_loc=citation_result.get("pages", ""),
-                        text=span,
-                        method="extracted",
-                        import_revision_id=revision.id,
-                        source_paragraph_index=block.source_paragraph_index,
-                        evidence_snapshot={
-                            "raw_citation": citation_result.get("raw", ""),
-                            "block_id": str(block.id),
-                            "revision_id": str(revision.id),
-                            "inline": True,
-                        },
-                        verified=False,
-                    )
-                    db.add(quote)
-                    await db.flush()
-                    quotation_results.append(
-                        {
-                            "block_id": str(block.id),
-                            "chapter": chapter_number,
-                            "citation": citation_result.get("raw", ""),
-                            "source_id": citation_result["resolved_source_id"],
-                            "quote_id": str(quote.id),
-                            "status": "linked_unverified",
-                        }
-                    )
+            # Inline run-in quotations (FRICTION_LOG F6; eval-governed in
+            # tests/quote_corpus.py). Linked only via unambiguous citations.
+            from app.verification.inline_quotes import extract_inline_quotes
+
+            for iq in extract_inline_quotes(document, citation_by_block):
+                quote = Quote(
+                    source_id=UUID(iq.source_id),
+                    project_id=project.id,
+                    user_id=user_id,
+                    page_or_loc=iq.pages,
+                    text=iq.text,
+                    method="extracted",
+                    import_revision_id=revision.id,
+                    source_paragraph_index=None,
+                    evidence_snapshot={
+                        "raw_citation": iq.raw_citation,
+                        "block_id": iq.block_id,
+                        "revision_id": str(revision.id),
+                        "inline": True,
+                    },
+                    verified=False,
+                )
+                db.add(quote)
+                await db.flush()
+                quotation_results.append(
+                    {
+                        "block_id": iq.block_id,
+                        "chapter": iq.chapter,
+                        "citation": iq.raw_citation,
+                        "source_id": iq.source_id,
+                        "quote_id": str(quote.id),
+                        "status": "linked_unverified",
+                    }
+                )
 
             report = _build_report(
                 revision,
