@@ -97,6 +97,13 @@ async def create_project(
         meta.citation_style = profile.default_citation_style
         meta.domain_profile = profile.key
         project.meta = meta.model_dump(mode="json")
+    # FRICTION_LOG F4: the submission-metadata title gates readiness but lived
+    # empty while the project title sat on screen — two invisible "titles".
+    # Default it from the project title; the student can refine it later.
+    meta_dict = dict(project.meta or {})
+    if not (meta_dict.get("title") or "").strip():
+        meta_dict["title"] = body.title.strip()
+        project.meta = meta_dict
     db.add(project)
     await db.commit()
     await db.refresh(project)

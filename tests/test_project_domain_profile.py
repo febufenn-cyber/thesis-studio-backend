@@ -40,7 +40,10 @@ async def test_project_without_domain_profile_keeps_default(client: AsyncClient,
     project_id = created.json()["id"]
     fetched = await client.get(f"/projects/{project_id}", cookies=auth_cookie(user_a))
     assert fetched.status_code == 200
-    assert fetched.json()["meta"] == {}
+    # No domain profile -> no citation-style/domain seeding, but the submission
+    # title is defaulted from the project title (FRICTION_LOG F4) so readiness
+    # isn't blocked by an invisibly-empty title field.
+    assert fetched.json()["meta"] == {"title": "Plain Project"}
 
 
 async def test_unknown_domain_profile_is_rejected(client: AsyncClient, user_a) -> None:

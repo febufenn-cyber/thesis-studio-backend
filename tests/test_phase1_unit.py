@@ -176,3 +176,43 @@ def test_review_export_downgrades_only_visible_markers() -> None:
     )
     assert mixed["pass"] is False
     assert structural in mixed["violations"]
+
+
+def test_heading_recovery_on_messy_student_formatting() -> None:
+    """FRICTION_LOG F2: real students format chapter headings chaotically.
+
+    The parser must recover a Word Heading 1, a spelled-out 'Chapter Two' in
+    bold, and a standalone ALL-CAPS 'INTRODUCTION'/'CONCLUSION' — and must NOT
+    promote a plain lowercase paragraph to a chapter.
+    """
+    from app.ingest.docx_extract import ExtractedPara, ExtractedRun
+    from app.ingest.structure import parse_manuscript
+
+    def para(idx, text, *, style="Normal", bold=False, caps=False, center=False):
+        return ExtractedPara(
+            index=idx,
+            runs=[ExtractedRun(text=text, bold=bold)],
+            style_name=style,
+            alignment="center" if center else "",
+            all_caps=caps,
+            mostly_bold=bold,
+        )
+
+    paras = [
+        para(0, "A Study of Voice", center=True),          # title page
+        para(1, "By Priya Ramesh", center=True),
+        para(2, "INTRODUCTION", style="Heading 1"),        # real H1
+        para(3, "The introduction discusses the argument at length here."),
+        para(4, "Chapter Two: Memory as Method", bold=True),  # bold, spelled-out
+        para(5, "This chapter turns to memory as a formal device in the novel."),
+        para(6, "CONCLUSION", caps=True),                  # standalone caps word
+        para(7, "In conclusion the argument is drawn together for the reader."),
+        para(8, "WORKS CITED", caps=True),
+        para(9, "Ishiguro, Kazuo. The Remains of the Day. Faber, 1989."),
+    ]
+    result = parse_manuscript(paras)
+    titles = [c.title for c in result.document.chapters]
+    assert titles == ["INTRODUCTION", "Memory as Method", "CONCLUSION"]
+    # The plain lowercase body paragraphs were NOT promoted to chapters.
+    assert all("introduction discusses" not in t for t in titles)
+    assert len(result.wc_raw_entries) == 1

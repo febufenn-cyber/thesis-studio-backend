@@ -148,6 +148,43 @@ async def _sweep_orphaned_compiles() -> None:
             )
 
 
+async def _ensure_default_institution() -> None:
+    """First-run bootstrap (FRICTION_LOG F1): signup requires an institution
+    matching DEFAULT_INSTITUTION_SHORT_NAME; a fresh deployment has none, so
+    the very first user's signup used to fail. Idempotent."""
+    from app.db.session import AsyncSessionLocal
+    from app.models.institution import Institution
+
+    settings = get_settings()
+    short = settings.DEFAULT_INSTITUTION_SHORT_NAME.strip()
+    if not short:
+        return
+    async with AsyncSessionLocal() as db:
+        existing = (
+            await db.execute(
+                select(Institution).where(Institution.short_name == short)
+            )
+        ).scalar_one_or_none()
+        if existing is not None:
+            return
+        db.add(
+            Institution(
+                name=short,
+                short_name=short,
+                email_domains="",
+                address="",
+                short_address="",
+                university_name=short,
+                default_department="",
+                department_aided=False,
+            )
+        )
+        await db.commit()
+        logging.getLogger(__name__).warning(
+            "Bootstrapped default institution %r (edit its details in admin)", short
+        )
+
+
 async def _register_release() -> None:
     from app.db.session import AsyncSessionLocal
     from app.models.commercial import ReleaseRecord
@@ -208,6 +245,10 @@ async def lifespan(app: FastAPI):
             log.warning("Startup recovery released %d expired job lease(s)", recovered)
     except Exception:
         log.exception("Startup recovery of expired jobs failed (continuing)")
+    try:
+        await _ensure_default_institution()
+    except Exception:
+        log.exception("Default-institution bootstrap failed (continuing)")
     try:
         await _register_release()
     except Exception:
