@@ -78,7 +78,8 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
     location.pathname.endsWith(`/${path}`) || location.pathname === path;
 
   const navItem = (to: string, label: string, icon: string, active: boolean) => (
-    <Link key={to} to={to} style={{ ...S.navItem, ...(active ? S.navActive : {}) }}>
+    <Link key={to} to={to} className={active ? "nav-x on" : "nav-x"}
+      style={{ ...S.navItem, ...(active ? S.navActive : {}) }}>
       <span style={{ ...S.navRule, background: active ? T.gilt : "transparent" }} />
       <Icon d={icon} />
       {label}
@@ -91,6 +92,17 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
         @import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=Source+Sans+3:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
         ::selection { background: ${T.giltWash}; }
         a:focus-visible, button:focus-visible { outline: 2px solid ${T.laurel}; outline-offset: 2px; }
+        a, button { transition: background-color .14s ease, border-color .14s ease, color .14s ease, box-shadow .14s ease; }
+        button:active { transform: translateY(1px); }
+        .nav-x { transition: background-color .12s ease, color .12s ease; }
+        .nav-x:not(.on):hover { background: rgba(255,255,255,.75); color: ${T.ink}; }
+        .mcard { transition: border-color .14s ease, box-shadow .14s ease, transform .14s ease; }
+        .mcard:hover { border-color: ${T.laurel}; box-shadow: 0 2px 4px rgba(28,25,23,.08), 0 14px 34px rgba(28,25,23,.12); transform: translateY(-1px); }
+        @media (prefers-reduced-motion: reduce) {
+          a, button, .nav-x, .mcard { transition: none !important; }
+          .mcard:hover { transform: none; }
+          button:active { transform: none; }
+        }
       `}</style>
       <aside style={S.sidebar}>
         <Link to="/" style={S.brand}>

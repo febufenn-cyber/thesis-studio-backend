@@ -13,6 +13,7 @@ import { SourceIntelligencePanel } from "../SourceIntelligencePanel";
 import { SupervisionPanel } from "../SupervisionPanel";
 import { TrustPanel } from "../TrustPanel";
 import { WritingPanel } from "../WritingPanel";
+import { EmptyState, GLYPHS } from "../EmptyState";
 import { T, display, overline } from "../theme";
 
 /** Signed-out gate: /auth/me 401 → point users at the main app to sign in. */
@@ -38,15 +39,28 @@ export function HomeView() {
       <p style={muted}>Pick a project to open its library, integrity checks and tools.</p>
       {projects.isLoading && <p style={muted}>Loading projects…</p>}
       {projects.isError && <p style={err}>Couldn’t load projects.</p>}
-      {projects.data?.length === 0 && <p style={muted}>No projects yet — create one in the classic workspace.</p>}
+      {projects.data?.length === 0 && (
+        <EmptyState
+          glyph={GLYPHS.shelf}
+          title="Your shelf is waiting"
+          hint="Every manuscript starts in the studio — create a project there and it appears here with its library, integrity checks and tools."
+          action={<a href="/" style={link}>Start a manuscript in the studio →</a>}
+        />
+      )}
       <div style={grid}>
         {projects.data?.map((p) => (
-          <Link key={p.id} to={`/projects/${p.id}/library`} style={card}>
+          <Link key={p.id} to={`/projects/${p.id}/library`} className="mcard" style={card}>
             {p.doc_type && <div style={cardOverline}>{p.doc_type.replace(/_/g, " ")}</div>}
             <div style={cardTitle}>{p.title}</div>
             <div style={cardFoot}>Open manuscript →</div>
           </Link>
         ))}
+        {!!projects.data?.length && (
+          <a href="/" style={newCard}>
+            <span style={{ fontSize: 20, lineHeight: 1, color: T.laurel }}>+</span>
+            <span>Start a new manuscript</span>
+          </a>
+        )}
       </div>
     </AppShell>
   );
@@ -153,3 +167,9 @@ const cardOverline: CSSProperties = { ...overline, marginBottom: 7 };
 const cardTitle: CSSProperties = { fontFamily: T.serif, fontSize: 16.5, fontWeight: 600, lineHeight: 1.35, marginBottom: 12 };
 const cardFoot: CSSProperties = { fontSize: 12, fontWeight: 700, color: T.laurel };
 const link: CSSProperties = { color: T.laurel, fontWeight: 600, textDecoration: "none" };
+const newCard: CSSProperties = {
+  display: "grid", placeItems: "center", alignContent: "center", gap: 6,
+  minHeight: 118, border: `1.5px dashed #C9BFAF`, borderRadius: T.radiusLg,
+  color: T.muted, fontSize: 13, fontWeight: 600, textDecoration: "none",
+  background: "transparent",
+};

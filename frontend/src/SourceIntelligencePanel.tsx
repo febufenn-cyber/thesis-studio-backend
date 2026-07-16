@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { CSSProperties } from "react";
 import { AutoVerifyButton } from "./AutoVerifyButton";
+import { EmptyState, GLYPHS } from "./EmptyState";
 import { SourceIntelligence } from "./SourceIntelligence";
 import { sourceLabel, useQuotes, useSources } from "./useEnterprise";
 
@@ -21,7 +22,13 @@ export function SourceIntelligencePanel({ projectId }: { projectId: string }) {
   if (sources.loading) return <p style={S.muted}>Loading sources…</p>;
   if (sources.error) return <p style={S.err}>{sources.error}</p>;
   if (!sources.data || sources.data.length === 0)
-    return <p style={S.muted}>No sources in the registry yet.</p>;
+    return (
+      <EmptyState
+        glyph={GLYPHS.shelf}
+        title="The registry is empty"
+        hint="Add sources in the Sources tab, or bring a library in at once — BibTeX, RIS, CSL-JSON and Zotero all import cleanly."
+      />
+    );
 
   const current = sourceId ?? sources.data[0].id;
   const sourceQuotes = (quotes.data ?? []).filter((q) => q.source_id === current);

@@ -15,6 +15,7 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import CurrentUser, fetch_owned_project
+from app.canonical.model import ChapterDoc
 from app.db.deps import get_db
 from app.guide.playbooks import get_playbook, list_playbooks
 
@@ -54,10 +55,18 @@ async def scaffold_project(
             {
                 "type": "paragraph",
                 "runs": [{"text": f"[TO WRITE] {prompt}"}],
+                "origin": "human",
             }
             for prompt in prompts
         ]
-        chapters.append({"number": number, "title": title, "blocks": blocks})
+        # Round-trip through the canonical model so chapter and block ids are
+        # minted ONCE and persisted. Storing id-less dicts means every later
+        # validation invents fresh UUIDs — the id the structure tree shows
+        # would never match the next request (chapter opens 404).
+        chapter_doc = ChapterDoc.model_validate(
+            {"number": number, "title": title, "blocks": blocks}
+        )
+        chapters.append(chapter_doc.model_dump(mode="json"))
     project.chapters = chapters
     meta = dict(project.meta or {})
     meta["guide_playbook"] = playbook.key
