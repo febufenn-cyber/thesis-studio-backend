@@ -13,6 +13,7 @@ import { SourceIntelligencePanel } from "../SourceIntelligencePanel";
 import { SupervisionPanel } from "../SupervisionPanel";
 import { TrustPanel } from "../TrustPanel";
 import { WritingPanel } from "../WritingPanel";
+import { T, display, overline } from "../theme";
 
 /** Signed-out gate: /auth/me 401 → point users at the main app to sign in. */
 export function AuthGate({ children }: { children: React.ReactNode }) {
@@ -41,8 +42,9 @@ export function HomeView() {
       <div style={grid}>
         {projects.data?.map((p) => (
           <Link key={p.id} to={`/projects/${p.id}/library`} style={card}>
-            <div style={{ fontWeight: 700, fontSize: 15, lineHeight: 1.35 }}>{p.title}</div>
-            {p.doc_type && <div style={muted}>{p.doc_type.replace(/_/g, " ")}</div>}
+            {p.doc_type && <div style={cardOverline}>{p.doc_type.replace(/_/g, " ")}</div>}
+            <div style={cardTitle}>{p.title}</div>
+            <div style={cardFoot}>Open manuscript →</div>
           </Link>
         ))}
       </div>
@@ -141,10 +143,13 @@ function Centered({ children }: { children: React.ReactNode }) {
   return <div style={center}>{children}</div>;
 }
 
-const center: CSSProperties = { minHeight: "60vh", display: "grid", placeItems: "center", textAlign: "center", fontFamily: "Inter, system-ui, sans-serif", color: "#1b2733" };
-const h1: CSSProperties = { fontSize: 21, fontWeight: 700, margin: "0 0 6px" };
-const muted: CSSProperties = { color: "#6b7688", fontSize: 13, margin: "0 0 18px", lineHeight: 1.5 };
-const err: CSSProperties = { color: "#d64545", fontSize: 13 };
-const grid: CSSProperties = { display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(240px,1fr))", gap: 12 };
-const card: CSSProperties = { border: "1px solid #e7e3db", borderRadius: 12, padding: "15px 16px", background: "#fff", textDecoration: "none", color: "#1b2733" };
-const link: CSSProperties = { color: "#4b4bd6", fontWeight: 600, textDecoration: "none" };
+const center: CSSProperties = { minHeight: "60vh", display: "grid", placeItems: "center", textAlign: "center", fontFamily: "'Source Sans 3', 'Inter', system-ui, sans-serif", color: "#1C1917" };
+const h1: CSSProperties = { ...display(26), margin: "0 0 6px" };
+const muted: CSSProperties = { color: T.muted, fontSize: 13.5, margin: "0 0 20px", lineHeight: 1.55 };
+const err: CSSProperties = { color: T.bad, fontSize: 13 };
+const grid: CSSProperties = { display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(250px,1fr))", gap: 14 };
+const card: CSSProperties = { border: `1px solid ${T.line}`, borderTop: `3px solid ${T.laurel}`, borderRadius: T.radiusLg, padding: "16px 17px 13px", background: T.card, textDecoration: "none", color: T.ink, boxShadow: T.shadow };
+const cardOverline: CSSProperties = { ...overline, marginBottom: 7 };
+const cardTitle: CSSProperties = { fontFamily: T.serif, fontSize: 16.5, fontWeight: 600, lineHeight: 1.35, marginBottom: 12 };
+const cardFoot: CSSProperties = { fontSize: 12, fontWeight: 700, color: T.laurel };
+const link: CSSProperties = { color: T.laurel, fontWeight: 600, textDecoration: "none" };

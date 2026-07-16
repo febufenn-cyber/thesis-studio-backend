@@ -116,15 +116,15 @@ function ConsentCard() {
 }
 
 const S: Record<string, CSSProperties> = {
-  wrap: { fontFamily: "Inter, system-ui, sans-serif", color: "#1b2733" },
-  card: { border: "1px solid #e7e3db", borderRadius: 11, padding: "13px 14px", marginBottom: 10, background: "#fff" },
+  wrap: { fontFamily: "'Source Sans 3', 'Inter', system-ui, sans-serif", color: "#1C1917" },
+  card: { border: "1px solid #DCD3C5", borderRadius: 11, padding: "13px 14px", marginBottom: 10, background: "#fff" },
   h: { fontSize: 13.5, fontWeight: 700, marginBottom: 4 },
-  muted: { color: "#6b7688", fontSize: 12.5, margin: "4px 0 10px", lineHeight: 1.5 },
+  muted: { color: "#6E655A", fontSize: 12.5, margin: "4px 0 10px", lineHeight: 1.5 },
   row: { display: "flex", gap: 8 },
-  select: { flex: 1, fontFamily: "inherit", fontSize: 12.5, border: "1px solid #e7e3db", background: "#fff", borderRadius: 7, padding: "8px" },
-  btn: { padding: "8px 14px", borderRadius: 8, border: "1px solid #4b4bd6", background: "#4b4bd6", color: "#fff", fontWeight: 600, fontSize: 12.5, cursor: "pointer" },
-  consentRow: { display: "flex", alignItems: "flex-start", gap: 9, padding: "8px 0", borderTop: "1px solid #f0ede6", cursor: "pointer" },
-  what: { fontSize: 12, color: "#6b7688" },
-  hint: { fontSize: 11.5, color: "#6b7688", marginTop: 8 },
-  err: { color: "#d64545", fontSize: 12.5, marginTop: 6 },
+  select: { flex: 1, fontFamily: "inherit", fontSize: 12.5, border: "1px solid #DCD3C5", background: "#fff", borderRadius: 7, padding: "8px" },
+  btn: { padding: "8px 14px", borderRadius: 8, border: "1px solid #1F4D3A", background: "#1F4D3A", color: "#fff", fontWeight: 600, fontSize: 12.5, cursor: "pointer" },
+  consentRow: { display: "flex", alignItems: "flex-start", gap: 9, padding: "8px 0", borderTop: "1px solid #EFE9DD", cursor: "pointer" },
+  what: { fontSize: 12, color: "#6E655A" },
+  hint: { fontSize: 11.5, color: "#6E655A", marginTop: 8 },
+  err: { color: "#B3362C", fontSize: 12.5, marginTop: 6 },
 };

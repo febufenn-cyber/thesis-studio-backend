@@ -1,0 +1,171 @@
+/* Acadensia — "the scholar's desk" theme for the classic workspace.
+   Loaded AFTER phase2/3/4.css: retunes the variable-driven dark techy theme
+   into the academic light language shared with the SPA and islands.
+   Warm paper, ink, laurel + gilt; serif display; hairline book-rules. */
+
+@import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=Source+Sans+3:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+:root {
+  --bg: #FAF7F1;
+  --surface: #FFFFFF;
+  --surface-2: #F4EFE6;
+  --line: #DCD3C5;
+  --text: #1C1917;
+  --muted: #6E655A;
+  --accent: #1F4D3A;
+  --accent-strong: #14352A;
+  --good: #1F7A4D;
+  --warn: #9A6A00;
+  --bad: #B3362C;
+  --info: #31596B;
+  --shadow: 0 1px 2px rgba(28,25,23,.06), 0 10px 30px rgba(28,25,23,.08);
+  /* Names phase3/4 reference with dark/purple fallbacks — pin them here. */
+  --warning: #9A6A00;
+  --success: #1F7A4D;
+  --accent-soft: #E8EFE9;
+  font-family: 'Source Sans 3', 'Inter', ui-sans-serif, system-ui, sans-serif;
+  color-scheme: light;
+}
+
+/* Type: serif display for titles and the brand; journal overlines. */
+h1, h2, .brand, #studioTitle {
+  font-family: 'Source Serif 4', 'Iowan Old Style', Georgia, serif;
+  letter-spacing: -0.01em;
+}
+h3 { font-family: 'Source Sans 3', sans-serif; }
+.eyebrow {
+  color: var(--accent);
+  letter-spacing: .14em;
+  font-weight: 700;
+}
+code, pre, .mono, kbd { font-family: 'IBM Plex Mono', ui-monospace, monospace; }
+
+/* App bar: paper sheet with a hairline, not a dark slab. */
+.appbar {
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+.appbar .brand { color: var(--text); }
+.appbar .brand strong { color: var(--accent); }
+
+/* Panels & cards: sheets with book-rules and restrained radius. */
+.panel, .project-card, .modal-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+}
+.project-card { border-top: 3px solid var(--accent); }
+.project-card h2 { font-family: 'Source Serif 4', Georgia, serif; }
+
+/* Buttons: laurel primary, quiet ghosts. */
+.button {
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text);
+  font-weight: 600;
+}
+.button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #FDFCF9;
+}
+.button.primary:hover { background: var(--accent-strong); }
+.button.ghost { background: transparent; }
+.button.danger, .button.danger.ghost { color: var(--bad); border-color: color-mix(in srgb, var(--bad) 40%, var(--line)); }
+
+/* Mode tabs: underline rail like a journal's running heads. */
+.mode-tabs { border-bottom: 1px solid var(--line); }
+.mode-tabs button {
+  color: var(--muted);
+  font-weight: 600;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+}
+.mode-tabs button.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+  background: transparent;
+}
+.mode-tabs .count { background: var(--surface-2); color: var(--muted); }
+
+/* Sidebars: recessed wash panels. */
+.sidebar, .structure-sidebar, .context-sidebar {
+  background: var(--surface-2);
+  border-color: var(--line);
+}
+
+/* Chips & badges: quiet, label-first. */
+.chip {
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  color: var(--muted);
+  font-weight: 600;
+}
+.chip.good { background: #E4F1E9; color: var(--good); border-color: #cfe4d8; }
+
+/* Notices */
+.notice { border-radius: 8px; border: 1px solid var(--line); background: var(--surface-2); }
+.notice.ok { border-color: #cfe4d8; background: #E4F1E9; color: var(--good); }
+.notice.error { border-color: #ecc9c4; background: #F8E7E4; color: var(--bad); }
+
+/* Inputs */
+input, select, textarea {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--text);
+}
+input:focus-visible, select:focus-visible, textarea:focus-visible, .button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* Auth view: keep the manifesto headline serif and inky. */
+.auth-view h1 { font-family: 'Source Serif 4', Georgia, serif; color: var(--text); }
+.auth-copy p { color: var(--muted); }
+
+/* ------------------------------------------------------------------ */
+/* Hard-coded darks in phase2.css that the variables don't reach.     */
+/* ------------------------------------------------------------------ */
+
+/* The writing canvas: a warm desk surface under white "sheet" blocks —
+   the manuscript-on-a-desk metaphor, not a void. */
+.content-pane { background: #EFE9DD; }
+.empty-state { border: 1px dashed #C9BFAF; color: var(--muted); background: transparent; }
+
+/* Block cards read as paper sheets on the desk. */
+.block-card { background: var(--surface); border-color: var(--line); }
+.block-card:hover { border-color: #B8AD9C; }
+.block-card.selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(31, 77, 58, .14);
+}
+.block-text.marker { color: #7A5500; background: #F8EFD8; }
+.block-text.quote { border-left-color: #C9BFAF; }
+
+/* Structure tree on the wash sidebar: white hover, laurel-wash active. */
+.tree-item { color: var(--text); }
+.tree-item:hover { background: rgba(255, 255, 255, .75); }
+.tree-item.active { background: var(--accent-soft); color: var(--accent); }
+.tree-item .status-dot { background: #C9BFAF; }
+
+/* Hover borders (were blue-gray). */
+.button:hover, .icon-button:hover { border-color: #B8AD9C; }
+.project-card:hover { border-color: var(--accent); }
+
+/* Comparison panes, score tracks, popovers, modals. */
+.compare-side { background: var(--surface-2); }
+.score-track { background: #E7DFD2; }
+.popover { background: var(--surface); border-color: var(--line); }
+.popover button:hover { background: var(--surface-2); }
+.modal { background: rgba(28, 25, 23, .45); }
+
+/* phase4 leftovers: privacy banner + unread tint on the light ground. */
+.privacy-banner { background: #F6EFDD; border-color: #D9C08A; }
+.notification-card.unread { background: var(--accent-soft); }
+.workflow-step.current { background: var(--accent-soft); }
+
+/* Readiness + review accents inherit the retuned status variables. */
+::selection { background: #F6EFDD; }

@@ -91,9 +91,9 @@ export function SourceIntelligence({
 
 function VerdictChip({ verdict }: { verdict?: string }) {
   const map: Record<string, { label: string; fg: string; bg: string }> = {
-    reputable: { label: "REPUTABLE", fg: "#1f9d6b", bg: "#e5f4ee" },
-    caution: { label: "CAUTION", fg: "#c98a1a", bg: "#fbf1dc" },
-    unknown: { label: "UNKNOWN", fg: "#6b7688", bg: "#eef0f3" },
+    reputable: { label: "REPUTABLE", fg: "#1F7A4D", bg: "#E4F1E9" },
+    caution: { label: "CAUTION", fg: "#9A6A00", bg: "#F7EEDA" },
+    unknown: { label: "UNKNOWN", fg: "#6E655A", bg: "#EFE9DD" },
   };
   const s = map[verdict ?? "unknown"] ?? map.unknown;
   return (
@@ -120,18 +120,18 @@ function RelatedList({ title, items }: { title: string; items: string[] }) {
 }
 
 const S: Record<string, CSSProperties> = {
-  wrap: { fontFamily: "Inter, system-ui, sans-serif", color: "#1b2733" },
-  advisory: { fontSize: 11, color: "#6b7688", background: "#f5f3ee", border: "1px solid #e7e3db", borderRadius: 8, padding: "6px 9px", marginBottom: 12 },
-  card: { border: "1px solid #e7e3db", borderRadius: 11, padding: "12px 13px", marginBottom: 10 },
+  wrap: { fontFamily: "'Source Sans 3', 'Inter', system-ui, sans-serif", color: "#1C1917" },
+  advisory: { fontSize: 11, color: "#6E655A", background: "#F4EFE6", border: "1px solid #DCD3C5", borderRadius: 8, padding: "6px 9px", marginBottom: 12 },
+  card: { border: "1px solid #DCD3C5", borderRadius: 11, padding: "12px 13px", marginBottom: 10 },
   head: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 },
   title: { fontSize: 13, fontWeight: 700 },
-  src: { fontSize: 10.5, color: "#6b7688", fontWeight: 600 },
+  src: { fontSize: 10.5, color: "#6E655A", fontWeight: 600 },
   chip: { padding: "3px 9px", borderRadius: 999, fontSize: 11, fontWeight: 700 },
   signals: { listStyle: "none", margin: "4px 0", padding: 0, display: "flex", flexWrap: "wrap", gap: "4px 14px", fontSize: 12.5 },
-  muted: { color: "#6b7688", fontSize: 12.5, margin: "4px 0" },
-  err: { color: "#d64545", fontSize: 12.5 },
-  retract: { color: "#d64545", background: "#fbe7e7", borderRadius: 8, padding: "7px 9px", fontSize: 12, fontWeight: 600, margin: "2px 0 8px" },
+  muted: { color: "#6E655A", fontSize: 12.5, margin: "4px 0" },
+  err: { color: "#B3362C", fontSize: 12.5 },
+  retract: { color: "#B3362C", background: "#F8E7E4", borderRadius: 8, padding: "7px 9px", fontSize: 12, fontWeight: 600, margin: "2px 0 8px" },
   tldr: { fontSize: 13, lineHeight: 1.55, margin: "2px 0 6px" },
-  relTitle: { fontSize: 11, fontWeight: 700, color: "#6b7688", textTransform: "uppercase", letterSpacing: 0.4 },
+  relTitle: { fontSize: 11, fontWeight: 700, color: "#6E655A", textTransform: "uppercase", letterSpacing: 0.4 },
   rel: { margin: "5px 0 0", paddingLeft: 18, fontSize: 12.5, lineHeight: 1.5 },
 };

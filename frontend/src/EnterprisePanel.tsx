@@ -69,9 +69,14 @@ export function EnterprisePanel({ projectId }: { projectId: string }) {
 }
 
 const S: Record<string, CSSProperties> = {
-  panel: { width: 396, borderLeft: "1px solid #e7e3db", background: "#fff", height: "100%", overflowY: "auto", fontFamily: "Inter, system-ui, sans-serif" },
-  tabs: { display: "flex", flexWrap: "wrap", gap: 2, padding: "10px 12px 0", borderBottom: "1px solid #e7e3db", position: "sticky", top: 0, background: "#fff", zIndex: 5 },
-  tab: { padding: "8px 9px", border: 0, background: "transparent", borderBottom: "2px solid transparent", fontWeight: 600, fontSize: 12, color: "#6b7688", cursor: "pointer" },
-  tabActive: { color: "#4b4bd6", borderBottomColor: "#4b4bd6" },
-  body: { padding: "16px 15px" },
+  panel: {
+    width: "100%", maxWidth: 860, margin: "0 auto",
+    border: "1px solid #DCD3C5", borderRadius: 10, background: "#fff",
+    boxShadow: "0 1px 2px rgba(28,25,23,.06), 0 10px 30px rgba(28,25,23,.08)",
+    overflow: "hidden", fontFamily: "'Source Sans 3', 'Inter', system-ui, sans-serif",
+  },
+  tabs: { display: "flex", flexWrap: "wrap", gap: 2, padding: "10px 14px 0", borderBottom: "1px solid #DCD3C5", position: "sticky", top: 0, background: "#fff", zIndex: 5 },
+  tab: { padding: "8px 10px", border: 0, background: "transparent", borderBottom: "2px solid transparent", fontWeight: 600, fontSize: 12.5, color: "#6E655A", cursor: "pointer" },
+  tabActive: { color: "#1F4D3A", borderBottomColor: "#1F4D3A" },
+  body: { padding: "18px 20px 20px" },
 };
