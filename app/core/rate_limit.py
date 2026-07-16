@@ -37,10 +37,19 @@ def _client_key(request) -> str:
     return get_remote_address(request)
 
 
+# headers_enabled MUST stay False. When True, slowapi injects X-RateLimit-*
+# headers and therefore requires every decorated endpoint to expose a
+# ``response: Response`` parameter (or return a Starlette Response). Our
+# endpoints return Pydantic models / dicts, so with header injection on, EVERY
+# rate-limited route raises 500 the moment RATE_LIMIT_ENABLED is true — which is
+# the production default. The test suite disables rate limiting, so this was
+# invisible until a real signup hit it. Enforcement (429s) works fine without
+# the informational headers; re-enabling them means adding a Response param to
+# every limited endpoint. See test_rate_limit_live.
 limiter = Limiter(
     key_func=_client_key,
     enabled=get_settings().RATE_LIMIT_ENABLED,
-    headers_enabled=True,
+    headers_enabled=False,
 )
 
 

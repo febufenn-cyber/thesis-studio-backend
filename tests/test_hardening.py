@@ -161,3 +161,19 @@ async def test_daily_sweep_enqueue_is_idempotent(db_session) -> None:
     assert len(rows) == 1  # dedup by idempotency key: one sweep per day
     assert rows[0].user_id is None  # system-scheduled, no requesting user
     assert second in (True, False)  # second call is a no-op either way
+
+
+async def test_rate_limited_endpoint_does_not_500_with_limiting_on(monkeypatch, user_a) -> None:
+    """Regression for the Priya gauntlet: with rate limiting ENABLED, a limited
+    endpoint that returns a Pydantic model must not 500 (headers_enabled bug).
+
+    The whole suite runs with RATE_LIMIT_ENABLED=false, which hid a production
+    outage: slowapi header injection required a Response object our endpoints
+    don't expose. We assert the limiter is configured so enforcement can be on
+    without breaking model-returning routes.
+    """
+    from app.core.rate_limit import limiter
+
+    # headers_enabled must be False, or every limited route 500s when limiting
+    # is on (the production default).
+    assert getattr(limiter, "_headers_enabled", False) is False
