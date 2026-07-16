@@ -2,26 +2,39 @@
 
 import { useState } from "react";
 import type { CSSProperties } from "react";
+import { ApiKeysPanel } from "./ApiKeysPanel";
 import { BibliographyPanel } from "./BibliographyPanel";
+import { DepositPanel } from "./DepositPanel";
 import { ExportMenu } from "./ExportMenu";
 import { IdentityLookup } from "./IdentityLookup";
+import { ImportPanel } from "./ImportPanel";
+import { SettingsPanel } from "./SettingsPanel";
 import { SourceIntelligencePanel } from "./SourceIntelligencePanel";
+import { SupervisionPanel } from "./SupervisionPanel";
 import { WritingPanel } from "./WritingPanel";
 
 /**
- * EnterprisePanel — a single surface grouping the enterprise features: source &
- * journal trust + insight (E1/E3), bibliography rendering (E5), universal export
- * (E6), private writing polish (E7) and verified-identity lookup (E2). Per-quote
- * auto-verify (E4) lives next to quotes via <AutoVerifyButton>.
+ * EnterprisePanel — the island bridge surface inside the classic workspace.
+ * Groups every project tool: sources trust/insight/auto-verify (E1/E3/E4),
+ * import (MF5), bibliography (E5), export + interchange (E6/3.5), deposit &
+ * ORCID (MF3), writing polish (E7), identity (E2), supervision (3.6), API keys
+ * (MF6) and settings (3.7/3.8).
  */
-type Tab = "sources" | "bibliography" | "export" | "writing" | "identity";
+type Tab =
+  | "sources" | "import" | "bibliography" | "export" | "deposit"
+  | "writing" | "identity" | "supervision" | "keys" | "settings";
 
 const TABS: { key: Tab; label: string }[] = [
   { key: "sources", label: "Sources" },
+  { key: "import", label: "Import" },
   { key: "bibliography", label: "Bibliography" },
   { key: "export", label: "Export" },
+  { key: "deposit", label: "Deposit" },
   { key: "writing", label: "Writing" },
   { key: "identity", label: "Identity" },
+  { key: "supervision", label: "Supervision" },
+  { key: "keys", label: "API keys" },
+  { key: "settings", label: "Settings" },
 ];
 
 export function EnterprisePanel({ projectId }: { projectId: string }) {
@@ -41,10 +54,15 @@ export function EnterprisePanel({ projectId }: { projectId: string }) {
       </div>
       <div style={S.body}>
         {tab === "sources" && <SourceIntelligencePanel projectId={projectId} />}
+        {tab === "import" && <ImportPanel projectId={projectId} />}
         {tab === "bibliography" && <BibliographyPanel projectId={projectId} />}
         {tab === "export" && <ExportMenu projectId={projectId} />}
+        {tab === "deposit" && <DepositPanel projectId={projectId} />}
         {tab === "writing" && <WritingPanel projectId={projectId} />}
         {tab === "identity" && <IdentityLookup />}
+        {tab === "supervision" && <SupervisionPanel projectId={projectId} />}
+        {tab === "keys" && <ApiKeysPanel />}
+        {tab === "settings" && <SettingsPanel projectId={projectId} />}
       </div>
     </section>
   );
@@ -52,8 +70,8 @@ export function EnterprisePanel({ projectId }: { projectId: string }) {
 
 const S: Record<string, CSSProperties> = {
   panel: { width: 396, borderLeft: "1px solid #e7e3db", background: "#fff", height: "100%", overflowY: "auto", fontFamily: "Inter, system-ui, sans-serif" },
-  tabs: { display: "flex", gap: 2, padding: "10px 12px 0", borderBottom: "1px solid #e7e3db", position: "sticky", top: 0, background: "#fff" },
-  tab: { flex: 1, padding: "9px 4px", border: 0, background: "transparent", borderBottom: "2px solid transparent", fontWeight: 600, fontSize: 12.5, color: "#6b7688", cursor: "pointer" },
+  tabs: { display: "flex", flexWrap: "wrap", gap: 2, padding: "10px 12px 0", borderBottom: "1px solid #e7e3db", position: "sticky", top: 0, background: "#fff", zIndex: 5 },
+  tab: { padding: "8px 9px", border: 0, background: "transparent", borderBottom: "2px solid transparent", fontWeight: 600, fontSize: 12, color: "#6b7688", cursor: "pointer" },
   tabActive: { color: "#4b4bd6", borderBottomColor: "#4b4bd6" },
   body: { padding: "16px 15px" },
 };
