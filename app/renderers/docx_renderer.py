@@ -370,8 +370,10 @@ def render_docx(
             used_sources.append(src)
 
     wc_entries: list[list[Run]] = []
+    style_used = None
     if used_sources:
         style = get_citation_style(doc_model.meta.citation_style)
+        style_used = style
         if strict:
             try:
                 wc_entries = style.sorted_entries(used_sources)
@@ -471,6 +473,17 @@ def render_docx(
     if wc_entries:
         _page_break(doc)
         heading = profile.works_cited.heading
+        # "Works Cited" is MLA vocabulary. When the manuscript declares a
+        # different citation mechanism (IEEE numbered, APA/Chicago author-date,
+        # Vancouver…) and the profile still carries the MLA default, use the
+        # style-appropriate heading. An explicit non-default profile heading
+        # (institutional law) always wins.
+        if (
+            style_used is not None
+            and style_used.mechanism != "author_page"
+            and heading.strip().lower() == "works cited"
+        ):
+            heading = "References"
         _p(doc, "TS-FrontCenter", heading, bold=profile.works_cited.heading_bold)
         _p(doc, "TS-FrontCenter")
         for entry_runs in wc_entries:

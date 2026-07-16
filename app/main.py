@@ -282,8 +282,25 @@ def _serve_frontend(path: Path, label: str) -> Response:
     return FileResponse(path)
 
 
+def _init_sentry(settings) -> None:
+    """Optional error monitoring: active only when SENTRY_DSN is set AND the
+    sdk is installed. Absence of either is never an error."""
+    if not settings.SENTRY_DSN:
+        return
+    try:
+        import sentry_sdk
+
+        sentry_sdk.init(dsn=settings.SENTRY_DSN, traces_sample_rate=0.05,
+                        release=settings.RELEASE_SHA or None)
+        logging.getLogger(__name__).info("Sentry initialised")
+    except ImportError:
+        logging.getLogger(__name__).warning(
+            "SENTRY_DSN set but sentry-sdk not installed; pip install sentry-sdk")
+
+
 def create_app() -> FastAPI:
     settings = get_settings()
+    _init_sentry(settings)
     static_dir = Path(__file__).parent / "static"
     app = FastAPI(
         title="Robofox Thesis Studio API",

@@ -50,6 +50,29 @@ async def enqueue_daily_retention_sweep() -> bool:
     return created
 
 
+async def enqueue_daily_digest() -> bool:
+    """Enqueue today's notification digest job. True if newly created."""
+    from app.db.session import AsyncSessionLocal
+    from app.services.job_queue import enqueue_job
+
+    today = datetime.now(UTC).date().isoformat()
+    key = f"notification-digest-{today}"
+    async with AsyncSessionLocal() as db:
+        job = await enqueue_job(
+            db,
+            kind="notification_digest",
+            user_id=None,
+            project_id=None,
+            payload={"scheduled_for": today},
+            idempotency_key=key,
+        )
+        created = job.status == "queued" and job.attempts == 0 and (
+            job.idempotency_key == key
+        )
+        await db.commit()
+    return created
+
+
 async def retention_scheduler_loop() -> None:
     """Hourly tick: make sure today's sweep exists. Cancelled at shutdown."""
     if not getattr(get_settings(), "RETENTION_SWEEP_ENABLED", True):
@@ -60,6 +83,9 @@ async def retention_scheduler_loop() -> None:
             created = await enqueue_daily_retention_sweep()
             if created:
                 log.info("Enqueued daily retention sweep")
+            if getattr(get_settings(), "DIGEST_EMAILS_ENABLED", True):
+                if await enqueue_daily_digest():
+                    log.info("Enqueued daily notification digest")
         except asyncio.CancelledError:
             raise
         except Exception:

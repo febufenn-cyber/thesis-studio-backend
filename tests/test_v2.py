@@ -425,3 +425,42 @@ async def test_run_export_end_to_end(tmp_path, monkeypatch: pytest.MonkeyPatch) 
             await db.execute(delete(Institution).where(Institution.id == inst_id))
             await db.commit()
         await engine.dispose()
+
+
+async def test_render_docx_ieee_heading_and_numbering(tmp_path) -> None:
+    """A declared numbered style gets a 'References' heading and [n] entries —
+    unless the profile set a non-MLA heading explicitly (institutional law)."""
+    doc_model = _doc()
+    doc_model.meta.citation_style = "ieee-2021"
+    prof = resolve_profile("mla_strict", None)
+    out = str(tmp_path / "ieee.docx")
+    render_docx(doc_model, _sources_by_uuid(), prof, out)
+    d = Document(out)
+    texts = [p.text for p in d.paragraphs]
+    assert any(t.strip().lower() == "references" for t in texts), texts[-8:]
+    assert not any(t.strip().lower() == "works cited" for t in texts)
+    wc = [p.text for p in d.paragraphs if p.style.name == "TS-WorksCited"]
+    assert wc and wc[0].startswith("[1] ") and wc[-1].startswith(f"[{len(wc)}] ")
+
+
+async def test_render_docx_apa_heading_author_date(tmp_path) -> None:
+    doc_model = _doc()
+    doc_model.meta.citation_style = "apa-7"
+    prof = resolve_profile("mla_strict", None)
+    out = str(tmp_path / "apa.docx")
+    render_docx(doc_model, _sources_by_uuid(), prof, out)
+    d = Document(out)
+    texts = [p.text for p in d.paragraphs]
+    assert any(t.strip().lower() == "references" for t in texts)
+    wc = [p.text for p in d.paragraphs if p.style.name == "TS-WorksCited"]
+    assert wc and not wc[0].startswith("[1]")  # author-date, not numbered
+
+
+async def test_render_docx_mla_keeps_works_cited(tmp_path) -> None:
+    doc_model = _doc()  # default style: mla-9
+    prof = resolve_profile("mla_strict", None)
+    out = str(tmp_path / "mla_wc.docx")
+    render_docx(doc_model, _sources_by_uuid(), prof, out)
+    d = Document(out)
+    texts = [p.text for p in d.paragraphs]
+    assert any("works cited" == t.strip().lower() for t in texts)

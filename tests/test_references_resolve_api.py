@@ -118,3 +118,30 @@ async def test_source_resolve_unknown_source_404(client: AsyncClient, db_session
         cookies=auth_cookie(user_a),
     )
     assert response.status_code == 404
+
+
+async def test_discover_identifiers_sweep(client: AsyncClient, db_session, user_a) -> None:
+    """One click sweeps only identifier-less sources; verified never set."""
+    project = await _project(db_session, user_a)
+    has_doi = Source(project_id=project.id, user_id=user_a.id, kind="journal_article",
+                     fields={"title": "Has DOI", "doi": "10.9/x"}, verified=False)
+    missing = Source(project_id=project.id, user_id=user_a.id, kind="journal_article",
+                     fields={"title": "Modern Fiction", "author": "Woolf, Virginia."},
+                     verified=False)
+    db_session.add_all([has_doi, missing])
+    await db_session.commit()
+    await db_session.refresh(missing)
+
+    response = await client.post(
+        f"/projects/{project.id}/sources/discover-identifiers",
+        json={"min_confidence": 0.5},
+        cookies=auth_cookie(user_a),
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["swept"] == 1
+    assert body["skipped_with_identifier"] == 1
+    assert body["results"][0]["source_id"] == str(missing.id)
+
+    await db_session.refresh(missing)
+    assert missing.verified is False  # resolution never sets verified

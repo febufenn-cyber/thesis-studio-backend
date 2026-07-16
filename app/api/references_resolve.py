@@ -134,3 +134,77 @@ async def resolve_source(
         "resolution_status": source.resolution_status,
         "retraction_status": source.retraction_status,
     }
+
+
+class DiscoverIdentifiersRequest(BaseModel):
+    min_confidence: float = Field(default=0.75, ge=0.0, le=1.0)
+    limit: int = Field(default=25, ge=1, le=100)
+
+
+@router.post("/projects/{project_id}/sources/discover-identifiers")
+async def discover_identifiers(
+    project_id: UUID,
+    body: DiscoverIdentifiersRequest,
+    current_user: CurrentUser,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """One sweep: resolve every source that lacks a DOI/identifier.
+
+    Reuses the sanctioned per-source resolve path, so the same rules hold —
+    only missing/[VERIFY] fields are filled, only at or above the confidence
+    floor, and resolution NEVER sets ``verified``. Returns a per-source
+    account of what was found and what still needs a human.
+    """
+    project = await fetch_owned_project(db, project_id, current_user.id)
+    sources = (
+        (
+            await db.execute(
+                select(Source).where(Source.project_id == project.id)
+            )
+        )
+        .scalars()
+        .all()
+    )
+
+    def _has_identifier(fields: dict | None) -> bool:
+        f = fields or {}
+        for key in ("doi", "arxiv_id", "isbn", "pmid"):
+            value = str(f.get(key) or "").strip()
+            if value and not value.startswith("[VERIFY]"):
+                return True
+        return False
+
+    candidates = [s for s in sources if not _has_identifier(s.fields)][: body.limit]
+    results: list[dict] = []
+    for source in candidates:
+        try:
+            record, applied = await service.resolve_and_apply(
+                db, source, min_confidence=body.min_confidence
+            )
+            results.append(
+                {
+                    "source_id": str(source.id),
+                    "label": (source.fields or {}).get("title")
+                    or (source.fields or {}).get("author")
+                    or source.kind,
+                    "applied_fields": applied,
+                    "doi": (source.fields or {}).get("doi"),
+                    "resolution_status": source.resolution_status,
+                    "still_missing": missing_required(source.kind, source.fields or {}),
+                }
+            )
+        except Exception as exc:  # a single bad source must not sink the sweep
+            results.append(
+                {
+                    "source_id": str(source.id),
+                    "label": (source.fields or {}).get("title") or source.kind,
+                    "error": str(exc)[:200],
+                }
+            )
+    await db.commit()
+    return {
+        "swept": len(candidates),
+        "skipped_with_identifier": len(sources) - len(candidates),
+        "results": results,
+        "note": "Resolution is advisory: fields filled at/above the confidence floor; verified is never set.",
+    }

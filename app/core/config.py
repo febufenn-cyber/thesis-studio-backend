@@ -193,6 +193,8 @@ class Settings(BaseSettings):
     # Daily per-institution retention sweep (previews, AI chat) — enqueued
     # idempotently from the web process, executed on the queue worker.
     RETENTION_SWEEP_ENABLED: bool = True
+    DIGEST_EMAILS_ENABLED: bool = True
+    SENTRY_DSN: str = ""
     # External deposit + ORCID (docs/LLD_MISSING_FEATURES.md MF3). Partner-gated:
     # an empty ZENODO_TOKEN fails closed (503, no network). Sandbox base default.
     ZENODO_TOKEN: str = ""

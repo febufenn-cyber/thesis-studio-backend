@@ -75,14 +75,18 @@ def _billing_event_institution_id(row: BillingEvent) -> UUID | None:
 async def billing_webhook(
     provider: str,
     request: Request,
-    x_billing_signature: str = Header(..., alias="X-Billing-Signature"),
+    x_billing_signature: str | None = Header(None, alias="X-Billing-Signature"),
+    x_razorpay_signature: str | None = Header(None, alias="X-Razorpay-Signature"),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     raw = await request.body()
     if len(raw) > 2_000_000:
         raise HTTPException(status_code=413, detail="Billing event exceeds the accepted size.")
     try:
-        event, created = await ingest_webhook(db, provider[:40], raw, x_billing_signature)
+        signature = x_billing_signature or x_razorpay_signature
+        if not signature:
+            raise HTTPException(status_code=400, detail="Missing webhook signature header.")
+        event, created = await ingest_webhook(db, provider[:40], raw, signature)
     except BillingSignatureError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except BillingEventError as exc:

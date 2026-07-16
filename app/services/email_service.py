@@ -134,3 +134,25 @@ async def send_otp_email(to_email: str, code: str) -> None:
                 response.status_code, response.text[:500],
             )
             response.raise_for_status()
+
+
+async def send_digest_email(to_email: str, subject: str, text: str) -> None:
+    """Send a daily digest. Logs instead when RESEND_API_KEY is unset."""
+    settings = get_settings()
+    if not settings.RESEND_API_KEY:
+        log.info("RESEND_API_KEY not set — digest for %s NOT sent.", to_email)
+        return
+    payload = {
+        "from": f"{settings.EMAIL_FROM_NAME} <{settings.EMAIL_FROM_ADDRESS}>",
+        "to": [to_email],
+        "subject": subject,
+        "text": text,
+    }
+    headers = {
+        "Authorization": f"Bearer {settings.RESEND_API_KEY}",
+        "Content-Type": "application/json",
+    }
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        response = await client.post(RESEND_API_URL, json=payload, headers=headers)
+        if response.status_code >= 400:
+            log.error("Digest email failed for %s: %s %s", to_email, response.status_code, response.text[:200])

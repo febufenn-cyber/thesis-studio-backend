@@ -54,6 +54,19 @@ _WHY = {
 }
 
 
+# Triage law: blockers first, then warnings, then advisories — regardless of
+# the strings' accidental alphabetical order ("block" < "info" < "warn" would
+# otherwise put info above warn).
+from sqlalchemy import case as _case  # local alias; module already imports select
+
+SEVERITY_RANK = _case(
+    (ReviewItem.severity == "block", 0),
+    (ReviewItem.severity == "warn", 1),
+    (ReviewItem.severity == "info", 2),
+    else_=3,
+)
+
+
 def _category(rule: str) -> str:
     for prefix, category in _CATEGORY_BY_PREFIX:
         if rule.startswith(prefix):
@@ -285,7 +298,7 @@ async def sync_review_items(db: AsyncSession, project: Project) -> tuple[list[Re
                 )
                 .order_by(
                     ReviewItem.status.asc(),
-                    ReviewItem.severity.asc(),
+                    SEVERITY_RANK,
                     ReviewItem.created_at.asc(),
                 )
             )

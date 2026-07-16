@@ -83,6 +83,21 @@ async def readiness_report() -> dict:
         **pdf,
     }
 
+    # Complex-script font coverage: advisory (never fails readiness), but a
+    # Tamil-market deployment must see missing coverage BEFORE a student does.
+    from app.renderers.fonts import script_coverage
+
+    coverage = script_coverage()
+    checks["script_fonts"] = {
+        "ok": True,  # advisory — absence degrades exports, not the service
+        "coverage": coverage,
+        "warnings": [
+            f"no installed font covers {script}; exports will show tofu"
+            for script, family in coverage.items()
+            if family is None
+        ],
+    }
+
     if settings.STORAGE_BACKEND == "r2" or (
         settings.STORAGE_BACKEND == "auto" and settings.R2_ACCOUNT_ID
     ):

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { CSSProperties } from "react";
 import { importReferences, importZotero, resolveBatch, type ImportResult } from "./useFeatures";
+import { apiSend } from "./coverageApi";
 
 /**
  * ImportPanel — bring references in: paste BibTeX / RIS / CSL-JSON, or pull a
@@ -13,6 +14,7 @@ export function ImportPanel({ projectId }: { projectId: string }) {
   const [mode, setMode] = useState<"paste" | "zotero">("paste");
   return (
     <div style={S.wrap}>
+      <DiscoverCard projectId={projectId} />
       <div style={S.tabs}>
         <button style={tab(mode === "paste")} onClick={() => setMode("paste")}>Paste BibTeX / RIS / CSL</button>
         <button style={tab(mode === "zotero")} onClick={() => setMode("zotero")}>Zotero library</button>
@@ -158,3 +160,42 @@ const S: Record<string, CSSProperties> = {
   note: { fontSize: 11.5, color: "rgba(255,255,255,0.55)", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.13)", borderRadius: 8, padding: "7px 10px", marginTop: 14 },
   hint: { fontSize: 11, color: "rgba(255,255,255,0.55)" },
 };
+
+function DiscoverCard({ projectId }: { projectId: string }) {
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<{ swept: number; skipped_with_identifier: number; results: { label?: string; doi?: string | null; applied_fields?: string[]; error?: string }[] } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const run = async () => {
+    setBusy(true); setError(null);
+    try {
+      setResult(await apiSend("POST", `/projects/${projectId}/sources/discover-identifiers`, {}));
+    } catch (e) { setError((e as Error).message); } finally { setBusy(false); }
+  };
+  return (
+    <section style={{ border: "1px solid rgba(255,255,255,0.13)", borderRadius: 14, padding: "13px 15px", marginBottom: 14, background: "rgba(255,255,255,0.07)" }}>
+      <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4, color: "rgba(255,255,255,0.96)" }}>Find missing DOIs & identifiers</div>
+      <p style={{ fontSize: 12, color: "rgba(255,255,255,0.55)", margin: "0 0 8px", lineHeight: 1.5 }}>
+        One sweep resolves every source without a DOI/ISBN/arXiv id against the authorities.
+        Only missing fields are filled, confidence-gated — verified stays your call.
+      </p>
+      <button disabled={busy} onClick={run}
+        style={{ fontFamily: "inherit", fontSize: 12.5, fontWeight: 600, padding: "8px 16px", borderRadius: 999, border: 0, background: "rgba(255,255,255,0.92)", color: "#141A38", cursor: "pointer" }}>
+        {busy ? "Sweeping…" : "Run discovery sweep"}
+      </button>
+      {error && <p style={{ color: "#FF7A76", fontSize: 12, marginTop: 8 }}>{error}</p>}
+      {result && (
+        <div style={{ marginTop: 10, fontSize: 12, color: "rgba(255,255,255,0.8)" }}>
+          <div>Swept {result.swept} source{result.swept === 1 ? "" : "s"} · {result.skipped_with_identifier} already had identifiers.</div>
+          {result.results.map((r, i) => (
+            <div key={i} style={{ borderTop: "1px solid rgba(255,255,255,0.10)", padding: "6px 0" }}>
+              <b style={{ color: "rgba(255,255,255,0.95)" }}>{r.label ?? "source"}</b>{" — "}
+              {r.error ? <span style={{ color: "#FFC46E" }}>{r.error}</span>
+                : r.doi ? <span style={{ color: "#7DE8A8" }}>DOI {r.doi}{r.applied_fields?.length ? ` · filled ${r.applied_fields.join(", ")}` : ""}</span>
+                : <span style={{ color: "rgba(255,255,255,0.55)" }}>no confident match — needs a human</span>}
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
