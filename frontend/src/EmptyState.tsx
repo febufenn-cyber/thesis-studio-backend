@@ -27,7 +27,7 @@ export function EmptyState({
 }) {
   return (
     <div style={S.wrap}>
-      <svg width={34} height={34} viewBox="0 0 24 24" fill="none" stroke="#B08A3E"
+      <svg width={34} height={34} viewBox="0 0 24 24" fill="none" stroke="#F0B472"
         strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"
         aria-hidden="true" style={{ opacity: 0.85 }}>
         <path d={glyph} />

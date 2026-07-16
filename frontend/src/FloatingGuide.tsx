@@ -68,7 +68,7 @@ export function FloatingGuide({ getProjectId }: { getProjectId?: () => string | 
   }
 
   return (
-    <div style={S.root}>
+    <div className="rf-root" style={S.root}>
       <style>{CSS_ANIM}</style>
       {open && (
         <div style={S.panel} role="dialog" aria-label="Robofox guide">
@@ -205,23 +205,23 @@ const CSS_ANIM = `
 `;
 
 const S: Record<string, CSSProperties> = {
-  root: { position: "fixed", right: 18, bottom: 18, zIndex: 9999, fontFamily: "'Source Sans 3', 'Inter', system-ui, sans-serif" },
-  fab: { width: 58, height: 58, borderRadius: "50%", border: "2px solid #e8722e", background: "#fff", cursor: "pointer", boxShadow: "0 6px 20px rgba(20,25,35,.25)", display: "grid", placeItems: "center", padding: 0 },
-  panel: { position: "absolute", right: 0, bottom: 70, width: 360, maxWidth: "calc(100vw - 36px)", maxHeight: "min(560px, calc(100vh - 120px))", overflowY: "auto", background: "#fff", color: "#1C1917", border: "1px solid #DCD3C5", borderRadius: 16, boxShadow: "0 16px 48px rgba(20,25,35,.28)" },
-  head: { display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", borderBottom: "1px solid #DCD3C5", position: "sticky", top: 0, background: "#fff" },
+  root: { position: "fixed", right: 18, bottom: 18, zIndex: 9999, fontFamily: "'Inter', system-ui, sans-serif" },
+  fab: { width: 58, height: 58, borderRadius: "50%", border: "1px solid rgba(255,255,255,0.22)", background: "rgba(19,23,44,0.55)", backdropFilter: "blur(24px) saturate(160%)", WebkitBackdropFilter: "blur(24px) saturate(160%)", cursor: "pointer", boxShadow: "0 10px 30px rgba(4,6,16,.5), 0 0 22px rgba(240,155,95,.35), inset 0 1px 0 rgba(255,255,255,.25)", display: "grid", placeItems: "center", padding: 0 },
+  panel: { position: "absolute", right: 0, bottom: 70, width: 360, maxWidth: "calc(100vw - 36px)", maxHeight: "min(560px, calc(100vh - 120px))", overflowY: "auto", background: "rgba(16,20,40,0.78)", backdropFilter: "blur(36px) saturate(160%)", WebkitBackdropFilter: "blur(36px) saturate(160%)", color: "rgba(255,255,255,0.96)", border: "1px solid rgba(255,255,255,0.16)", borderRadius: 22, boxShadow: "0 30px 80px rgba(4,6,16,.55), inset 0 1px 0 rgba(255,255,255,.22)" },
+  head: { display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", borderBottom: "1px solid rgba(255,255,255,0.13)", position: "sticky", top: 0, background: "rgba(16,20,40,0.92)" },
   title: { fontSize: 14, fontWeight: 800 },
-  subtitle: { fontSize: 10.5, color: "#6E655A", letterSpacing: 0.3 },
-  close: { width: 30, height: 30, borderRadius: 8, border: "1px solid #DCD3C5", background: "#fff", cursor: "pointer", fontSize: 16 },
+  subtitle: { fontSize: 10.5, color: "rgba(255,255,255,0.55)", letterSpacing: 0.3 },
+  close: { width: 30, height: 30, borderRadius: 8, border: "1px solid rgba(255,255,255,0.13)", background: "rgba(255,255,255,0.07)", cursor: "pointer", fontSize: 16 },
   body: { padding: "12px 14px" },
-  primary: { width: "100%", padding: "11px 14px", borderRadius: 10, border: "1px solid #1F4D3A", background: "#1F4D3A", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer", marginBottom: 12 },
-  back: { border: 0, background: "transparent", color: "#1F4D3A", fontWeight: 600, fontSize: 12, cursor: "pointer", padding: 0, marginBottom: 8 },
-  tipHead: { fontSize: 11, fontWeight: 800, color: "#6E655A", textTransform: "uppercase", letterSpacing: 0.5, margin: "6px 0 8px" },
-  tip: { border: "1px solid #DCD3C5", borderRadius: 10, padding: "9px 11px", marginBottom: 8 },
+  primary: { width: "100%", padding: "11px 14px", borderRadius: 999, border: 0, background: "rgba(255,255,255,0.92)", color: "#141A38", fontWeight: 600, fontSize: 13, cursor: "pointer", marginBottom: 12, boxShadow: "0 6px 20px rgba(0,0,0,.25)" },
+  back: { border: 0, background: "transparent", color: "#A5B8FF", fontWeight: 600, fontSize: 12, cursor: "pointer", padding: 0, marginBottom: 8 },
+  tipHead: { fontSize: 11, fontWeight: 800, color: "rgba(255,255,255,0.55)", textTransform: "uppercase", letterSpacing: 0.5, margin: "6px 0 8px" },
+  tip: { border: "1px solid rgba(255,255,255,0.13)", borderRadius: 10, padding: "9px 11px", marginBottom: 8 },
   tipTitle: { fontSize: 12.5, fontWeight: 700, marginBottom: 2 },
-  tipBody: { fontSize: 11.5, color: "#6E655A", lineHeight: 1.5 },
-  domainBtn: { display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 3, width: "100%", textAlign: "left", border: "1px solid #DCD3C5", borderRadius: 10, padding: "10px 12px", background: "#fff", cursor: "pointer", marginBottom: 8, fontFamily: "inherit", fontSize: 13, color: "#1C1917" },
-  badge: { display: "inline-block", fontSize: 10.5, fontWeight: 700, color: "#1F4D3A", background: "#E8EFE9", borderRadius: 999, padding: "3px 9px", marginBottom: 6 },
+  tipBody: { fontSize: 11.5, color: "rgba(255,255,255,0.55)", lineHeight: 1.5 },
+  domainBtn: { display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 3, width: "100%", textAlign: "left", border: "1px solid rgba(255,255,255,0.13)", borderRadius: 10, padding: "10px 12px", background: "rgba(255,255,255,0.07)", cursor: "pointer", marginBottom: 8, fontFamily: "inherit", fontSize: 13, color: "rgba(255,255,255,0.96)" },
+  badge: { display: "inline-block", fontSize: 10.5, fontWeight: 700, color: "#A5B8FF", background: "rgba(165,184,255,0.16)", borderRadius: 999, padding: "3px 9px", marginBottom: 6 },
   sec: { fontSize: 12, fontWeight: 800, margin: "12px 0 5px" },
-  list: { margin: "0 0 4px", paddingLeft: 18, fontSize: 12, lineHeight: 1.6, color: "#1C1917" },
-  msg: { fontSize: 12, fontWeight: 600, color: "#1F7A4D", background: "#E4F1E9", borderRadius: 8, padding: "8px 10px" },
+  list: { margin: "0 0 4px", paddingLeft: 18, fontSize: 12, lineHeight: 1.6, color: "rgba(255,255,255,0.96)" },
+  msg: { fontSize: 12, fontWeight: 600, color: "#7DE8A8", background: "rgba(125,232,168,0.14)", borderRadius: 8, padding: "8px 10px" },
 };

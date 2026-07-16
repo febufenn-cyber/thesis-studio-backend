@@ -139,22 +139,22 @@ export function BatchResolveButton({ projectId, queries }: { projectId: string; 
 
 const tab = (active: boolean): CSSProperties => ({
   flex: 1, padding: "8px 4px", border: 0,
-  borderBottom: `2px solid ${active ? "#1F4D3A" : "transparent"}`,
-  background: "transparent", color: active ? "#1F4D3A" : "#6E655A",
+  borderBottom: `2px solid ${active ? "#A5B8FF" : "transparent"}`,
+  background: "transparent", color: active ? "#A5B8FF" : "rgba(255,255,255,0.55)",
   fontWeight: 600, fontSize: 12.5, cursor: "pointer",
 });
 
 const S: Record<string, CSSProperties> = {
-  wrap: { fontFamily: "'Source Sans 3', 'Inter', system-ui, sans-serif", color: "#1C1917" },
-  tabs: { display: "flex", gap: 4, borderBottom: "1px solid #DCD3C5", marginBottom: 12 },
+  wrap: { fontFamily: "'Inter', system-ui, sans-serif", color: "rgba(255,255,255,0.96)" },
+  tabs: { display: "flex", gap: 4, borderBottom: "1px solid rgba(255,255,255,0.13)", marginBottom: 12 },
   row: { display: "flex", gap: 8, marginBottom: 8 },
-  select: { fontFamily: "inherit", fontSize: 12.5, border: "1px solid #DCD3C5", background: "#fff", borderRadius: 7, padding: "8px" },
-  input: { width: "100%", boxSizing: "border-box", fontFamily: "inherit", fontSize: 13, border: "1px solid #DCD3C5", borderRadius: 8, padding: "8px 10px", marginBottom: 8 },
-  area: { width: "100%", boxSizing: "border-box", fontFamily: "'IBM Plex Mono', ui-monospace, monospace", fontSize: 12, lineHeight: 1.5, border: "1px solid #DCD3C5", borderRadius: 9, padding: "10px 11px", resize: "vertical", marginBottom: 8 },
-  btn: { padding: "8px 14px", borderRadius: 8, border: "1px solid #1F4D3A", background: "#1F4D3A", color: "#fff", fontWeight: 600, fontSize: 12.5, cursor: "pointer" },
-  btnGhost: { padding: "6px 11px", borderRadius: 8, border: "1px solid #DCD3C5", background: "#fff", color: "#1C1917", fontWeight: 600, fontSize: 12, cursor: "pointer" },
-  ok: { color: "#1F7A4D", fontSize: 12.5, fontWeight: 600, marginTop: 9 },
-  err: { color: "#B3362C", fontSize: 12.5, marginTop: 9 },
-  note: { fontSize: 11.5, color: "#6E655A", background: "#F4EFE6", border: "1px solid #DCD3C5", borderRadius: 8, padding: "7px 10px", marginTop: 14 },
-  hint: { fontSize: 11, color: "#6E655A" },
+  select: { fontFamily: "inherit", fontSize: 12.5, border: "1px solid rgba(255,255,255,0.13)", background: "rgba(255,255,255,0.07)", borderRadius: 7, padding: "8px" },
+  input: { width: "100%", boxSizing: "border-box", fontFamily: "inherit", fontSize: 13, border: "1px solid rgba(255,255,255,0.13)", borderRadius: 8, padding: "8px 10px", marginBottom: 8 },
+  area: { width: "100%", boxSizing: "border-box", fontFamily: "'IBM Plex Mono', ui-monospace, monospace", fontSize: 12, lineHeight: 1.5, border: "1px solid rgba(255,255,255,0.13)", borderRadius: 9, padding: "10px 11px", resize: "vertical", marginBottom: 8 },
+  btn: { padding: "8px 14px", borderRadius: 8, border: "1px solid #A5B8FF", background: "#A5B8FF", color: "#fff", fontWeight: 600, fontSize: 12.5, cursor: "pointer" },
+  btnGhost: { padding: "6px 11px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.13)", background: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.96)", fontWeight: 600, fontSize: 12, cursor: "pointer" },
+  ok: { color: "#7DE8A8", fontSize: 12.5, fontWeight: 600, marginTop: 9 },
+  err: { color: "#FF7A76", fontSize: 12.5, marginTop: 9 },
+  note: { fontSize: 11.5, color: "rgba(255,255,255,0.55)", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.13)", borderRadius: 8, padding: "7px 10px", marginTop: 14 },
+  hint: { fontSize: 11, color: "rgba(255,255,255,0.55)" },
 };

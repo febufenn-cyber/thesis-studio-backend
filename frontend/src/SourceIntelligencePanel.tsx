@@ -63,13 +63,13 @@ export function SourceIntelligencePanel({ projectId }: { projectId: string }) {
 }
 
 const S: Record<string, CSSProperties> = {
-  wrap: { fontFamily: "'Source Sans 3', 'Inter', system-ui, sans-serif" },
-  select: { width: "100%", boxSizing: "border-box", fontFamily: "inherit", fontSize: 12.5, border: "1px solid #DCD3C5", background: "#fff", borderRadius: 7, padding: "8px", marginBottom: 12 },
-  muted: { color: "#6E655A", fontSize: 12.5 },
-  err: { color: "#B3362C", fontSize: 12.5 },
+  wrap: { fontFamily: "'Inter', system-ui, sans-serif" },
+  select: { width: "100%", boxSizing: "border-box", fontFamily: "inherit", fontSize: 12.5, border: "1px solid rgba(255,255,255,0.13)", background: "rgba(255,255,255,0.07)", borderRadius: 7, padding: "8px", marginBottom: 12 },
+  muted: { color: "rgba(255,255,255,0.55)", fontSize: 12.5 },
+  err: { color: "#FF7A76", fontSize: 12.5 },
   quotes: { marginTop: 14 },
-  qHead: { fontSize: 11, fontWeight: 700, color: "#6E655A", textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 8 },
-  quote: { border: "1px solid #DCD3C5", borderRadius: 11, padding: "11px 12px", marginBottom: 9 },
-  qText: { margin: "0 0 6px", fontSize: 13, lineHeight: 1.5, color: "#1C1917", fontStyle: "italic" },
-  qLoc: { fontSize: 11, color: "#6E655A", marginBottom: 8 },
+  qHead: { fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.55)", textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 8 },
+  quote: { border: "1px solid rgba(255,255,255,0.13)", borderRadius: 11, padding: "11px 12px", marginBottom: 9 },
+  qText: { margin: "0 0 6px", fontSize: 13, lineHeight: 1.5, color: "rgba(255,255,255,0.96)", fontStyle: "italic" },
+  qLoc: { fontSize: 11, color: "rgba(255,255,255,0.55)", marginBottom: 8 },
 };

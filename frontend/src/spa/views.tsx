@@ -157,7 +157,7 @@ function Centered({ children }: { children: React.ReactNode }) {
   return <div style={center}>{children}</div>;
 }
 
-const center: CSSProperties = { minHeight: "60vh", display: "grid", placeItems: "center", textAlign: "center", fontFamily: "'Source Sans 3', 'Inter', system-ui, sans-serif", color: "#1C1917" };
+const center: CSSProperties = { minHeight: "60vh", display: "grid", placeItems: "center", textAlign: "center", fontFamily: "'Inter', system-ui, sans-serif", color: "rgba(255,255,255,0.96)" };
 const h1: CSSProperties = { ...display(26), margin: "0 0 6px" };
 const muted: CSSProperties = { color: T.muted, fontSize: 13.5, margin: "0 0 20px", lineHeight: 1.55 };
 const err: CSSProperties = { color: T.bad, fontSize: 13 };
@@ -169,7 +169,7 @@ const cardFoot: CSSProperties = { fontSize: 12, fontWeight: 700, color: T.laurel
 const link: CSSProperties = { color: T.laurel, fontWeight: 600, textDecoration: "none" };
 const newCard: CSSProperties = {
   display: "grid", placeItems: "center", alignContent: "center", gap: 6,
-  minHeight: 118, border: `1.5px dashed #C9BFAF`, borderRadius: T.radiusLg,
+  minHeight: 118, border: `1.5px dashed rgba(255,255,255,0.28)`, borderRadius: T.radiusLg,
   color: T.muted, fontSize: 13, fontWeight: 600, textDecoration: "none",
   background: "transparent",
 };

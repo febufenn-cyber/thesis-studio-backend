@@ -81,17 +81,17 @@ export function WritingPanel({ projectId }: { projectId: string }) {
 }
 
 const S: Record<string, CSSProperties> = {
-  wrap: { fontFamily: "'Source Sans 3', 'Inter', system-ui, sans-serif", color: "#1C1917" },
-  area: { width: "100%", boxSizing: "border-box", fontFamily: "inherit", fontSize: 13, lineHeight: 1.5, border: "1px solid #DCD3C5", borderRadius: 9, padding: "10px 11px", resize: "vertical" },
+  wrap: { fontFamily: "'Inter', system-ui, sans-serif", color: "rgba(255,255,255,0.96)" },
+  area: { width: "100%", boxSizing: "border-box", fontFamily: "inherit", fontSize: 13, lineHeight: 1.5, border: "1px solid rgba(255,255,255,0.13)", borderRadius: 9, padding: "10px 11px", resize: "vertical" },
   actions: { display: "flex", alignItems: "center", gap: 12, margin: "9px 0" },
-  btn: { padding: "8px 14px", borderRadius: 8, border: "1px solid #1F4D3A", background: "#1F4D3A", color: "#fff", fontWeight: 600, fontSize: 12.5, cursor: "pointer" },
-  count: { fontSize: 12, color: "#6E655A", fontWeight: 600 },
-  match: { border: "1px solid #DCD3C5", borderRadius: 10, padding: "9px 11px", marginBottom: 8 },
+  btn: { padding: "8px 14px", borderRadius: 8, border: "1px solid #A5B8FF", background: "#A5B8FF", color: "#fff", fontWeight: 600, fontSize: 12.5, cursor: "pointer" },
+  count: { fontSize: 12, color: "rgba(255,255,255,0.55)", fontWeight: 600 },
+  match: { border: "1px solid rgba(255,255,255,0.13)", borderRadius: 10, padding: "9px 11px", marginBottom: 8 },
   matchHead: { display: "flex", justifyContent: "space-between", gap: 10, alignItems: "baseline", marginBottom: 3 },
-  cat: { fontSize: 11, fontWeight: 700, color: "#9A6A00", textTransform: "uppercase", letterSpacing: 0.3 },
-  fix: { fontSize: 12, color: "#1F7A4D", fontWeight: 600 },
+  cat: { fontSize: 11, fontWeight: 700, color: "#FFC46E", textTransform: "uppercase", letterSpacing: 0.3 },
+  fix: { fontSize: 12, color: "#7DE8A8", fontWeight: 600 },
   msg: { fontSize: 12.5, lineHeight: 1.45 },
-  pos: { fontSize: 10.5, color: "#6E655A", fontFamily: "'IBM Plex Mono', ui-monospace, monospace", marginTop: 3 },
-  muted: { color: "#6E655A", fontSize: 12.5, lineHeight: 1.5 },
-  err: { color: "#B3362C", fontSize: 12.5, marginBottom: 8 },
+  pos: { fontSize: 10.5, color: "rgba(255,255,255,0.55)", fontFamily: "'IBM Plex Mono', ui-monospace, monospace", marginTop: 3 },
+  muted: { color: "rgba(255,255,255,0.55)", fontSize: 12.5, lineHeight: 1.5 },
+  err: { color: "#FF7A76", fontSize: 12.5, marginBottom: 8 },
 };

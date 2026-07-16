@@ -87,16 +87,16 @@ function DiffCard({ projectId }: { projectId: string }) {
 }
 
 const S: Record<string, CSSProperties> = {
-  wrap: { fontFamily: "'Source Sans 3', 'Inter', system-ui, sans-serif", color: "#1C1917" },
-  card: { border: "1px solid #DCD3C5", borderRadius: 11, padding: "13px 14px", marginBottom: 10, background: "#fff" },
+  wrap: { fontFamily: "'Inter', system-ui, sans-serif", color: "rgba(255,255,255,0.96)" },
+  card: { border: "1px solid rgba(255,255,255,0.13)", borderRadius: 11, padding: "13px 14px", marginBottom: 10, background: "rgba(255,255,255,0.07)" },
   h: { fontSize: 13.5, fontWeight: 700, marginBottom: 6 },
-  muted: { color: "#6E655A", fontSize: 12.5, margin: "4px 0 10px", lineHeight: 1.5 },
-  row: { display: "flex", alignItems: "center", gap: 9, padding: "7px 0", borderTop: "1px solid #EFE9DD" },
+  muted: { color: "rgba(255,255,255,0.55)", fontSize: 12.5, margin: "4px 0 10px", lineHeight: 1.5 },
+  row: { display: "flex", alignItems: "center", gap: 9, padding: "7px 0", borderTop: "1px solid rgba(255,255,255,0.09)" },
   role: { fontSize: 12.5, fontWeight: 700, textTransform: "capitalize" },
-  mono: { fontFamily: "'IBM Plex Mono', ui-monospace, monospace", fontSize: 11.5, color: "#6E655A" },
-  chip: { fontSize: 10.5, fontWeight: 700, color: "#1F4D3A", background: "#E8EFE9", borderRadius: 999, padding: "2px 8px" },
-  area: { width: "100%", boxSizing: "border-box", fontFamily: "'IBM Plex Mono', ui-monospace, monospace", fontSize: 11.5, border: "1px solid #DCD3C5", borderRadius: 9, padding: "9px 10px", resize: "vertical", marginBottom: 8 },
-  btn: { padding: "8px 14px", borderRadius: 8, border: "1px solid #1F4D3A", background: "#1F4D3A", color: "#fff", fontWeight: 600, fontSize: 12.5, cursor: "pointer" },
-  pre: { marginTop: 10, background: "#F4EFE6", border: "1px solid #DCD3C5", borderRadius: 9, padding: "10px 11px", fontSize: 11, overflowX: "auto", maxHeight: 320 },
-  err: { color: "#B3362C", fontSize: 12.5, marginTop: 8 },
+  mono: { fontFamily: "'IBM Plex Mono', ui-monospace, monospace", fontSize: 11.5, color: "rgba(255,255,255,0.55)" },
+  chip: { fontSize: 10.5, fontWeight: 700, color: "#A5B8FF", background: "rgba(165,184,255,0.16)", borderRadius: 999, padding: "2px 8px" },
+  area: { width: "100%", boxSizing: "border-box", fontFamily: "'IBM Plex Mono', ui-monospace, monospace", fontSize: 11.5, border: "1px solid rgba(255,255,255,0.13)", borderRadius: 9, padding: "9px 10px", resize: "vertical", marginBottom: 8 },
+  btn: { padding: "8px 14px", borderRadius: 8, border: "1px solid #A5B8FF", background: "#A5B8FF", color: "#fff", fontWeight: 600, fontSize: 12.5, cursor: "pointer" },
+  pre: { marginTop: 10, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.13)", borderRadius: 9, padding: "10px 11px", fontSize: 11, overflowX: "auto", maxHeight: 320 },
+  err: { color: "#FF7A76", fontSize: 12.5, marginTop: 8 },
 };
