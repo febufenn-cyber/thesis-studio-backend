@@ -11,13 +11,14 @@ import base64
 import binascii
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import CurrentUser, fetch_owned_project
 from app.core.config import get_settings
+from app.core.rate_limit import limiter
 from app.db.deps import get_db
 from app.models.quote import Quote
 from app.models.quote_verification import QuoteVerification
@@ -99,7 +100,9 @@ async def verify_quote_source(
 
 
 @router.post("/projects/{project_id}/quotes/{quote_id}/verify-auto")
+@limiter.limit(lambda: get_settings().RATE_LIMIT_LOOKUP)
 async def verify_quote_auto(
+    request: Request,
     project_id: UUID,
     quote_id: UUID,
     current_user: CurrentUser,

@@ -40,7 +40,7 @@ async def enqueue_job(
     db: AsyncSession,
     *,
     kind: str,
-    user_id: UUID,
+    user_id: UUID | None,
     project_id: UUID | None,
     payload: dict,
     max_attempts: int = 3,

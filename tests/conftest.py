@@ -36,6 +36,10 @@ os.environ.setdefault("IDENTITY_LOOKUP_ENABLED", "false")
 os.environ.setdefault("COPILOT_ENABLED", "false")
 os.environ.setdefault("FULLTEXT_ENABLED", "false")
 os.environ.setdefault("CSL_ENABLED", "false")
+# The daily retention-sweep scheduler is a lifespan background task; in tests it
+# would race the per-test event loops and DB fixtures. The enqueue function
+# itself is tested directly in test_hardening.py.
+os.environ.setdefault("RETENTION_SWEEP_ENABLED", "false")
 # Research donation: a terms version so the consent flow is exercisable; the
 # corpus-export governance gates stay off unless a test sets them.
 os.environ.setdefault("RESEARCH_TERMS_VERSION", "2026-07")

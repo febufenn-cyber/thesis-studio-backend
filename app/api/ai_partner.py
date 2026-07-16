@@ -7,11 +7,11 @@ translate human-selected operations into the Phase 2 command service.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -31,6 +31,8 @@ from app.ai.proposal_engine import (
 from app.ai.schemas import AIRequest, AIScope, ProposalDecision
 from app.ai.task_registry import get_task, model_for, public_task_catalog
 from app.api.deps import CurrentUser, fetch_owned_project, fetch_owned_session
+from app.core.config import get_settings
+from app.core.rate_limit import limiter
 from app.db.deps import get_db
 from app.models.ai_memory import AIMemory
 from app.models.ai_message import AIMessage
@@ -42,7 +44,6 @@ from app.models.research_candidate import ResearchCandidate
 from app.models.source import Source
 from app.services.editor_service import VersionConflict
 from app.services.job_queue import enqueue_job
-
 
 router = APIRouter(tags=["grounded-ai"])
 
@@ -434,7 +435,9 @@ async def list_thread_messages(
 
 
 @router.post("/projects/{project_id}/ai/runs", status_code=202)
+@limiter.limit(lambda: get_settings().RATE_LIMIT_AI)
 async def create_ai_run(
+    request: Request,
     project_id: UUID,
     body: AIRequest,
     current_user: CurrentUser,
@@ -534,7 +537,7 @@ async def create_ai_run(
         payload={"run_id": str(run.id), "project_id": str(project.id), "user_id": str(current_user.id)},
         max_attempts=3,
     )
-    thread.updated_at = datetime.now(timezone.utc)
+    thread.updated_at = datetime.now(UTC)
     db.add(
         Event(
             project_id=project.id,
@@ -602,7 +605,7 @@ async def cancel_ai_run(
     row.cancel_requested = True
     if row.status == "queued":
         row.status = "cancelled"
-        row.completed_at = datetime.now(timezone.utc)
+        row.completed_at = datetime.now(UTC)
         row.progress = {"stage": "cancelled", "message": "Cancelled before execution."}
     await db.commit()
     await db.refresh(row)

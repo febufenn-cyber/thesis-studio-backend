@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import hashlib
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Annotated
 from uuid import UUID
 
@@ -123,7 +123,7 @@ async def _api_key_user(db: AsyncSession, raw_key: str, *, method: str, path: st
             status_code=status.HTTP_403_FORBIDDEN,
             detail="This API key's scopes do not permit that operation.",
         )
-    row.last_used_at = datetime.now(timezone.utc)
+    row.last_used_at = datetime.now(UTC)
     user = (
         await db.execute(select(User).where(User.id == row.user_id))
     ).scalar_one_or_none()

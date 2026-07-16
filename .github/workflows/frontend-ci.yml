@@ -1,0 +1,38 @@
+name: frontend-ci
+
+on:
+  push:
+    paths: ["frontend/**", "app/static/app/**", "app/static/spa/**", ".github/workflows/frontend-ci.yml"]
+  pull_request:
+    paths: ["frontend/**", "app/static/app/**", "app/static/spa/**"]
+
+jobs:
+  build-and-verify:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install (locked)
+        run: npm ci
+      - name: Type-check (strict)
+        run: npm run typecheck
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
+      - name: Build both bundles
+        run: npm run build
+      - name: Committed bundles must match source (build provenance)
+        working-directory: .
+        run: |
+          # The built island + SPA artifacts are committed so the Python app can
+          # serve them without a deploy-time Node stage. This check guarantees
+          # the committed bundles are exactly what frontend/src produces — a
+          # hand-edited or stale bundle fails CI.
+          git diff --stat --exit-code app/static/app app/static/spa \
+            || { echo '::error::Committed frontend bundles differ from a fresh build. Run: cd frontend && npm run build, then commit the result.'; exit 1; }

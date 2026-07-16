@@ -10,12 +10,13 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import CurrentUser, fetch_owned_project
 from app.core.config import get_settings
+from app.core.rate_limit import limiter
 from app.db.deps import get_db
 from app.references.http import build_client
 from app.writing.languagetool import check_text
@@ -42,7 +43,9 @@ async def writing_status(current_user: CurrentUser) -> dict:
 
 
 @router.post("/projects/{project_id}/writing/check")
+@limiter.limit(lambda: get_settings().RATE_LIMIT_EXPENSIVE)
 async def check_project_text(
+    request: Request,
     project_id: UUID,
     body: WritingCheckRequest,
     current_user: CurrentUser,

@@ -212,7 +212,19 @@ async def lifespan(app: FastAPI):
         await _register_release()
     except Exception:
         log.exception("Release identity registration failed (continuing)")
+    # Compliance: keep the daily retention sweep enqueued (idempotent per day;
+    # executes on the queue worker). See app/services/retention_scheduler.py.
+    import asyncio as _asyncio
+
+    from app.services.retention_scheduler import retention_scheduler_loop
+
+    sweep_task = _asyncio.create_task(retention_scheduler_loop())
     yield
+    sweep_task.cancel()
+    try:
+        await sweep_task
+    except (Exception, _asyncio.CancelledError):
+        pass
     log.info("Robofox Thesis Studio shutting down release=%s", settings.RELEASE_SHA or "development")
 
 
@@ -244,8 +256,11 @@ def create_app() -> FastAPI:
     from slowapi import _rate_limit_exceeded_handler
     from slowapi.errors import RateLimitExceeded
 
+    from app.core.security_headers import SecurityHeadersMiddleware
+
     app.state.limiter = limiter
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+    app.add_middleware(SecurityHeadersMiddleware)
     app.add_middleware(JourneyTracingMiddleware)
     app.add_middleware(CommercialGuardMiddleware)
     app.add_middleware(

@@ -9,12 +9,14 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import CurrentUser, fetch_owned_project
+from app.core.config import get_settings
+from app.core.rate_limit import limiter
 from app.db.deps import get_db
 from app.models.resolution_record import ResolutionRecord
 from app.models.source import Source
@@ -61,7 +63,9 @@ def _serialize(record: ResolutionRecord) -> dict:
 
 
 @router.post("/projects/{project_id}/references/resolve")
+@limiter.limit(lambda: get_settings().RATE_LIMIT_LOOKUP)
 async def resolve_reference(
+    request: Request,
     project_id: UUID,
     body: ResolveRequest,
     current_user: CurrentUser,
@@ -75,7 +79,9 @@ async def resolve_reference(
 
 
 @router.post("/projects/{project_id}/references/resolve-batch")
+@limiter.limit(lambda: get_settings().RATE_LIMIT_LOOKUP)
 async def resolve_reference_batch(
+    request: Request,
     project_id: UUID,
     body: ResolveBatchRequest,
     current_user: CurrentUser,

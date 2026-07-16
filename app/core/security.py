@@ -38,11 +38,25 @@ def create_access_token(user_id: UUID, *, session_id: UUID | None = None) -> str
 
 def decode_access_token_claims(token: str) -> AccessTokenClaims:
     settings = get_settings()
-    payload = jwt.decode(
-        token,
-        settings.JWT_SECRET,
-        algorithms=[settings.JWT_ALGORITHM],
-    )
+    # Rotation-aware verification: the current secret is tried first; during a
+    # rotation window JWT_SECRET_PREVIOUS is accepted for verification only
+    # (new tokens are always signed with the current secret). Clear the
+    # previous secret once outstanding tokens have expired.
+    try:
+        payload = jwt.decode(
+            token,
+            settings.JWT_SECRET,
+            algorithms=[settings.JWT_ALGORITHM],
+        )
+    except jwt.InvalidSignatureError:
+        previous = getattr(settings, "JWT_SECRET_PREVIOUS", "")
+        if not previous:
+            raise
+        payload = jwt.decode(
+            token,
+            previous,
+            algorithms=[settings.JWT_ALGORITHM],
+        )
     issued = datetime.fromtimestamp(int(payload["iat"]), tz=timezone.utc)
     expires = datetime.fromtimestamp(int(payload["exp"]), tz=timezone.utc)
     return AccessTokenClaims(
