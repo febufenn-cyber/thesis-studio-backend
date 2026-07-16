@@ -224,6 +224,8 @@ body:has(#projectsView:not([hidden])) .appbar-center { visibility: hidden; }
 
 /* ─── Studio chrome ─── */
 #projectCrumb { display: none; }
+/* The Robofox guide replaced the legacy coach; one guide is enough. */
+#legacyBtn { display: none !important; }
 .studio-toolbar { padding: 14px 22px 10px; }
 .studio-toolbar h1 {
   font-size: 22px;
