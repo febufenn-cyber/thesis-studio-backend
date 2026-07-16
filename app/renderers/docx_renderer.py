@@ -154,32 +154,45 @@ def _page_break(doc: Document) -> None:
 
 
 def _fm_title_page(doc: Document, td: ThesisDocument) -> None:
+    """Title page with graceful omission: a line whose metadata slot is empty
+    is dropped entirely — never rendered as "submitted to ," artifacts. The
+    review/final gate (verifier) still requires the fields before a final
+    export; this only keeps drafts presentable (FRICTION_LOG F-title)."""
     m = td.meta
     _p(doc, "TS-FrontCenter", m.title.upper(), bold=True, size_pt=14)
     _p(doc, "TS-FrontCenter")
-    _p(doc, "TS-FrontCenter", f"A dissertation submitted to {m.college.name},")
-    _p(doc, "TS-FrontCenter", f"affiliated to {m.college.affiliation},")
+    if m.college.name.strip():
+        _p(doc, "TS-FrontCenter", f"A dissertation submitted to {m.college.name},")
+        if m.college.affiliation.strip():
+            _p(doc, "TS-FrontCenter", f"affiliated to {m.college.affiliation},")
+    else:
+        _p(doc, "TS-FrontCenter", "A dissertation submitted")
     _p(doc, "TS-FrontCenter", "in partial fulfilment of the requirements")
     _p(doc, "TS-FrontCenter", "for the award of the degree of")
     _p(doc, "TS-FrontCenter")
     _p(doc, "TS-FrontCenter", m.degree.upper(), bold=True)
+    if m.candidate.name.strip():
+        _p(doc, "TS-FrontCenter")
+        _p(doc, "TS-FrontCenter", "By")
+        _p(doc, "TS-FrontCenter", m.candidate.name)
+        if m.candidate.reg_no:
+            _p(doc, "TS-FrontCenter", f"(Reg. No. {m.candidate.reg_no})")
+    if m.guide.name.strip():
+        _p(doc, "TS-FrontCenter")
+        _p(doc, "TS-FrontCenter", "Under the guidance of")
+        guide = m.guide.name + (f", {m.guide.designation}" if m.guide.designation else "")
+        _p(doc, "TS-FrontCenter", guide)
     _p(doc, "TS-FrontCenter")
-    _p(doc, "TS-FrontCenter", "By")
-    _p(doc, "TS-FrontCenter", m.candidate.name)
-    if m.candidate.reg_no:
-        _p(doc, "TS-FrontCenter", f"(Reg. No. {m.candidate.reg_no})")
-    _p(doc, "TS-FrontCenter")
-    _p(doc, "TS-FrontCenter", "Under the guidance of")
-    guide = m.guide.name + (f", {m.guide.designation}" if m.guide.designation else "")
-    _p(doc, "TS-FrontCenter", guide)
-    _p(doc, "TS-FrontCenter")
-    _p(doc, "TS-FrontCenter", m.department)
-    _p(doc, "TS-FrontCenter", m.college.name)
-    city = m.college.city + (f" – {m.college.pin}" if m.college.pin else "")
-    _p(doc, "TS-FrontCenter", city)
-    _p(doc, "TS-FrontCenter")
+    for line in (m.department, m.college.name):
+        if line.strip():
+            _p(doc, "TS-FrontCenter", line)
+    if m.college.city.strip():
+        city = m.college.city + (f" – {m.college.pin}" if m.college.pin else "")
+        _p(doc, "TS-FrontCenter", city)
     sub = f"{m.submission.month} {m.submission.year or ''}".strip()
-    _p(doc, "TS-FrontCenter", sub)
+    if sub:
+        _p(doc, "TS-FrontCenter")
+        _p(doc, "TS-FrontCenter", sub)
 
 
 def _fm_certificate(doc: Document, td: ThesisDocument) -> None:

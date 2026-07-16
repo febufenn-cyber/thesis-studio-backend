@@ -43,6 +43,7 @@ export function ExportMenu({ projectId }: { projectId: string }) {
 
   return (
     <div style={S.wrap}>
+      <SubmissionPackCard projectId={projectId} />
       {available ? (
         <>
           <div style={S.row}>
@@ -104,7 +105,72 @@ function InterchangeRow({ projectId }: { projectId: string }) {
   );
 }
 
+/**
+ * SubmissionPackCard — THE deliverable: one click, one zip (thesis PDF +
+ * integrity report + AI-use statement + quote verification + provenance log,
+ * with a checksummed manifest). Review packs say so honestly.
+ */
+function SubmissionPackCard({ projectId }: { projectId: string }) {
+  const [busy, setBusy] = useState(false);
+  const [state, setState] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function download() {
+    setBusy(true); setError(null); setState(null);
+    try {
+      const res = await fetch(`/projects/${projectId}/submission-pack`, {
+        method: "POST", credentials: "include",
+      });
+      if (!res.ok) {
+        let detail = `HTTP ${res.status}`;
+        try { const b = (await res.json()) as { detail?: string }; if (b?.detail) detail = b.detail; } catch { /* */ }
+        throw new Error(detail);
+      }
+      const packState = res.headers.get("X-Pack-State");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `submission-pack-${packState ?? "draft"}.zip`;
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+      setState(packState);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Pack failed");
+    } finally { setBusy(false); }
+  }
+
+  return (
+    <div style={S.packCard}>
+      <div>
+        <div style={S.packTitle}>Submission Pack</div>
+        <div style={S.packDesc}>
+          Thesis PDF · integrity report · AI-use statement · quote verification ·
+          provenance log — one zip with a checksummed manifest.
+        </div>
+      </div>
+      <button style={S.packBtn} onClick={download} disabled={busy}>
+        {busy ? "Building…" : "⬇ Download pack"}
+      </button>
+      {state === "review" && (
+        <p style={S.packNote}>
+          Review pack: open items remain visibly marked [UNVERIFIED]. Resolve the
+          Integrity blockers to produce a final pack.
+        </p>
+      )}
+      {state === "final" && <p style={S.packOk}>Final pack downloaded.</p>}
+      {error && <p style={S.err}>{error}</p>}
+    </div>
+  );
+}
+
 const S: Record<string, CSSProperties> = {
+  packCard: { display: "flex", flexWrap: "wrap", alignItems: "center", gap: 12, border: "1px solid #4b4bd6", background: "#ecebfb", borderRadius: 12, padding: "14px 15px", marginBottom: 16 },
+  packTitle: { fontSize: 14.5, fontWeight: 800, color: "#4b4bd6" },
+  packDesc: { fontSize: 12, color: "#1b2733", marginTop: 3, maxWidth: 420, lineHeight: 1.5 },
+  packBtn: { marginLeft: "auto", padding: "10px 16px", borderRadius: 10, border: "1px solid #4b4bd6", background: "#4b4bd6", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer", whiteSpace: "nowrap" },
+  packNote: { width: "100%", fontSize: 11.5, color: "#c98a1a", margin: 0 },
+  packOk: { width: "100%", fontSize: 11.5, color: "#1f9d6b", fontWeight: 600, margin: 0 },
   wrap: { fontFamily: "Inter, system-ui, sans-serif", color: "#1b2733" },
   row: { display: "flex", gap: 8 },
   select: { flex: 1, fontFamily: "inherit", fontSize: 12.5, border: "1px solid #e7e3db", background: "#fff", borderRadius: 7, padding: "8px" },

@@ -26,6 +26,7 @@ from app.models.event import Event
 from app.models.export import Export
 from app.models.project import Project
 from app.models.quote import Quote
+from app.models.institution import Institution
 from app.models.source import Source
 from app.schemas.project import (
     ChaptersUpdate,
@@ -103,7 +104,25 @@ async def create_project(
     meta_dict = dict(project.meta or {})
     if not (meta_dict.get("title") or "").strip():
         meta_dict["title"] = body.title.strip()
-        project.meta = meta_dict
+    # Title-page slots default from the student's real institution (never
+    # invented): college name/affiliation/city and department. Editable later.
+    inst = (
+        await db.execute(
+            select(Institution).where(Institution.id == current_user.institution_id)
+        )
+    ).scalar_one_or_none()
+    if inst is not None:
+        college = dict(meta_dict.get("college") or {})
+        if not (college.get("name") or "").strip():
+            college["name"] = inst.name
+        if not (college.get("affiliation") or "").strip() and inst.university_name:
+            college["affiliation"] = inst.university_name
+        if not (college.get("city") or "").strip() and inst.short_address:
+            college["city"] = inst.short_address
+        meta_dict["college"] = college
+        if not (meta_dict.get("department") or "").strip() and inst.default_department:
+            meta_dict["department"] = inst.default_department
+    project.meta = meta_dict
     db.add(project)
     await db.commit()
     await db.refresh(project)
