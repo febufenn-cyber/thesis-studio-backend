@@ -21,7 +21,10 @@ export function ApiKeysPanel() {
 
   const reload = useCallback(() => {
     listApiKeys()
-      .then((r) => setRows(Array.isArray(r) ? r : (r.keys ?? [])))
+      .then((r) => {
+        const anyR = r as { api_keys?: ApiKeyRow[]; keys?: ApiKeyRow[] } | ApiKeyRow[];
+        setRows(Array.isArray(anyR) ? anyR : (anyR.api_keys ?? anyR.keys ?? []));
+      })
       .catch((e) => setError(e.message));
   }, []);
   useEffect(reload, [reload]);
@@ -88,8 +91,9 @@ export function ApiKeysPanel() {
       </section>
       {error && <p style={S.err}>{error}</p>}
       <p style={S.hint}>
-        Use as <code>Authorization: Bearer ak_…</code>. Note: scope enforcement server-side is
-        still being hardened — treat every key as full-access until then.
+        Use as <code>Authorization: Bearer ak_…</code>. Scopes are enforced server-side:
+        <em> read</em> = any GET; <em>export</em>, <em>resolve</em>, <em>import</em> unlock their
+        endpoints. Keys can never manage keys or mutate projects.
       </p>
     </div>
   );
