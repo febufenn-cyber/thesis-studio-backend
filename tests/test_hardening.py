@@ -177,3 +177,48 @@ async def test_rate_limited_endpoint_does_not_500_with_limiting_on(monkeypatch, 
     # headers_enabled must be False, or every limited route 500s when limiting
     # is on (the production default).
     assert getattr(limiter, "_headers_enabled", False) is False
+
+
+async def test_review_export_renders_unverified_sources_with_markers(tmp_path) -> None:
+    """Priya rule 4: a review export must produce a document, with incomplete
+    citations shown as loud [UNVERIFIED...] fallbacks — never refused outright
+    and never silently cleaned. Final (strict) exports still refuse."""
+    import pytest as _pytest
+
+    from app.canonical.model import ThesisDocument, WorksCitedRef
+    from app.renderers.docx_renderer import RenderError, render_docx
+    from app.renderers.phase1_profiles import resolve_phase1_profile
+
+    class Src:
+        def __init__(self, kind, fields, raw=""):
+            self.kind, self.fields, self.raw_entry = kind, fields, raw
+
+    good = Src("book", {"author": "Austen, Jane", "title": "Emma",
+                        "publisher": "J. Murray", "year": "1815"})
+    broken = Src("book", {"author": "Ishiguro, Kazuo", "title": "[VERIFY]"},
+                 raw="Ishiguro, Kazuo. The Remains of the Day. Faber, 1989.")
+    doc = ThesisDocument.model_validate({
+        "meta": {"title": "T"}, "front_matter": [],
+        "chapters": [{"number": 1, "title": "One", "blocks": [
+            {"type": "paragraph", "runs": [{"text": "Body."}]}]}],
+        "works_cited": [],
+    })
+    from uuid import uuid4
+
+    id_a, id_b = uuid4(), uuid4()
+    doc.works_cited = [WorksCitedRef(source_id=id_a), WorksCitedRef(source_id=id_b)]
+    sources = {id_a: good, id_b: broken}
+    profile, _ = resolve_phase1_profile("mla_strict", None)
+
+    # strict (final): refuses, listing the incomplete citation
+    with _pytest.raises(RenderError):
+        render_docx(doc, sources, profile, str(tmp_path / "final.docx"), strict=True)
+
+    # review: renders, with the original line behind a loud marker
+    out = render_docx(doc, sources, profile, str(tmp_path / "review.docx"), strict=False)
+    from docx import Document as _D
+
+    text = "\n".join(p.text for p in _D(out).paragraphs)
+    assert "UNVERIFIED — incomplete citation" in text
+    assert "The Remains of the Day" in text  # student's own words preserved
+    assert "Austen, Jane." in text  # complete entries still formatted properly

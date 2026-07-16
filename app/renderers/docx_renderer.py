@@ -333,13 +333,19 @@ def render_docx(
     sources: dict[Any, SourceLike],
     profile: ResolvedProfile,
     output_path: str,
+    *,
+    strict: bool = True,
 ) -> str:
     """Render the canonical document to *output_path*; returns the path.
 
-    Raises RenderError listing every works-cited problem at once (missing
-    sources, missing citation fields) rather than failing one at a time.
+    strict=True (final exports): raises RenderError listing every works-cited
+    problem at once — an incomplete citation can never reach a final document.
+    strict=False (review exports): sources with missing required fields render
+    as their original imported line behind a loud [UNVERIFIED ...] marker, so a
+    draft can always be produced without laundering anything (FRICTION_LOG /
+    Priya rule 4).
     """
-    from app.renderers.works_cited import MissingCitationField
+    from app.renderers.works_cited import MissingCitationField, _sort_key, fallback_entry
 
     problems: list[str] = []
     used_sources: list[SourceLike] = []
@@ -352,11 +358,29 @@ def render_docx(
 
     wc_entries: list[list[Run]] = []
     if used_sources:
-        try:
-            style = get_citation_style(doc_model.meta.citation_style)
-            wc_entries = style.sorted_entries(used_sources)
-        except MissingCitationField as exc:
-            problems.append(str(exc))
+        style = get_citation_style(doc_model.meta.citation_style)
+        if strict:
+            try:
+                wc_entries = style.sorted_entries(used_sources)
+            except MissingCitationField as exc:
+                problems.append(str(exc))
+        else:
+            good: list[SourceLike] = []
+            flagged: list[SourceLike] = []
+            for src in used_sources:
+                try:
+                    style.sorted_entries([src])
+                    good.append(src)
+                except MissingCitationField:
+                    flagged.append(src)
+            merged: list[tuple[tuple[str, str], list[Run]]] = []
+            if good:
+                good_sorted = sorted(good, key=_sort_key)
+                for src, runs in zip(good_sorted, style.sorted_entries(good)):
+                    merged.append((_sort_key(src), runs))
+            for src in flagged:
+                merged.append((_sort_key(src), fallback_entry(src)))
+            wc_entries = [runs for _, runs in sorted(merged, key=lambda item: item[0])]
     if problems:
         raise RenderError("; ".join(problems))
 

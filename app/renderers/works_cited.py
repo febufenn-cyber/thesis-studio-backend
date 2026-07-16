@@ -114,6 +114,25 @@ def format_entry(kind: str, fields: dict[str, Any]) -> list[Run]:
     ]
 
 
+def fallback_entry(source: SourceLike) -> list[Run]:
+    """Review-export rendering for a source whose required fields are missing.
+
+    Never guesses: shows the student's own imported line (raw_entry) — or the
+    fields that DO exist — behind a loud marker, so a draft can render while
+    the gap stays impossible to miss (never-guess rule, DESIGN.md 2).
+    """
+    raw = str(getattr(source, "raw_entry", "") or "").strip()
+    if not raw:
+        f = source.fields or {}
+        raw = ", ".join(
+            str(v).strip() for k, v in f.items() if str(v).strip() and "[VERIFY]" not in str(v)
+        ) or "(no citation details imported)"
+    return [
+        Run(text="[UNVERIFIED — incomplete citation; shown as imported] "),
+        Run(text=raw),
+    ]
+
+
 def _sort_key(source: SourceLike) -> tuple[str, str]:
     author = str(source.fields.get("author", "")).strip()
     title = str(source.fields.get("title", "")).strip()
