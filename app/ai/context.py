@@ -11,6 +11,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.ai.domain_guidance import guidance_for_project
 from app.ai.safety import scan_untrusted_text, system_safety_policy, wrap_untrusted
 from app.ai.schemas import AIScope, GroundedAIOutput
 from app.ai.settings import get_ai_settings
@@ -337,10 +338,14 @@ async def compile_context(
 
     schema_text = _json(GroundedAIOutput.model_json_schema())
     policy = project.ai_policy or {}
+    domain_key, domain_text = guidance_for_project(project)
     system_prompt = "\n\n".join(
         [
             system_safety_policy(),
             f"TASK MODE: {spec.mode}\nTASK PURPOSE: {spec.description}\nRISK: {spec.risk_level}",
+            # Advisory discipline voice; never overrides the safety policy
+            # above and never authorises silent convention changes.
+            f"DOMAIN GUIDANCE ({domain_key}):\n{domain_text}",
             "PROJECT AI POLICY:\n" + _json(policy),
             "ALLOWED PROPOSAL OPERATION KINDS:\n" + _json(list(spec.allowed_operations)),
             "REQUIRED OUTPUT JSON SCHEMA:\n" + schema_text,
@@ -358,6 +363,7 @@ async def compile_context(
     manifest: dict[str, Any] = {
         "document_version": project.document_version,
         "canonical_schema_version": project.canonical_schema_version,
+        "domain_guidance": domain_key,
         "active_revision_id": str(project.active_revision_id) if project.active_revision_id else None,
         "task_mode": spec.mode,
         "scope": scope.model_dump(mode="json"),
