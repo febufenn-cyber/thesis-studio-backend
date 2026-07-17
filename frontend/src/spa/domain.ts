@@ -56,3 +56,16 @@ export function useCollabProjects(enabled: boolean) {
     retry: false,
   });
 }
+
+export function useInstitutionAccess(institutionId: string | undefined) {
+  return useQuery({
+    queryKey: ["institution-access", institutionId],
+    queryFn: async () => {
+      const r = await fetch(`/institutions/${institutionId}/analytics`, { credentials: "include" });
+      return r.ok;
+    },
+    enabled: !!institutionId,
+    retry: false,
+    staleTime: 5 * 60 * 1000,
+  });
+}

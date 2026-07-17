@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
-import { useMe } from "./domain";
+import { useCollabProjects, useInstitutionAccess, useMe } from "./domain";
 import { FloatingGuide } from "../FloatingGuide";
 import { PresenceDots } from "../PresenceDots";
 import { ENV_BG, T, overline } from "../theme";
@@ -51,11 +51,9 @@ const PROJECT_NAV = [
   { to: "settings", label: "Settings", icon: I.settings },
 ];
 
-const GLOBAL_NAV = [
-  { to: "/supervise", label: "Supervision desk", icon: I.supervision },
+const GLOBAL_NAV_BASE = [
   { to: "/identity", label: "Identity lookup", icon: I.identity },
   { to: "/keys", label: "API keys & security", icon: I.keys },
-  { to: "/institution", label: "Institution", icon: I.deposit },
 ];
 
 /** Warm orb monogram — the same glow as the guide fox. */
@@ -100,6 +98,15 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
   const { projectId } = useParams();
   const location = useLocation();
   const me = useMe();
+  // Progressive disclosure: never advertise doors locked for this account.
+  const collab = useCollabProjects(!!me.data);
+  const supervises = (collab.data ?? []).some((p) => (p.role ?? "student") !== "student");
+  const instAccess = useInstitutionAccess(me.data?.institution_id);
+  const accountNav = [
+    ...(supervises ? [{ to: "/supervise", label: "Supervision desk", icon: I.supervision }] : []),
+    ...GLOBAL_NAV_BASE,
+    ...(instAccess.data ? [{ to: "/institution", label: "Institution", icon: I.deposit }] : []),
+  ];
 
   const isActive = (path: string) =>
     location.pathname.endsWith(`/${path}`) || location.pathname === path;
@@ -176,7 +183,7 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
           )}
 
           <div style={S.navSection} className="navsec">Account</div>
-          {GLOBAL_NAV.map((n) => navItem(n.to, n.label, n.icon, isActive(n.to)))}
+          {accountNav.map((n) => navItem(n.to, n.label, n.icon, isActive(n.to)))}
         </nav>
 
         <div style={S.sidebarFoot} className="railfoot">
