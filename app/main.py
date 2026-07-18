@@ -334,7 +334,13 @@ def create_app() -> FastAPI:
         expose_headers=["X-Request-ID", "X-Trace-ID", "X-Release-SHA"],
     )
     app.mount("/static", StaticFiles(directory=static_dir), name="static")
+    # SERVICE_SCOPE §6: the pre-studio console layer (chat sessions, chat
+    # streaming, phase-1 active-registry reads) is quarantined behind a
+    # default-off flag. The studio never calls these; only /legacy did.
+    legacy_modules = {sessions, chat, active_registry}
     for module in API_MODULES:
+        if module in legacy_modules and not settings.LEGACY_CONSOLE_ENABLED:
+            continue
         # Versioned mount. New clients target /v1; the router's own prefix is
         # preserved (e.g. /v1/auth, /v1/projects).
         app.include_router(module.router, prefix="/v1")
@@ -368,9 +374,10 @@ def create_app() -> FastAPI:
     async def frontend_v2() -> Response:
         return _serve_frontend(static_dir / "v2.html", "v2")
 
-    @app.get("/legacy", include_in_schema=False)
-    async def frontend_legacy() -> Response:
-        return _serve_frontend(static_dir / "index.html", "legacy")
+    if settings.LEGACY_CONSOLE_ENABLED:
+        @app.get("/legacy", include_in_schema=False)
+        async def frontend_legacy() -> Response:
+            return _serve_frontend(static_dir / "index.html", "legacy")
 
     # Phase B SPA (docs/FRONTEND_LLD.md §19). Served at /app; the catch-all
     # returns the shell so client-side routes (e.g. /app/projects/{id}/library)

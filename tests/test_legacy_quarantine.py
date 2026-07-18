@@ -42,3 +42,42 @@ async def test_compile_gate_opens_when_enabled(
     )
     # Past the gate: the next guard (no assistant reply yet) returns 409.
     assert response.status_code == 409
+
+
+async def test_console_layer_absent_when_quarantined(monkeypatch) -> None:
+    """With LEGACY_CONSOLE_ENABLED=False the /legacy route and the phase-1
+    console's API surface (sessions, chat) do not mount at all: 404, not 401."""
+    import httpx
+    from httpx import ASGITransport
+
+    from app.core.config import get_settings as gs
+    from app.main import create_app
+
+    monkeypatch.setattr(gs(), "LEGACY_CONSOLE_ENABLED", False)
+    app = create_app()
+    async with httpx.AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as c:
+        assert (await c.get("/legacy")).status_code == 404
+        # Unmounted router → 404. (Mounted-but-unauthenticated would be 401.)
+        assert (await c.get("/sessions")).status_code == 404
+        # The studio and SPA are untouched by the quarantine.
+        assert (await c.get("/")).status_code == 200
+        assert (await c.get("/app")).status_code == 200
+
+
+async def test_console_layer_mounts_when_enabled(monkeypatch) -> None:
+    import httpx
+    from httpx import ASGITransport
+
+    from app.core.config import get_settings as gs
+    from app.main import create_app
+
+    monkeypatch.setattr(gs(), "LEGACY_CONSOLE_ENABLED", True)
+    app = create_app()
+    async with httpx.AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as c:
+        assert (await c.get("/legacy")).status_code == 200
+        # Mounted and auth-guarded: unauthenticated is 401, not 404.
+        assert (await c.get("/sessions")).status_code == 401

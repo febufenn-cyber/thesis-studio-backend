@@ -21,6 +21,7 @@ const TABS = [
   { key: "usage", label: "Usage", path: (id: string) => `/institutions/${id}/commercial/usage` },
   { key: "reliability", label: "Reliability", path: (id: string) => `/institutions/${id}/reliability/dashboard` },
   { key: "entitlements", label: "Entitlements", path: (id: string) => `/institutions/${id}/commercial/entitlements` },
+  { key: "onboarding", label: "Onboarding", path: (id: string) => `/institutions/${id}/onboarding` },
 ];
 
 export function InstitutionConsole({ institutionId }: { institutionId: string }) {

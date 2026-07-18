@@ -124,6 +124,7 @@ class Settings(BaseSettings):
     # the repo for later revival as a separate premium feature. See
     # docs/DOMAIN_EXPANSION.md and the code review.
     LEGACY_COMPILE_ENABLED: bool = False
+    LEGACY_CONSOLE_ENABLED: bool = False
 
     # Reference enrichment (docs/LLD.md 3.2). Resolves [VERIFY] placeholders
     # against Crossref/OpenAlex/arXiv/OpenLibrary. Network access is only used

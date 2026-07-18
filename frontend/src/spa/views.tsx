@@ -1,3 +1,4 @@
+import * as React from "react";
 import type { CSSProperties } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useCollabProjects, useMe, useProjects } from "./domain";
@@ -164,10 +165,33 @@ export function ApiKeysView() {
   );
 }
 
+function useOpenComments(projectIds: string[]) {
+  const [counts, setCounts] = React.useState<Record<string, number>>({});
+  React.useEffect(() => {
+    let alive = true;
+    (async () => {
+      const next: Record<string, number> = {};
+      for (const id of projectIds.slice(0, 12)) {
+        try {
+          const r = await fetch(`/projects/${id}/block-comments?status_filter=open`, { credentials: "include" });
+          if (r.ok) {
+            const j = await r.json();
+            next[id] = (Array.isArray(j) ? j : (j.comments ?? [])).length;
+          }
+        } catch { /* count stays unknown */ }
+      }
+      if (alive) setCounts(next);
+    })();
+    return () => { alive = false; };
+  }, [projectIds.join(",")]);
+  return counts;
+}
+
 export function SupervisorDeskView() {
   const me = useMe();
   const collab = useCollabProjects(!!me.data);
   const supervised = (collab.data ?? []).filter((p) => (p.role ?? "student") !== "student");
+  const waiting = useOpenComments(supervised.map((p) => p.id));
   return (
     <AppShell title="Supervision desk">
       <h1 style={h1}>Supervision desk</h1>
@@ -188,6 +212,11 @@ export function SupervisorDeskView() {
             <div style={cardTitle}>{p.title}</div>
             <div style={{ fontSize: 12, color: T.muted, marginBottom: 10 }}>
               {(p.doc_type ?? "thesis").replace(/_/g, " ")} · {(p.workflow_state ?? "draft").replace(/_/g, " ")}
+              {waiting[p.id] !== undefined && waiting[p.id] > 0 && (
+                <span style={{ marginLeft: 8, color: T.warn, fontWeight: 600 }}>
+                  · {waiting[p.id]} open comment{waiting[p.id] === 1 ? "" : "s"} waiting
+                </span>
+              )}
             </div>
             <div style={cardFoot}>Open in studio →</div>
           </a>

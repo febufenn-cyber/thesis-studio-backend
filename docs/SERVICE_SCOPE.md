@@ -146,15 +146,19 @@ checked* reason to exist.
 
 ## 6. The honest findings — decisions needed (the only real noise risk)
 
-One legacy layer predates the studio and is still mounted:
+One legacy layer predated the studio. **Resolved — quarantined by default:**
 
-| Item | What it is | Recommendation |
+| Item | What it is | Status |
 |---|---|---|
-| `/legacy` route + `index.html` + `phase1*.js/css` | The original chat-first console | **Retire**: remove route + assets after one release with a redirect notice |
-| `chat.py`, `sessions.py`, `claude_service`, `compile_service` | v1 "chat with Claude → compile thesis from messages" pipeline | **Retire or quarantine behind `LEGACY_CHAT_ENABLED=false` default** — it bypasses the proposal-engine governance that makes Robofox trustworthy |
-| `active_registry.py` | Read endpoints only the phase-1 console uses | Retire with the console |
-| `POST /auth/request-link` (magic link) | Alternative auth, needs mail infra | Keep config-gated or remove; decide with deployment plan |
-| `ai_partner: link-legacy` | One-time migration shim | Remove after legacy retirement |
+| `/legacy` route + `index.html` + `phase1*.js/css` | The original chat-first console | **Quarantined**: served only when `LEGACY_CONSOLE_ENABLED=true` (default false); tested both ways |
+| `chat.py`, `sessions.py` | v1 chat pipeline | **Quarantined** behind the same flag (routers not mounted when off; 404 not 401) |
+| compile path (`compile_service`) | chat→compile output that bypasses citation verification | **Quarantined** since earlier via `LEGACY_COMPILE_ENABLED=false` default; tested |
+| `active_registry.py` | Read endpoints only the phase-1 console uses | **Quarantined** with the console |
+| `POST /auth/request-link` (magic link) | Alternative auth, needs mail infra | Config-gated; activates with mail credentials |
+| `ai_partner: link-legacy` | One-time migration shim | Kept while the quarantined console exists; deletes with it |
+
+Hard deletion of the quarantined assets is a one-commit follow-up once no
+tenant has the flag on.
 
 Nothing else in the repository failed the four questions (intent, code,
 proof, surface). The `commercial_*` modules are **enterprise-ahead by
