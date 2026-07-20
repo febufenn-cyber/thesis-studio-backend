@@ -143,3 +143,55 @@ def times_new_roman_available() -> bool:
         "or the Microsoft core fonts package for your platform."
     )
     return True
+
+
+# ---------------------------------------------------------------------------
+# Complex-script coverage (DESIGN §9 / Tamil-first market requirement).
+# ---------------------------------------------------------------------------
+
+# One representative letter per script we promise to render. A thesis for a
+# Tamil Nadu college will contain Tamil the day it is adopted; the other Indic
+# scripts follow the same probe so the deployment checklist covers them too.
+_SCRIPT_PROBES: dict[str, str] = {
+    "tamil": "0B95",       # க
+    "devanagari": "0915",  # क
+    "telugu": "0C15",      # క
+    "kannada": "0C95",     # ಕ
+    "malayalam": "0D15",   # ക
+}
+
+
+def script_coverage() -> dict[str, str | None]:
+    """Which installed font family would render each supported script.
+
+    Uses ``fc-match :charset=XXXX`` per script. ``None`` means NO installed
+    font covers the script — exports containing it will show tofu boxes.
+    Never raises; on hosts without fontconfig every value is ``None`` and the
+    caller should treat coverage as unknown-but-suspect.
+    """
+    fc_match = shutil.which("fc-match")
+    coverage: dict[str, str | None] = {}
+    for script, codepoint in _SCRIPT_PROBES.items():
+        family: str | None = None
+        if fc_match:
+            try:
+                result = subprocess.run(
+                    [fc_match, "-f", "%{family}", f":charset={codepoint}"],
+                    capture_output=True, text=True, timeout=10,
+                )
+                candidate = (result.stdout or "").strip()
+                # fontconfig returns a last-resort face when nothing matches;
+                # treat empty and LastResort as no coverage.
+                if result.returncode == 0 and candidate and "lastresort" not in candidate.lower():
+                    family = candidate
+            except (OSError, subprocess.TimeoutExpired) as exc:
+                logger.debug("fc-match probe failed for %s: %s", script, exc)
+        coverage[script] = family
+        if family is None:
+            logger.warning(
+                "No installed font covers %s (U+%s). Exports containing this "
+                "script will render tofu. Install fonts-noto-core / fonts-indic "
+                "(Debian/Ubuntu: sudo apt-get install fonts-noto-core fonts-indic).",
+                script, codepoint,
+            )
+    return coverage

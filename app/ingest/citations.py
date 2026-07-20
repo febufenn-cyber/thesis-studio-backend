@@ -104,14 +104,32 @@ def parse_wc_entry(runs: list[Run], paragraph_index: int | None = None) -> Sourc
     url_match = _URL_RE.search(text)
     lower = text.lower()
 
+    # --- author from the head segment (never-guess guards, eval 2.1) ---------
     author = ""
+    title_from_head = ""
     segments = _first_sentence_segments(text)
     if segments:
         head = segments[0]
         if head.startswith("---"):
-            author = VERIFY
-        elif "," in head and not head.startswith(("“", '"')) and head != italic_main:
-            author = head
+            author = VERIFY  # same-author dash; inherited by parse_wc_entries
+        elif "," in head and not head.startswith(("\u201c", '"')) and head != italic_main:
+            # A fragment like "Ishiguro interview, The Paris Review, 2008" is
+            # NOT an author — a year inside the head, or an overlong head,
+            # means we must flag rather than absorb the line (fabrication guard).
+            if _YEAR_RE.search(head) or len(head) > 80:
+                author = ""
+            else:
+                author = head
+                # Trailing-initial merge: "Booth, Wayne C. The Rhetoric of
+                # Fiction" arrives as ONE segment (the initial's period is
+                # protected). Split author from a multi-word title remainder;
+                # a single-word remainder is part of the name (H. Porter).
+                split = re.match(r"^(.+?\b[A-Z]\.)\s+((?:\S+\s+)+\S+)$", head)
+                if split and "," in split.group(1):
+                    remainder = split.group(2).strip()
+                    if remainder[:1].isupper() and not _YEAR_RE.search(remainder):
+                        author = split.group(1).strip()
+                        title_from_head = remainder
 
     def missing(note: str) -> str:
         return f"Could not read: {note}. Confirm against the original source."
@@ -128,6 +146,15 @@ def parse_wc_entry(runs: list[Run], paragraph_index: int | None = None) -> Sourc
         "identifiers": identifiers,
     }
 
+    def after_quote(pattern: str) -> str:
+        """Plain-text fallback: capture the run of text right after the closing
+        quote (container/site) when no italics survived the paste."""
+        if not quoted:
+            return ""
+        tail = text[quoted.end():]
+        m = re.match(pattern, tail)
+        return m.group(1).strip() if m else ""
+
     if "directed by" in lower:
         director = re.search(r"directed by\s+([^,.]+)", text, re.IGNORECASE)
         studio_segment = segments[-1] if segments else ""
@@ -136,21 +163,22 @@ def parse_wc_entry(runs: list[Run], paragraph_index: int | None = None) -> Sourc
             SourceCandidate(
                 kind="film",
                 fields={
-                    "title": italic_main or VERIFY,
+                    "title": italic_main or (segments[0] if segments else VERIFY) or VERIFY,
                     "director": director.group(1).strip() if director else VERIFY,
                     "studio": studio,
                     "year": year,
                 },
-                verify_note="" if italic_main and director else missing("film credits"),
+                verify_note="" if director else missing("film credits"),
                 **common,
             )
         )
 
     if quoted and (_VOL_RE.search(text) or _NO_RE.search(text)):
+        container = italic_main or after_quote(r"\s*\.?\s*([^,]{2,80}?),\s*vol\.")
         fields = {
             "author": author or VERIFY,
             "title": quoted.group("t").rstrip("."),
-            "container": italic_main or VERIFY,
+            "container": container or VERIFY,
             "volume": _VOL_RE.search(text).group(1) if _VOL_RE.search(text) else VERIFY,
             "number": _NO_RE.search(text).group(1) if _NO_RE.search(text) else VERIFY,
             "year": year,
@@ -159,7 +187,11 @@ def parse_wc_entry(runs: list[Run], paragraph_index: int | None = None) -> Sourc
         kind = "journal"
         if url_match or len(italic_texts) > 1:
             kind = "journal_db"
-            fields["database"] = italic_texts[1] if len(italic_texts) > 1 else VERIFY
+            database = italic_texts[1] if len(italic_texts) > 1 else ""
+            if not database:
+                db_m = re.search(r"(?:^|\.\s)([A-Z][\w &-]{1,40}?),\s*(?:https?://|www\.|doi)", text)
+                database = db_m.group(1).strip() if db_m else ""
+            fields["database"] = database or VERIFY
             fields["doi_or_url"] = url_match.group(0).rstrip(".") if url_match else VERIFY
         return _finish(
             SourceCandidate(
@@ -177,13 +209,14 @@ def parse_wc_entry(runs: list[Run], paragraph_index: int | None = None) -> Sourc
             text,
             re.IGNORECASE,
         )
+        container = italic_main or after_quote(r"\s*\.?\s*([^,]{2,80}?),\s*edited by")
         return _finish(
             SourceCandidate(
                 kind="chapter_in_collection",
                 fields={
                     "author": author or VERIFY,
                     "title": quoted.group("t").rstrip("."),
-                    "container": italic_main or VERIFY,
+                    "container": container or VERIFY,
                     "editor": editor.group(1).strip() if editor else VERIFY,
                     "publisher": publisher_match.group(1).strip() if publisher_match else VERIFY,
                     "year": year,
@@ -194,14 +227,17 @@ def parse_wc_entry(runs: list[Run], paragraph_index: int | None = None) -> Sourc
             )
         )
 
-    if quoted and (url_match or (italic_main and not pages_match)):
+    if quoted and not pages_match:
+        # Web-like: a quoted title with a site and/or URL — or a bare quoted
+        # fragment (site and URL correctly flagged rather than guessed).
+        site = italic_main or after_quote(r"\s*\.?\s*([^,]{2,80}?)\s*,")
         return _finish(
             SourceCandidate(
                 kind="web",
                 fields={
                     "author": author,
                     "title": quoted.group("t").rstrip("."),
-                    "site": italic_main or VERIFY,
+                    "site": site or VERIFY,
                     "url": url_match.group(0).rstrip(".") if url_match else VERIFY,
                 },
                 verify_note="" if url_match else missing("URL"),
@@ -218,9 +254,48 @@ def parse_wc_entry(runs: list[Run], paragraph_index: int | None = None) -> Sourc
         publisher = publisher_match.group(1).strip()
         if translator_match and publisher.lower().startswith("translated by"):
             publisher = VERIFY
+    if publisher == VERIFY and re.search(r"\beds?\.,", text, re.IGNORECASE):
+        # Edition entries — "2nd ed., U of Chicago P, 1983." — put the
+        # publisher after a comma the sentence-anchored pattern cannot cross.
+        # Anchored on the literal edition marker so bare fragments can't
+        # smuggle a fabricated publisher through this path.
+        ed_pub = re.search(
+            r"\beds?\.,\s*([^,]{2,60}?),\s*(1[5-9]\d{2}|20\d{2})\.?\s*$",
+            text,
+            re.IGNORECASE,
+        )
+        if ed_pub:
+            publisher = ed_pub.group(1).strip()
+    if publisher == VERIFY and translator_match:
+        # "Translated by X and Y, U of Chicago P, 2004." — publisher sits after
+        # the translator clause, unreachable by the sentence-anchored pattern.
+        trans_pub = re.search(
+            r"translated by\s+[^,]+,\s*([^,]{2,60}?),\s*(1[5-9]\d{2}|20\d{2})",
+            text,
+            re.IGNORECASE,
+        )
+        if trans_pub:
+            publisher = trans_pub.group(1).strip()
+
+    # Plain-text title fallback: the segment after the author (or after a
+    # same-author dash). Reject publisher-shaped ("..., 1989"), edition
+    # ("2nd ed"), and clause segments — a wrong title would be a fabrication.
+    title = italic_main or title_from_head
+    if not title and segments and (author or (segments[0].startswith("---"))):
+        for candidate_seg in segments[1:2]:
+            seg = candidate_seg.strip()
+            if not seg or seg[:1].islower():
+                continue
+            if _YEAR_RE.search(seg) or re.match(r"^\d+(st|nd|rd|th)\s+ed$", seg, re.IGNORECASE):
+                continue
+            if seg.lower().startswith(("translated by", "edited by", "directed by")):
+                continue
+            title = seg
+            break
+
     fields = {
         "author": author or VERIFY,
-        "title": italic_main or VERIFY,
+        "title": title or VERIFY,
         "publisher": publisher,
         "year": year,
     }

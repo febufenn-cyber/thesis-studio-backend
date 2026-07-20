@@ -11,13 +11,14 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import CurrentUser, fetch_owned_project
 from app.core.config import get_settings
+from app.core.rate_limit import limiter
 from app.db.deps import get_db
 from app.models.source import Source
 from app.references.csl_render import CSLRenderError, render_bibliography
@@ -44,7 +45,9 @@ async def bibliography_styles(current_user: CurrentUser) -> dict:
 
 
 @router.post("/projects/{project_id}/bibliography/render")
+@limiter.limit(lambda: get_settings().RATE_LIMIT_EXPENSIVE)
 async def render_project_bibliography(
+    request: Request,
     project_id: UUID,
     body: RenderBibliographyRequest,
     current_user: CurrentUser,

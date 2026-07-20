@@ -4,6 +4,7 @@ import { EnterprisePanel } from "./EnterprisePanel";
 import { TrustPanel } from "./TrustPanel";
 import { SourceIntelligence } from "./SourceIntelligence";
 import { AutoVerifyButton } from "./AutoVerifyButton";
+import { FloatingGuide } from "./FloatingGuide";
 
 /**
  * Island bridge (FRONTEND_LLD §19, Phase A).
@@ -47,6 +48,13 @@ export function mountAutoVerify(
   opts: { projectId: string; quoteId: string },
 ): void {
   render(el, <AutoVerifyButton projectId={opts.projectId} quoteId={opts.quoteId} />);
+}
+
+export function mountGuide(
+  el: Element,
+  opts: { getProjectId?: () => string | null } = {},
+): void {
+  render(el, <FloatingGuide getProjectId={opts.getProjectId} />);
 }
 
 /** Tear down a previously mounted island. */

@@ -8,6 +8,7 @@ object in storage is never overwritten.
 from __future__ import annotations
 
 import asyncio
+import re
 import logging
 import os
 from datetime import datetime, timezone
@@ -16,7 +17,14 @@ from uuid import UUID, uuid5, NAMESPACE_URL
 
 from sqlalchemy import select, update
 
-from app.canonical.model import BlockQuoteBlock, ThesisDocument, ThesisMeta, VerseQuoteBlock, WorksCitedRef
+from app.canonical.model import (
+    BlockQuoteBlock,
+    ParagraphBlock,
+    ThesisDocument,
+    ThesisMeta,
+    VerseQuoteBlock,
+    WorksCitedRef,
+)
 from app.db.session import AsyncSessionLocal
 from app.ingest.citations import parse_wc_entries, resolve_citation, scan_document
 from app.ingest.docx_extract import extract_paragraphs
@@ -333,6 +341,41 @@ async def ingest_revision(
                         "chapter": chapter_number,
                         "citation": block.citation,
                         "source_id": str(resolved_source_id),
+                        "quote_id": str(quote.id),
+                        "status": "linked_unverified",
+                    }
+                )
+
+            # Inline run-in quotations (FRICTION_LOG F6; eval-governed in
+            # tests/quote_corpus.py). Linked only via unambiguous citations.
+            from app.verification.inline_quotes import extract_inline_quotes
+
+            for iq in extract_inline_quotes(document, citation_by_block):
+                quote = Quote(
+                    source_id=UUID(iq.source_id),
+                    project_id=project.id,
+                    user_id=user_id,
+                    page_or_loc=iq.pages,
+                    text=iq.text,
+                    method="extracted",
+                    import_revision_id=revision.id,
+                    source_paragraph_index=None,
+                    evidence_snapshot={
+                        "raw_citation": iq.raw_citation,
+                        "block_id": iq.block_id,
+                        "revision_id": str(revision.id),
+                        "inline": True,
+                    },
+                    verified=False,
+                )
+                db.add(quote)
+                await db.flush()
+                quotation_results.append(
+                    {
+                        "block_id": iq.block_id,
+                        "chapter": iq.chapter,
+                        "citation": iq.raw_citation,
+                        "source_id": iq.source_id,
                         "quote_id": str(quote.id),
                         "status": "linked_unverified",
                     }

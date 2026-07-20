@@ -59,21 +59,22 @@ def format_entry(kind: str, fields: dict[str, Any]) -> list[Run]:
         raise MissingCitationField("kind", f"unknown source kind {kind!r}")
     f = _req(fields, kind, desc)
 
+    author_disp = str(f.get("author", "")).rstrip(".")
     if kind == "book":
         return [
-            Run(text=f"{f['author']}. "),
+            Run(text=f"{author_disp}. "),
             Run(text=f["title"], italic=True),
             Run(text=f". {f['publisher']}, {f['year']}."),
         ]
     if kind == "translated_book":
         return [
-            Run(text=f"{f['author']}. "),
+            Run(text=f"{author_disp}. "),
             Run(text=f["title"], italic=True),
             Run(text=f". Translated by {f['translator']}, {f['publisher']}, {f['year']}."),
         ]
     if kind == "chapter_in_collection":
         return [
-            Run(text=f"{f['author']}. “{f['title']}.” "),
+            Run(text=f"{author_disp}. “{f['title']}.” "),
             Run(text=f["container"], italic=True),
             Run(text=(
                 f", edited by {f['editor']}, {f['publisher']}, {f['year']},"
@@ -82,7 +83,7 @@ def format_entry(kind: str, fields: dict[str, Any]) -> list[Run]:
         ]
     if kind in ("journal", "journal_db"):
         runs = [
-            Run(text=f"{f['author']}. “{f['title']}.” "),
+            Run(text=f"{author_disp}. “{f['title']}.” "),
             Run(text=f["container"], italic=True),
             Run(text=(
                 f", vol. {f['volume']}, no. {f['number']}, {f['year']},"
@@ -111,6 +112,25 @@ def format_entry(kind: str, fields: dict[str, Any]) -> list[Run]:
     return [
         Run(text=f["title"], italic=True),
         Run(text=f". Directed by {f['director']}, {f['studio']}, {f['year']}."),
+    ]
+
+
+def fallback_entry(source: SourceLike) -> list[Run]:
+    """Review-export rendering for a source whose required fields are missing.
+
+    Never guesses: shows the student's own imported line (raw_entry) — or the
+    fields that DO exist — behind a loud marker, so a draft can render while
+    the gap stays impossible to miss (never-guess rule, DESIGN.md 2).
+    """
+    raw = str(getattr(source, "raw_entry", "") or "").strip()
+    if not raw:
+        f = source.fields or {}
+        raw = ", ".join(
+            str(v).strip() for k, v in f.items() if str(v).strip() and "[VERIFY]" not in str(v)
+        ) or "(no citation details imported)"
+    return [
+        Run(text="[UNVERIFIED — incomplete citation; shown as imported] "),
+        Run(text=raw),
     ]
 
 

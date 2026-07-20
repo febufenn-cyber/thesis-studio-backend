@@ -20,17 +20,36 @@ from app.core.config import get_settings
 
 
 def _client_key(request) -> str:
-    """Prefer the real client IP behind the trusted proxy, else the peer."""
-    forwarded = request.headers.get("x-forwarded-for")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
+    """Rate-limit key: the real client IP — without trusting spoofable headers.
+
+    X-Forwarded-For is attacker-controlled unless a proxy we operate appended
+    to it, so it is honored only when TRUSTED_PROXY_HOPS > 0, and then the
+    entry chosen is the one added by our outermost trusted proxy (counting
+    from the right), not the client-supplied left-most value.
+    """
+    hops = int(getattr(get_settings(), "TRUSTED_PROXY_HOPS", 0))
+    if hops > 0:
+        forwarded = request.headers.get("x-forwarded-for")
+        if forwarded:
+            chain = [part.strip() for part in forwarded.split(",") if part.strip()]
+            if chain:
+                return chain[-hops] if hops <= len(chain) else chain[0]
     return get_remote_address(request)
 
 
+# headers_enabled MUST stay False. When True, slowapi injects X-RateLimit-*
+# headers and therefore requires every decorated endpoint to expose a
+# ``response: Response`` parameter (or return a Starlette Response). Our
+# endpoints return Pydantic models / dicts, so with header injection on, EVERY
+# rate-limited route raises 500 the moment RATE_LIMIT_ENABLED is true — which is
+# the production default. The test suite disables rate limiting, so this was
+# invisible until a real signup hit it. Enforcement (429s) works fine without
+# the informational headers; re-enabling them means adding a Response param to
+# every limited endpoint. See test_rate_limit_live.
 limiter = Limiter(
     key_func=_client_key,
     enabled=get_settings().RATE_LIMIT_ENABLED,
-    headers_enabled=True,
+    headers_enabled=False,
 )
 
 

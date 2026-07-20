@@ -154,32 +154,45 @@ def _page_break(doc: Document) -> None:
 
 
 def _fm_title_page(doc: Document, td: ThesisDocument) -> None:
+    """Title page with graceful omission: a line whose metadata slot is empty
+    is dropped entirely — never rendered as "submitted to ," artifacts. The
+    review/final gate (verifier) still requires the fields before a final
+    export; this only keeps drafts presentable (FRICTION_LOG F-title)."""
     m = td.meta
     _p(doc, "TS-FrontCenter", m.title.upper(), bold=True, size_pt=14)
     _p(doc, "TS-FrontCenter")
-    _p(doc, "TS-FrontCenter", f"A dissertation submitted to {m.college.name},")
-    _p(doc, "TS-FrontCenter", f"affiliated to {m.college.affiliation},")
+    if m.college.name.strip():
+        _p(doc, "TS-FrontCenter", f"A dissertation submitted to {m.college.name},")
+        if m.college.affiliation.strip():
+            _p(doc, "TS-FrontCenter", f"affiliated to {m.college.affiliation},")
+    else:
+        _p(doc, "TS-FrontCenter", "A dissertation submitted")
     _p(doc, "TS-FrontCenter", "in partial fulfilment of the requirements")
     _p(doc, "TS-FrontCenter", "for the award of the degree of")
     _p(doc, "TS-FrontCenter")
     _p(doc, "TS-FrontCenter", m.degree.upper(), bold=True)
+    if m.candidate.name.strip():
+        _p(doc, "TS-FrontCenter")
+        _p(doc, "TS-FrontCenter", "By")
+        _p(doc, "TS-FrontCenter", m.candidate.name)
+        if m.candidate.reg_no:
+            _p(doc, "TS-FrontCenter", f"(Reg. No. {m.candidate.reg_no})")
+    if m.guide.name.strip():
+        _p(doc, "TS-FrontCenter")
+        _p(doc, "TS-FrontCenter", "Under the guidance of")
+        guide = m.guide.name + (f", {m.guide.designation}" if m.guide.designation else "")
+        _p(doc, "TS-FrontCenter", guide)
     _p(doc, "TS-FrontCenter")
-    _p(doc, "TS-FrontCenter", "By")
-    _p(doc, "TS-FrontCenter", m.candidate.name)
-    if m.candidate.reg_no:
-        _p(doc, "TS-FrontCenter", f"(Reg. No. {m.candidate.reg_no})")
-    _p(doc, "TS-FrontCenter")
-    _p(doc, "TS-FrontCenter", "Under the guidance of")
-    guide = m.guide.name + (f", {m.guide.designation}" if m.guide.designation else "")
-    _p(doc, "TS-FrontCenter", guide)
-    _p(doc, "TS-FrontCenter")
-    _p(doc, "TS-FrontCenter", m.department)
-    _p(doc, "TS-FrontCenter", m.college.name)
-    city = m.college.city + (f" – {m.college.pin}" if m.college.pin else "")
-    _p(doc, "TS-FrontCenter", city)
-    _p(doc, "TS-FrontCenter")
+    for line in (m.department, m.college.name):
+        if line.strip():
+            _p(doc, "TS-FrontCenter", line)
+    if m.college.city.strip():
+        city = m.college.city + (f" – {m.college.pin}" if m.college.pin else "")
+        _p(doc, "TS-FrontCenter", city)
     sub = f"{m.submission.month} {m.submission.year or ''}".strip()
-    _p(doc, "TS-FrontCenter", sub)
+    if sub:
+        _p(doc, "TS-FrontCenter")
+        _p(doc, "TS-FrontCenter", sub)
 
 
 def _fm_certificate(doc: Document, td: ThesisDocument) -> None:
@@ -333,13 +346,19 @@ def render_docx(
     sources: dict[Any, SourceLike],
     profile: ResolvedProfile,
     output_path: str,
+    *,
+    strict: bool = True,
 ) -> str:
     """Render the canonical document to *output_path*; returns the path.
 
-    Raises RenderError listing every works-cited problem at once (missing
-    sources, missing citation fields) rather than failing one at a time.
+    strict=True (final exports): raises RenderError listing every works-cited
+    problem at once — an incomplete citation can never reach a final document.
+    strict=False (review exports): sources with missing required fields render
+    as their original imported line behind a loud [UNVERIFIED ...] marker, so a
+    draft can always be produced without laundering anything (FRICTION_LOG /
+    Priya rule 4).
     """
-    from app.renderers.works_cited import MissingCitationField
+    from app.renderers.works_cited import MissingCitationField, _sort_key, fallback_entry
 
     problems: list[str] = []
     used_sources: list[SourceLike] = []
@@ -351,12 +370,32 @@ def render_docx(
             used_sources.append(src)
 
     wc_entries: list[list[Run]] = []
+    style_used = None
     if used_sources:
-        try:
-            style = get_citation_style(doc_model.meta.citation_style)
-            wc_entries = style.sorted_entries(used_sources)
-        except MissingCitationField as exc:
-            problems.append(str(exc))
+        style = get_citation_style(doc_model.meta.citation_style)
+        style_used = style
+        if strict:
+            try:
+                wc_entries = style.sorted_entries(used_sources)
+            except MissingCitationField as exc:
+                problems.append(str(exc))
+        else:
+            good: list[SourceLike] = []
+            flagged: list[SourceLike] = []
+            for src in used_sources:
+                try:
+                    style.sorted_entries([src])
+                    good.append(src)
+                except MissingCitationField:
+                    flagged.append(src)
+            merged: list[tuple[tuple[str, str], list[Run]]] = []
+            if good:
+                good_sorted = sorted(good, key=_sort_key)
+                for src, runs in zip(good_sorted, style.sorted_entries(good)):
+                    merged.append((_sort_key(src), runs))
+            for src in flagged:
+                merged.append((_sort_key(src), fallback_entry(src)))
+            wc_entries = [runs for _, runs in sorted(merged, key=lambda item: item[0])]
     if problems:
         raise RenderError("; ".join(problems))
 
@@ -434,6 +473,17 @@ def render_docx(
     if wc_entries:
         _page_break(doc)
         heading = profile.works_cited.heading
+        # "Works Cited" is MLA vocabulary. When the manuscript declares a
+        # different citation mechanism (IEEE numbered, APA/Chicago author-date,
+        # Vancouver…) and the profile still carries the MLA default, use the
+        # style-appropriate heading. An explicit non-default profile heading
+        # (institutional law) always wins.
+        if (
+            style_used is not None
+            and style_used.mechanism != "author_page"
+            and heading.strip().lower() == "works cited"
+        ):
+            heading = "References"
         _p(doc, "TS-FrontCenter", heading, bold=profile.works_cited.heading_bold)
         _p(doc, "TS-FrontCenter")
         for entry_runs in wc_entries:

@@ -1,0 +1,157 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import type { CSSProperties } from "react";
+import { getCommittee, runSemanticDiff, type CommitteeMember } from "./useFeatures";
+import { apiGet, apiSend } from "./coverageApi";
+
+/**
+ * SupervisionPanel — committee roster (3.6) and semantic version comparison.
+ * Committee assignment itself happens through the collaboration invite flow;
+ * this surface makes the roster and the diff engine reachable.
+ */
+export function SupervisionPanel({ projectId }: { projectId: string }) {
+  return (
+    <div style={S.wrap}>
+      <CommitteeCard projectId={projectId} />
+      <CommentsCard projectId={projectId} />
+      <DiffCard projectId={projectId} />
+    </div>
+  );
+}
+
+function CommitteeCard({ projectId }: { projectId: string }) {
+  const [members, setMembers] = useState<CommitteeMember[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    getCommittee(projectId)
+      .then((r) => setMembers(Array.isArray(r) ? r : (r.committee ?? r.members ?? [])))
+      .catch((e) => setError(e.message));
+  }, [projectId]);
+
+  return (
+    <section style={S.card}>
+      <div style={S.h}>Committee</div>
+      {error && <p style={S.err}>{error}</p>}
+      {members === null && !error && <p style={S.muted}>Loading…</p>}
+      {members?.length === 0 && (
+        <p style={S.muted}>
+          No committee assigned yet. Invite members through Collaboration, then assign committee
+          roles (chair, examiner, reader) from there.
+        </p>
+      )}
+      {members?.map((m, i) => (
+        <div key={i} style={S.row}>
+          <span style={S.role}>{m.committee_role}</span>
+          <code style={S.mono}>{String(m.user_id).slice(0, 8)}…</code>
+          {m.voting && <span style={S.chip}>voting</span>}
+          {m.content_access && <span style={S.chip}>content access</span>}
+        </div>
+      ))}
+    </section>
+  );
+}
+
+function DiffCard({ projectId }: { projectId: string }) {
+  const [base, setBase] = useState("");
+  const [result, setResult] = useState<Record<string, unknown> | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function run() {
+    setBusy(true); setError(null); setResult(null);
+    try {
+      const parsed = JSON.parse(base) as unknown;
+      setResult(await runSemanticDiff(projectId, parsed));
+    } catch (e) {
+      setError(e instanceof SyntaxError ? "That isn't valid JSON — paste a document export." : e instanceof Error ? e.message : "Diff failed");
+    } finally { setBusy(false); }
+  }
+
+  return (
+    <section style={S.card}>
+      <div style={S.h}>Compare against a saved version</div>
+      <p style={S.muted}>
+        Paste a document JSON (from a data export or checkpoint download) to see a semantic diff —
+        moved paragraphs are recognized as moves, not delete+insert.
+      </p>
+      <textarea style={S.area} rows={5} placeholder='{"meta": {...}, "chapters": [...]}' value={base} onChange={(e) => setBase(e.target.value)} />
+      <button style={S.btn} onClick={run} disabled={busy || !base.trim()}>
+        {busy ? "Comparing…" : "Run semantic diff"}
+      </button>
+      {error && <p style={S.err}>{error}</p>}
+      {result && (
+        <pre style={S.pre}>{JSON.stringify(result, null, 2).slice(0, 4000)}</pre>
+      )}
+    </section>
+  );
+}
+
+
+type BlockComment = { id: string; block_id?: string; body?: string; text?: string; status: string; author_email?: string; created_at?: string };
+
+function CommentsCard({ projectId }: { projectId: string }) {
+  const [comments, setComments] = useState<BlockComment[] | null>(null);
+  const [showResolved, setShowResolved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const load = () =>
+    apiGet<{ comments?: BlockComment[] } | BlockComment[]>(`/projects/${projectId}/block-comments`)
+      .then((r) => setComments(Array.isArray(r) ? r : (r.comments ?? [])))
+      .catch((e) => setError(e.message));
+  useEffect(() => { load(); }, [projectId]);
+
+  const setStatus = (id: string, status: string) =>
+    apiSend("PATCH", `/projects/${projectId}/block-comments/${id}`, { status })
+      .then(load)
+      .catch((e) => setError(e.message));
+
+  const visible = (comments ?? []).filter((c) => showResolved || c.status !== "resolved");
+
+  return (
+    <section style={S.card}>
+      <div style={S.h}>Block comments</div>
+      <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "rgba(255,255,255,0.55)", marginBottom: 8 }}>
+        <input type="checkbox" checked={showResolved} onChange={(e) => setShowResolved(e.target.checked)} style={{ width: "auto" }} />
+        Show resolved
+      </label>
+      {error && <p style={S.err}>{error}</p>}
+      {comments === null && !error && <p style={S.muted}>Loading…</p>}
+      {comments !== null && visible.length === 0 && (
+        <p style={S.muted}>No open comments. Committee members leave them on specific blocks during review.</p>
+      )}
+      {visible.map((c) => (
+        <div key={c.id} style={{ borderTop: "1px solid rgba(255,255,255,0.10)", padding: "8px 0" }}>
+          <div style={{ fontSize: 12.5, color: "rgba(255,255,255,0.9)", lineHeight: 1.5 }}>{c.body ?? c.text ?? ""}</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 4 }}>
+            <span style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>
+              {c.author_email ?? "committee"} · {c.status}
+              {c.created_at ? ` · ${new Date(c.created_at).toLocaleDateString()}` : ""}
+            </span>
+            {c.status !== "resolved" ? (
+              <button style={S.smallBtn} onClick={() => setStatus(c.id, "resolved")}>Resolve</button>
+            ) : (
+              <button style={S.smallBtn} onClick={() => setStatus(c.id, "open")}>Reopen</button>
+            )}
+          </div>
+        </div>
+      ))}
+    </section>
+  );
+}
+
+const S: Record<string, CSSProperties> = {
+  smallBtn: { fontFamily: "inherit", fontSize: 11, fontWeight: 600, padding: "4px 10px", borderRadius: 999, border: "1px solid rgba(255,255,255,0.24)", background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.96)", cursor: "pointer" },
+  wrap: { fontFamily: "'Inter', system-ui, sans-serif", color: "rgba(255,255,255,0.96)" },
+  card: { border: "1px solid rgba(255,255,255,0.13)", borderRadius: 11, padding: "13px 14px", marginBottom: 10, background: "rgba(255,255,255,0.07)" },
+  h: { fontSize: 13.5, fontWeight: 700, marginBottom: 6 },
+  muted: { color: "rgba(255,255,255,0.55)", fontSize: 12.5, margin: "4px 0 10px", lineHeight: 1.5 },
+  row: { display: "flex", alignItems: "center", gap: 9, padding: "7px 0", borderTop: "1px solid rgba(255,255,255,0.09)" },
+  role: { fontSize: 12.5, fontWeight: 700, textTransform: "capitalize" },
+  mono: { fontFamily: "'IBM Plex Mono', ui-monospace, monospace", fontSize: 11.5, color: "rgba(255,255,255,0.55)" },
+  chip: { fontSize: 10.5, fontWeight: 700, color: "#A5B8FF", background: "rgba(165,184,255,0.16)", borderRadius: 999, padding: "2px 8px" },
+  area: { width: "100%", boxSizing: "border-box", fontFamily: "'IBM Plex Mono', ui-monospace, monospace", fontSize: 11.5, border: "1px solid rgba(255,255,255,0.13)", borderRadius: 9, padding: "9px 10px", resize: "vertical", marginBottom: 8 },
+  btn: { padding: "8px 14px", borderRadius: 8, border: "1px solid #A5B8FF", background: "#A5B8FF", color: "#fff", fontWeight: 600, fontSize: 12.5, cursor: "pointer" },
+  pre: { marginTop: 10, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.13)", borderRadius: 9, padding: "10px 11px", fontSize: 11, overflowX: "auto", maxHeight: 320 },
+  err: { color: "#FF7A76", fontSize: 12.5, marginTop: 8 },
+};

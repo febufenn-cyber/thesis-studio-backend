@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
     RELEASE_SHA: str = ""
     BUILD_TIME: str = ""
-    SCHEMA_VERSION: str = "0028"
+    SCHEMA_VERSION: str = "0029"
     RENDERER_VERSION: str = "phase1-renderer"
     PROMPT_BUNDLE_VERSION: str = "phase3-prompts"
     # Derived from the model constant that migrations stamp and the verifier
@@ -105,6 +105,13 @@ class Settings(BaseSettings):
     RATE_LIMIT_AUTH: str = "10/minute"
     RATE_LIMIT_WEBHOOK: str = "120/minute"
     RATE_LIMIT_DOWNLOAD: str = "30/minute"
+    # CPU-heavy conversions (pandoc, citeproc render, writing checks).
+    RATE_LIMIT_EXPENSIVE: str = "30/minute"
+    # Endpoints that call the free scholarly APIs (Crossref/OpenAlex/...); this
+    # also protects the app's shared outbound IP from upstream bans.
+    RATE_LIMIT_LOOKUP: str = "60/minute"
+    # Grounded AI runs (provider tokens are the real cost; this stops bursts).
+    RATE_LIMIT_AI: str = "10/minute"
 
     # API versioning. All routers mount under /v1; the legacy root mounts stay on
     # by default so the current frontend keeps working, and can be turned off once
@@ -117,6 +124,7 @@ class Settings(BaseSettings):
     # the repo for later revival as a separate premium feature. See
     # docs/DOMAIN_EXPANSION.md and the code review.
     LEGACY_COMPILE_ENABLED: bool = False
+    LEGACY_CONSOLE_ENABLED: bool = False
 
     # Reference enrichment (docs/LLD.md 3.2). Resolves [VERIFY] placeholders
     # against Crossref/OpenAlex/arXiv/OpenLibrary. Network access is only used
@@ -172,6 +180,22 @@ class Settings(BaseSettings):
     LANGUAGETOOL_LANGUAGE: str = "en-US"
     LANGUAGETOOL_API_KEY: str = ""
     LANGUAGETOOL_USERNAME: str = ""
+    # Security response headers (nosniff, frame-ancestors, referrer policy,
+    # pragmatic CSP; HSTS in production). On everywhere by default.
+    SECURITY_HEADERS_ENABLED: bool = True
+    # Reverse proxies in front of the app. 0 (default) means X-Forwarded-For is
+    # UNTRUSTED and rate limiting keys on the socket peer; set to the number of
+    # trusted proxy hops in production so the limiter sees the real client IP.
+    TRUSTED_PROXY_HOPS: int = 0
+    # Previous JWT signing secret, accepted for verification only during a
+    # rotation window. Rotate by moving JWT_SECRET here and issuing a new one;
+    # clear after JWT_EXPIRY_DAYS. Empty disables the fallback.
+    JWT_SECRET_PREVIOUS: str = ""
+    # Daily per-institution retention sweep (previews, AI chat) — enqueued
+    # idempotently from the web process, executed on the queue worker.
+    RETENTION_SWEEP_ENABLED: bool = True
+    DIGEST_EMAILS_ENABLED: bool = True
+    SENTRY_DSN: str = ""
     # External deposit + ORCID (docs/LLD_MISSING_FEATURES.md MF3). Partner-gated:
     # an empty ZENODO_TOKEN fails closed (503, no network). Sandbox base default.
     ZENODO_TOKEN: str = ""

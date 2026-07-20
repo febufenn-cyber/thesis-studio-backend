@@ -25,13 +25,29 @@ from app.canonical.model import (
 from app.ingest.docx_extract import ExtractedPara
 
 
-PARSER_VERSION = "phase1-2.0"
+PARSER_VERSION = "phase1-2.1"
 _ROMAN = {
     "I": 1, "II": 2, "III": 3, "IV": 4, "V": 5, "VI": 6,
     "VII": 7, "VIII": 8, "IX": 9, "X": 10, "XI": 11, "XII": 12,
 }
-_CHAPTER_RE = re.compile(r"^\s*CHAPTER\s+([IVX]+|\d+)\s*[:.\-–]?\s*(.*)$", re.IGNORECASE)
+# Spelled-out chapter numbers — real students write "Chapter Two" at least as
+# often as "CHAPTER II" (heading-recovery, docs/FRICTION_LOG.md F2).
+_WORD_NUMBERS = {
+    "ONE": 1, "TWO": 2, "THREE": 3, "FOUR": 4, "FIVE": 5, "SIX": 6,
+    "SEVEN": 7, "EIGHT": 8, "NINE": 9, "TEN": 10, "ELEVEN": 11, "TWELVE": 12,
+    "FIRST": 1, "SECOND": 2, "THIRD": 3, "FOURTH": 4, "FIFTH": 5, "SIXTH": 6,
+    "SEVENTH": 7, "EIGHTH": 8, "NINTH": 9, "TENTH": 10,
+}
+_CHAPTER_RE = re.compile(
+    r"^\s*CHAPTER\s+([IVX]+|\d+|[A-Z]+)\s*[:.\-–]?\s*(.*)$", re.IGNORECASE
+)
 _WC_RE = re.compile(r"^\s*(WORKS\s+CITED|BIBLIOGRAPHY|REFERENCES)\s*$", re.IGNORECASE)
+# Standalone all-caps words that begin a body division without the word
+# "CHAPTER" (never title-page lines: those are Normal-style multi-word titles,
+# names and degree lines, which this closed set cannot match).
+_STANDALONE_CHAPTER_WORDS = {
+    "INTRODUCTION", "CONCLUSION", "PREFACE", "PROLOGUE", "EPILOGUE",
+}
 _FM_KINDS = {
     "CERTIFICATE": "certificate",
     "DECLARATION": "declaration",
@@ -83,7 +99,44 @@ def _paragraph(p: ExtractedPara, revision_id: UUID | None) -> ParagraphBlock:
 
 def _chapter_number(token: str) -> int:
     token = token.upper()
-    return _ROMAN.get(token, 0) or (int(token) if token.isdigit() else 0)
+    return (
+        _ROMAN.get(token, 0)
+        or _WORD_NUMBERS.get(token, 0)
+        or (int(token) if token.isdigit() else 0)
+    )
+
+
+def _chapter_boundary(p: ExtractedPara) -> tuple[int, str] | None:
+    """Detect a chapter boundary; returns (number-or-0, inline title) or None.
+
+    Heading recovery (parser 2.1): besides the classic "CHAPTER <n>" line, a
+    boundary is also a Word Heading-1 paragraph, or a standalone all-caps
+    division word (INTRODUCTION/CONCLUSION/...). Works-Cited and front-matter
+    headings are never chapter boundaries. Deterministic; never guesses a
+    title — the paragraph's own text is used verbatim.
+    """
+    text = p.text.strip()
+    if not text or _WC_RE.match(text) or text.upper().rstrip(":") in _FM_KINDS:
+        return None
+    match = _CHAPTER_RE.match(text)
+    if match:
+        number = _chapter_number(match.group(1))
+        # "CHAPTER <unknown word>" (e.g. a sentence starting with "Chapter")
+        # only counts when the token is a real number word/roman/digit, unless
+        # the paragraph *looks* like a heading (style/bold/caps).
+        heading_like = (
+            p.style_name.lower().startswith("heading")
+            or p.mostly_bold
+            or p.all_caps
+        )
+        if number or heading_like:
+            return number, match.group(2).strip()
+        return None
+    if p.style_name.lower().startswith("heading 1"):
+        return 0, text
+    if p.all_caps and text.upper() in _STANDALONE_CHAPTER_WORDS:
+        return 0, text  # verbatim: the parser classifies, never rewrites
+    return None
 
 
 def _split_citation(text: str) -> tuple[str, str]:
@@ -95,6 +148,12 @@ def _split_citation(text: str) -> tuple[str, str]:
 
 def _is_heading(p: ExtractedPara) -> int:
     text = p.text.strip()
+    # Word's own heading styles are authoritative (heading recovery, 2.1).
+    style = p.style_name.lower()
+    if style.startswith("heading "):
+        suffix = style.removeprefix("heading ").strip()
+        if suffix.isdigit():
+            return min(max(int(suffix), 2), 4)  # H2..H4 inside a chapter
     if len(text) > 90 or text.endswith((".", "?", "!", ",", ";", ":", "”", '"')):
         return 0
     if p.left_indent_in >= _BLOCK_QUOTE_INDENT or p.alignment == "center":
@@ -180,7 +239,7 @@ def parse_manuscript(
     ambiguities: list[Ambiguity] = []
     structural_indexes: list[int] = []
     first_chapter = next(
-        (i for i, p in enumerate(paras) if _CHAPTER_RE.match(p.text.strip())), None
+        (i for i, p in enumerate(paras) if _chapter_boundary(p) is not None), None
     )
     wc_start = next(
         (i for i, p in enumerate(paras) if _WC_RE.match(p.text.strip())), None
@@ -244,13 +303,36 @@ def parse_manuscript(
 
     while i < body_end:
         para = paras[i]
-        match = _CHAPTER_RE.match(para.text.strip())
-        if match:
+        boundary = _chapter_boundary(para)
+        text_now = para.text.strip()
+        # A bare "CHAPTER N" line is waiting for its title: the next short
+        # caps/centered/heading line IS that title (even "INTRODUCTION"),
+        # unless it is itself a genuinely numbered CHAPTER line.
+        explicit_new_chapter = bool(_CHAPTER_RE.match(text_now)) and (
+            _chapter_number(_CHAPTER_RE.match(text_now).group(1)) > 0  # type: ignore[union-attr]
+        )
+        if (
+            pending_title
+            and not explicit_new_chapter
+            and len(text_now) < 90
+            and (
+                para.all_caps
+                or para.alignment == "center"
+                or para.style_name.lower().startswith("heading")
+            )
+        ):
+            current.title = text_now  # type: ignore[union-attr]
+            current.title_source_paragraph_index = para.index  # type: ignore[union-attr]
+            structural_indexes.append(para.index)
+            pending_title = False
+            i += 1
+            continue
+        if boundary is not None:
             if current:
                 chapters.append(current)
             auto_number += 1
-            number = _chapter_number(match.group(1)) or auto_number
-            inline_title = match.group(2).strip()
+            number, inline_title = boundary
+            number = number or auto_number
             current = ChapterDoc(
                 number=number,
                 title=inline_title,
@@ -271,11 +353,6 @@ def parse_manuscript(
             )
             pending_title = True
             continue
-        elif pending_title and (para.all_caps or para.alignment == "center") and len(para.text) < 90:
-            current.title = para.text.strip()
-            current.title_source_paragraph_index = para.index
-            structural_indexes.append(para.index)
-            pending_title = False
         else:
             pending_title = False
             current.blocks.append(
@@ -291,7 +368,7 @@ def parse_manuscript(
     if wc_start is not None:
         structural_indexes.append(paras[wc_start].index)
         for para in paras[wc_start + 1 :]:
-            if _CHAPTER_RE.match(para.text.strip()):
+            if _chapter_boundary(para) is not None:
                 break
             wc_raw.append((para.index, _runs(para)))
 

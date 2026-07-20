@@ -1,0 +1,332 @@
+/* Acadensia — "spatial glass" theme for the classic workspace.
+   Loaded AFTER phase2/3/4.css: retunes the variable-driven theme into the
+   spatial language shared with the SPA and islands. A dusk-aurora environment
+   behind everything; frosted panes with specular top edges; pill controls;
+   glow hovers. UI type is Inter; manuscript prose stays a real serif. */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+:root {
+  --bg: #0B0E1A;
+  --surface: rgba(255, 255, 255, 0.06);
+  --surface-2: rgba(255, 255, 255, 0.09);
+  --line: rgba(255, 255, 255, 0.13);
+  --text: rgba(255, 255, 255, 0.95);
+  --muted: rgba(255, 255, 255, 0.55);
+  --accent: #A5B8FF;
+  --accent-strong: #C6D2FF;
+  --good: #7DE8A8;
+  --warn: #FFC46E;
+  --bad: #FF7A76;
+  --info: #7FC8E8;
+  --shadow: 0 18px 50px rgba(4, 6, 16, .45), inset 0 1px 0 rgba(255, 255, 255, .14);
+  /* Names phase3/4 reference with fallbacks — pin them to spatial values. */
+  --warning: #FFC46E;
+  --success: #7DE8A8;
+  --accent-soft: rgba(165, 184, 255, 0.16);
+  font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  color-scheme: dark;
+  letter-spacing: -0.005em;
+}
+
+/* ─── The environment: dusk-aurora, fixed, with a still star field ─── */
+html, body { background: var(--bg); }
+body {
+  background-image:
+    radial-gradient(120% 90% at 78% 108%, rgba(255, 166, 87, .30) 0%, rgba(255, 120, 90, .14) 26%, transparent 55%),
+    radial-gradient(90% 70% at 12% 112%, rgba(94, 140, 255, .22) 0%, transparent 55%),
+    radial-gradient(70% 55% at 55% -8%, rgba(120, 90, 220, .28) 0%, transparent 60%),
+    linear-gradient(178deg, #070A16 0%, #101632 34%, #1B2148 58%, #33305E 76%, #4A3A5E 90%, #59414F 100%);
+  background-attachment: fixed;
+}
+body::after {
+  content: "";
+  position: fixed;
+  z-index: -1;
+  width: 2px; height: 2px; border-radius: 50%;
+  left: 0; top: 0;
+  box-shadow:
+    4vw 8vh 0 0 rgba(255,255,255,.4), 11vw 22vh 0 1px rgba(255,255,255,.28),
+    17vw 6vh 0 0 rgba(255,255,255,.5), 23vw 15vh 0 0 rgba(255,255,255,.3),
+    29vw 3vh 0 1px rgba(255,255,255,.45), 34vw 19vh 0 0 rgba(255,255,255,.25),
+    41vw 9vh 0 0 rgba(255,255,255,.5), 47vw 24vh 0 0 rgba(255,255,255,.3),
+    53vw 5vh 0 1px rgba(255,255,255,.4), 59vw 14vh 0 0 rgba(255,255,255,.28),
+    64vw 27vh 0 0 rgba(255,255,255,.35), 70vw 7vh 0 0 rgba(255,255,255,.5),
+    76vw 18vh 0 1px rgba(255,255,255,.3), 82vw 4vh 0 0 rgba(255,255,255,.45),
+    88vw 12vh 0 0 rgba(255,255,255,.35), 94vw 21vh 0 0 rgba(255,255,255,.4),
+    8vw 34vh 0 0 rgba(255,255,255,.22), 37vw 33vh 0 0 rgba(255,255,255,.25),
+    66vw 31vh 0 0 rgba(255,255,255,.22), 91vw 29vh 0 0 rgba(255,255,255,.28);
+  animation: acad-twinkle 5.5s ease-in-out infinite;
+}
+@keyframes acad-twinkle { 0%, 100% { opacity: .4; } 50% { opacity: .95; } }
+
+/* ─── Type ─── */
+h1, h2, h3, .brand, #studioTitle {
+  font-family: 'Inter', system-ui, sans-serif;
+  letter-spacing: -0.02em;
+}
+.eyebrow { color: var(--accent); letter-spacing: .14em; font-weight: 600; }
+code, pre, .mono, kbd { font-family: 'IBM Plex Mono', ui-monospace, monospace; }
+
+/* ─── App bar: a glass strip ─── */
+.appbar {
+  background: rgba(12, 15, 32, .45);
+  border-bottom: 1px solid var(--line);
+  backdrop-filter: blur(26px) saturate(160%);
+  -webkit-backdrop-filter: blur(26px) saturate(160%);
+}
+.appbar .brand { color: var(--text); font-weight: 600; }
+.appbar .brand strong { color: var(--accent); font-weight: 600; }
+
+/* ─── Panels & cards: frosted panes ─── */
+.panel, .modal-card {
+  background: linear-gradient(160deg, rgba(255,255,255,.10), rgba(255,255,255,.05));
+  border: 1px solid rgba(255, 255, 255, .14);
+  border-radius: 22px;
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(30px) saturate(160%);
+  -webkit-backdrop-filter: blur(30px) saturate(160%);
+}
+.project-card {
+  background: linear-gradient(160deg, rgba(255,255,255,.09), rgba(255,255,255,.045));
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  box-shadow: var(--shadow);
+}
+.project-card h2 { font-family: 'Source Serif 4', Georgia, serif; letter-spacing: -0.01em; }
+.project-card:hover {
+  border-color: rgba(255, 255, 255, .30);
+  box-shadow: 0 22px 60px rgba(4,6,16,.55), 0 0 0 5px rgba(255,255,255,.05), inset 0 1px 0 rgba(255,255,255,.24);
+  transform: translateY(-2px);
+}
+
+/* ─── Buttons: pills ─── */
+.button {
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, .18);
+  background: rgba(255, 255, 255, .07);
+  color: var(--text);
+  font-weight: 600;
+}
+.button:hover, .icon-button:hover { border-color: rgba(255, 255, 255, .34); background: rgba(255, 255, 255, .12); }
+.button.primary {
+  background: rgba(255, 255, 255, .92);
+  border-color: transparent;
+  color: #141A38;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, .30), inset 0 -1px 0 rgba(0, 0, 0, .08);
+}
+.button.primary:hover { background: #FFFFFF; box-shadow: 0 10px 28px rgba(0,0,0,.35), 0 0 0 6px rgba(255,255,255,.10); }
+.button.ghost { background: transparent; }
+.button.danger, .button.danger.ghost { color: var(--bad); border-color: rgba(255, 122, 118, .35); }
+.icon-button { border-radius: 50%; background: rgba(255, 255, 255, .07); border: 1px solid rgba(255,255,255,.16); }
+
+/* ─── Mode tabs: glass segmented rail ─── */
+.mode-tabs { border-bottom: 1px solid var(--line); }
+.mode-tabs button {
+  color: var(--muted);
+  font-weight: 500;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  border-radius: 10px 10px 0 0;
+}
+.mode-tabs button:hover { color: var(--text); background: rgba(255,255,255,.05); }
+.mode-tabs button.active { color: var(--accent-strong); border-bottom-color: var(--accent); background: transparent; }
+.mode-tabs .count { background: rgba(255, 255, 255, .10); color: var(--muted); border-color: transparent; }
+.count:empty { display: none; }
+
+/* ─── Sidebars: recessed glass ─── */
+.sidebar, .structure-sidebar, .context-sidebar {
+  background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.015));
+  border-color: var(--line);
+  backdrop-filter: blur(22px) saturate(150%);
+  -webkit-backdrop-filter: blur(22px) saturate(150%);
+}
+
+/* ─── Chips: quiet glass ─── */
+.chip { background: rgba(255, 255, 255, .08); border: 1px solid rgba(255, 255, 255, .12); color: var(--muted); font-weight: 500; }
+.chip.good { background: rgba(125, 232, 168, .14); color: var(--good); border-color: rgba(125, 232, 168, .28); }
+.chip.warn { background: rgba(255, 196, 110, .14); color: var(--warn); border-color: rgba(255, 196, 110, .28); }
+.chip.bad { background: rgba(255, 122, 118, .14); color: var(--bad); border-color: rgba(255, 122, 118, .28); }
+
+/* ─── Notices ─── */
+.notice { border-radius: 14px; border: 1px solid var(--line); background: rgba(255, 255, 255, .07); }
+.notice.ok { border-color: rgba(125, 232, 168, .35); background: rgba(125, 232, 168, .12); color: var(--good); }
+.notice.error { border-color: rgba(255, 122, 118, .35); background: rgba(255, 122, 118, .12); color: var(--bad); }
+
+/* ─── Inputs ─── */
+input, select, textarea {
+  background: rgba(255, 255, 255, .07);
+  border: 1px solid rgba(255, 255, 255, .16);
+  border-radius: 12px;
+  color: var(--text);
+}
+input::placeholder, textarea::placeholder { color: rgba(255, 255, 255, .35); }
+input:focus-visible, select:focus-visible, textarea:focus-visible, .button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+input:focus, textarea:focus { background: rgba(255, 255, 255, .10); border-color: rgba(255, 255, 255, .34); }
+select option { background: #141A38; color: #fff; }
+
+/* ─── Empty states: quiet moments on glass ─── */
+.empty-state {
+  display: grid;
+  justify-items: center;
+  gap: 7px;
+  padding: 48px 24px;
+  text-align: center;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+}
+.empty-glyph { width: 34px; height: 34px; color: #F0B472; opacity: .9; margin-bottom: 2px; }
+.empty-title { font-family: 'Source Serif 4', Georgia, serif; font-size: 17.5px; color: var(--text); margin: 0; }
+.empty-hint { font-size: 13px; color: var(--muted); margin: 0; max-width: 360px; line-height: 1.55; }
+#editorEmpty { margin: 16vh auto 0; max-width: 480px; }
+#contextEmpty { padding: 40px 12px; }
+#projectEmpty { border: 1px dashed rgba(255, 255, 255, .22); border-radius: 20px; padding: 56px 24px; }
+
+/* ─── Login: the floating welcome pane ─── */
+#loginView.auth-view {
+  min-height: calc(100vh - 58px - 6vh);
+  margin: 0 auto;
+  align-content: center;
+  padding: 3vh 28px;
+  box-sizing: border-box;
+}
+body:has(#loginView:not([hidden])) .appbar-center { visibility: hidden; }
+body:has(#projectsView:not([hidden])) .appbar-center { visibility: hidden; }
+.page-head .button.primary { white-space: nowrap; }
+.auth-copy h1 { font-family: 'Inter', sans-serif; font-weight: 650; color: var(--text); letter-spacing: -0.03em; }
+.auth-copy p { color: var(--muted); }
+.auth-card h2 { margin-bottom: 4px; }
+.auth-colophon {
+  grid-column: 1 / -1;
+  margin-top: 72px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+.auth-colophon .creed {
+  font-family: 'Source Serif 4', Georgia, serif;
+  font-style: italic;
+  font-size: 15px;
+  color: var(--text);
+  margin: 0 0 8px;
+}
+.auth-colophon .colophon-line {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 10.5px;
+  letter-spacing: .02em;
+  color: var(--muted);
+  margin: 0;
+}
+
+/* ─── Studio chrome ─── */
+#projectCrumb { display: none; }
+/* The Robofox guide replaced the legacy coach; one guide is enough. */
+#legacyBtn { display: none !important; }
+.studio-toolbar { padding: 14px 22px 10px; }
+.studio-toolbar h1 {
+  font-size: 22px;
+  margin-bottom: 4px;
+  max-width: 58vw;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#studioMeta .chip { border: 0; background: transparent; padding: 0; font-size: 12px; color: var(--muted); border-radius: 0; }
+#studioMeta .chip + .chip::before { content: "·"; margin: 0 8px; color: rgba(255, 255, 255, .28); }
+#studioMeta .chip.good { color: var(--good); background: transparent; border: 0; }
+#studioMeta .chip.warn { color: var(--warn); background: transparent; border: 0; }
+.sidebar-foot .button.danger {
+  border: 0; background: none; padding: 0;
+  font-size: 12px; font-weight: 600; color: var(--muted); border-radius: 0;
+}
+.sidebar-foot .button.danger:hover { color: var(--bad); text-decoration: underline; border: 0; background: none; }
+
+/* Structure tree */
+.tree-item { color: var(--text); }
+.tree-item:hover { background: rgba(255, 255, 255, .08); }
+.tree-item.active { background: rgba(165, 184, 255, .16); color: var(--accent-strong); }
+.tree-item .status-dot { background: transparent; box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, .30); }
+.tree-item .status-dot.approved, .tree-item .status-dot.reviewed { background: var(--good); box-shadow: 0 0 8px rgba(125,232,168,.5); }
+.tree-item .status-dot.needs_review, .tree-item .status-dot.review { background: var(--warn); box-shadow: 0 0 8px rgba(255,196,110,.5); }
+.tree-item .status-dot.locked { background: var(--accent); box-shadow: 0 0 8px rgba(165,184,255,.5); }
+.tree-item .status-dot.blocked { background: var(--bad); box-shadow: 0 0 8px rgba(255,122,118,.5); }
+.tree-heading { color: var(--muted); }
+
+/* ─── Tools mode grid ─── */
+#toolsMode .content-head { max-width: 860px; margin: 0 auto 16px; }
+
+/* ─── The reading surface: a near-opaque pane so long prose stays easy ─── */
+.content-pane { background: rgba(5, 7, 18, .30); }
+#editorMode .content-head, #editorMode .block-list, #editorMode .add-block { max-width: 70ch; }
+#editorMode .content-head, #editorMode .block-list { margin-left: auto; margin-right: auto; }
+#chapterHeader select { width: auto; min-width: 150px; max-width: 210px; }
+#chapterHeader h2 { font-family: 'Source Serif 4', Georgia, serif; letter-spacing: -0.01em; }
+.block-card {
+  background: rgba(16, 20, 40, .72);
+  border: 1px solid rgba(255, 255, 255, .10);
+  border-radius: 16px;
+  padding: 20px 48px 20px 26px;
+}
+.block-card:hover { border-color: rgba(255, 255, 255, .26); }
+.block-card.selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(165, 184, 255, .22), 0 8px 30px rgba(4, 6, 16, .4);
+}
+.block-text {
+  font-family: 'Source Serif 4', 'Iowan Old Style', Georgia, serif;
+  font-size: 16.5px;
+  line-height: 1.75;
+  color: rgba(255, 255, 255, .94);
+}
+.block-text.heading { font-size: 23px; font-weight: 600; line-height: 1.3; }
+.block-text.quote { font-style: italic; border-left: 2px solid rgba(240, 180, 114, .55); padding-left: 18px; }
+.block-text.marker {
+  font-family: 'Inter', sans-serif;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: #FFD9A0;
+  background: rgba(255, 196, 110, .10);
+}
+.block-type { font-size: 9.5px; letter-spacing: .14em; color: #F0B472; }
+.inline-editor textarea, .inline-editor input[type=text] {
+  font-family: 'Source Serif 4', 'Iowan Old Style', Georgia, serif;
+  font-size: 16px;
+  line-height: 1.7;
+}
+
+/* ─── Hard-coded darks in phase2 that variables don't reach ─── */
+.compare-side { background: rgba(255, 255, 255, .06); }
+.score-track { background: rgba(255, 255, 255, .10); }
+.score-fill { background: linear-gradient(90deg, #8FB8FF, #C58FFF); box-shadow: 0 0 12px rgba(150, 150, 255, .5); }
+.popover {
+  background: rgba(16, 20, 40, .88);
+  border-color: rgba(255, 255, 255, .16);
+  border-radius: 16px;
+  backdrop-filter: blur(30px) saturate(160%);
+  -webkit-backdrop-filter: blur(30px) saturate(160%);
+}
+.popover button:hover { background: rgba(255, 255, 255, .10); }
+.modal { background: rgba(4, 6, 16, .55); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+.privacy-banner { background: rgba(240, 180, 114, .12); border-color: rgba(240, 180, 114, .40); }
+.notification-card.unread { background: var(--accent-soft); }
+.workflow-step.current { background: var(--accent-soft); }
+.readiness-score strong { color: var(--accent-strong); }
+
+/* Preview stays a paper page — the manuscript is the one solid object here. */
+#previewFrame, .paper-preview { background: #FFFFFF; }
+
+/* ─── Micro-interaction ─── */
+.button, .icon-button, button {
+  transition: background-color .16s ease, border-color .16s ease, color .16s ease, box-shadow .16s ease, transform .16s ease;
+}
+.button:active, .icon-button:active { transform: translateY(1px); }
+.project-card, .block-card { transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease; }
+.tree-item, .tree-heading, .popover button { transition: background-color .13s ease; }
+.mode-tabs button { transition: color .16s ease, border-color .16s ease, background-color .16s ease; }
+a { transition: color .16s ease; }
+
+::selection { background: rgba(165, 184, 255, .30); }

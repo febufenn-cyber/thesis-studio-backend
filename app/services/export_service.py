@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import functools
 import hashlib
 import logging
 import os
@@ -183,11 +184,21 @@ async def run_export(export_id: UUID, project_id: UUID, user_id: UUID) -> None:
             fmt = export_row.format
             temp_dir = tempfile.mkdtemp(prefix="export_")
             output_path = os.path.join(temp_dir, f"{export_id}.{fmt}")
+            # Review exports render incomplete citations with loud [UNVERIFIED]
+            # markers instead of refusing (strict=False); final exports keep the
+            # hard refusal so a finished document can never launder a gap.
+            strict_render = not review_export
             if fmt == "docx":
-                await asyncio.to_thread(render_docx, document, sources, profile, output_path)
+                await asyncio.to_thread(
+                    functools.partial(render_docx, strict=strict_render),
+                    document, sources, profile, output_path,
+                )
             elif fmt == "pdf":
                 docx_path = os.path.join(temp_dir, f"{export_id}.docx")
-                await asyncio.to_thread(render_docx, document, sources, profile, docx_path)
+                await asyncio.to_thread(
+                    functools.partial(render_docx, strict=strict_render),
+                    document, sources, profile, docx_path,
+                )
                 output_path = await asyncio.to_thread(convert_to_pdf, docx_path, temp_dir)
             elif fmt == "md":
                 await asyncio.to_thread(

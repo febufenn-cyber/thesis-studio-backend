@@ -40,7 +40,14 @@ async def test_project_without_domain_profile_keeps_default(client: AsyncClient,
     project_id = created.json()["id"]
     fetched = await client.get(f"/projects/{project_id}", cookies=auth_cookie(user_a))
     assert fetched.status_code == 200
-    assert fetched.json()["meta"] == {}
+    # No domain profile -> no citation-style/domain seeding, but the submission
+    # title defaults from the project title (F4) and the title-page slots seed
+    # from the student's real institution (Submission Pack pre-step) so drafts
+    # render presentably. Never invented: values come from the institution row.
+    meta = fetched.json()["meta"]
+    assert meta["title"] == "Plain Project"
+    assert meta["college"]["name"]  # seeded from the test institution
+    assert "citation_style" not in meta  # domain seeding still absent
 
 
 async def test_unknown_domain_profile_is_rejected(client: AsyncClient, user_a) -> None:

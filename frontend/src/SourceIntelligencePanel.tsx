@@ -3,6 +3,8 @@
 import { useState } from "react";
 import type { CSSProperties } from "react";
 import { AutoVerifyButton } from "./AutoVerifyButton";
+import { EmptyState, GLYPHS } from "./EmptyState";
+import { PasteVerify } from "./PasteVerify";
 import { SourceIntelligence } from "./SourceIntelligence";
 import { sourceLabel, useQuotes, useSources } from "./useEnterprise";
 
@@ -21,7 +23,13 @@ export function SourceIntelligencePanel({ projectId }: { projectId: string }) {
   if (sources.loading) return <p style={S.muted}>Loading sources…</p>;
   if (sources.error) return <p style={S.err}>{sources.error}</p>;
   if (!sources.data || sources.data.length === 0)
-    return <p style={S.muted}>No sources in the registry yet.</p>;
+    return (
+      <EmptyState
+        glyph={GLYPHS.shelf}
+        title="The registry is empty"
+        hint="Add sources in the Sources tab, or bring a library in at once — BibTeX, RIS, CSL-JSON and Zotero all import cleanly."
+      />
+    );
 
   const current = sourceId ?? sources.data[0].id;
   const sourceQuotes = (quotes.data ?? []).filter((q) => q.source_id === current);
@@ -47,6 +55,7 @@ export function SourceIntelligencePanel({ projectId }: { projectId: string }) {
               <blockquote style={S.qText}>“{q.text}”</blockquote>
               {q.page_or_loc && <div style={S.qLoc}>{q.page_or_loc}</div>}
               <AutoVerifyButton projectId={projectId} quoteId={q.id} />
+              <PasteVerify projectId={projectId} quoteId={q.id} />
             </div>
           ))
         )}
@@ -56,13 +65,13 @@ export function SourceIntelligencePanel({ projectId }: { projectId: string }) {
 }
 
 const S: Record<string, CSSProperties> = {
-  wrap: { fontFamily: "Inter, system-ui, sans-serif" },
-  select: { width: "100%", boxSizing: "border-box", fontFamily: "inherit", fontSize: 12.5, border: "1px solid #e7e3db", background: "#fff", borderRadius: 7, padding: "8px", marginBottom: 12 },
-  muted: { color: "#6b7688", fontSize: 12.5 },
-  err: { color: "#d64545", fontSize: 12.5 },
+  wrap: { fontFamily: "'Inter', system-ui, sans-serif" },
+  select: { width: "100%", boxSizing: "border-box", fontFamily: "inherit", fontSize: 12.5, border: "1px solid rgba(255,255,255,0.13)", background: "rgba(255,255,255,0.07)", borderRadius: 7, padding: "8px", marginBottom: 12 },
+  muted: { color: "rgba(255,255,255,0.55)", fontSize: 12.5 },
+  err: { color: "#FF7A76", fontSize: 12.5 },
   quotes: { marginTop: 14 },
-  qHead: { fontSize: 11, fontWeight: 700, color: "#6b7688", textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 8 },
-  quote: { border: "1px solid #e7e3db", borderRadius: 11, padding: "11px 12px", marginBottom: 9 },
-  qText: { margin: "0 0 6px", fontSize: 13, lineHeight: 1.5, color: "#1b2733", fontStyle: "italic" },
-  qLoc: { fontSize: 11, color: "#6b7688", marginBottom: 8 },
+  qHead: { fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.55)", textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 8 },
+  quote: { border: "1px solid rgba(255,255,255,0.13)", borderRadius: 11, padding: "11px 12px", marginBottom: 9 },
+  qText: { margin: "0 0 6px", fontSize: 13, lineHeight: 1.5, color: "rgba(255,255,255,0.96)", fontStyle: "italic" },
+  qLoc: { fontSize: 11, color: "rgba(255,255,255,0.55)", marginBottom: 8 },
 };

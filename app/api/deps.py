@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import hashlib
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Annotated
 from uuid import UUID
 
 import jwt
-from fastapi import Cookie, Depends, Header, HTTPException, status
+from fastapi import Cookie, Depends, Header, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -60,8 +60,54 @@ async def _claims_and_token(
     return claims, token
 
 
-async def _api_key_user(db: AsyncSession, raw_key: str) -> User:
-    """Resolve a user from a bearer API key (hash lookup, revocation-aware)."""
+# --- API-key scope enforcement (fail-closed) --------------------------------
+#
+# An API key may do ONLY what one of its scopes explicitly grants; everything
+# else — project mutations, collaboration, billing, auth, and API-key
+# management itself — is session-only. A key can never mint, list or revoke
+# keys. PUT/PATCH/DELETE are never key-accessible.
+#
+#   read     any GET
+#   export   GET/POST on export, interchange, bibliography and pandoc surfaces
+#   resolve  POST on reference resolution/search and advisory verification
+#   import   POST on reference import (BibTeX/RIS/CSL, Zotero)
+
+_KEY_DENIED_PREFIXES = ("/api-keys", "/auth")
+
+_EXPORT_GET_MARKERS = ("/export/", "/exports", "/bibliography/styles", "/interop/formats")
+_EXPORT_POST_MARKERS = ("/export/pandoc", "/bibliography/render", "/interop/convert")
+_RESOLVE_POST_MARKERS = (
+    "/references/resolve",
+    "/references/search",
+    "/verify-auto",
+    "/verify-source",
+)
+_IMPORT_POST_MARKERS = ("/references/import", "/references/zotero/import")
+
+
+def api_key_permits(scopes: list[str] | None, method: str, path: str) -> bool:
+    """True when a key with ``scopes`` may perform ``method path``. Default deny."""
+    p = path[3:] if path.startswith("/v1/") else path
+    if any(p == d or p.startswith(d + "/") or p.startswith(d + "?") for d in _KEY_DENIED_PREFIXES):
+        return False
+    granted = set(scopes or [])
+    if method == "GET":
+        if "read" in granted:
+            return True
+        return "export" in granted and any(m in p for m in _EXPORT_GET_MARKERS)
+    if method == "POST":
+        if "resolve" in granted and any(m in p for m in _RESOLVE_POST_MARKERS):
+            return True
+        if "import" in granted and any(m in p for m in _IMPORT_POST_MARKERS):
+            return True
+        if "export" in granted and any(m in p for m in _EXPORT_POST_MARKERS):
+            return True
+        return False
+    return False
+
+
+async def _api_key_user(db: AsyncSession, raw_key: str, *, method: str, path: str) -> User:
+    """Resolve a user from a bearer API key; enforce the key's scopes."""
     row = (
         await db.execute(
             select(ApiKey).where(
@@ -72,7 +118,12 @@ async def _api_key_user(db: AsyncSession, raw_key: str) -> User:
     ).scalar_one_or_none()
     if row is None:
         raise _UNAUTH
-    row.last_used_at = datetime.now(timezone.utc)
+    if not api_key_permits(row.scopes, method.upper(), path):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This API key's scopes do not permit that operation.",
+        )
+    row.last_used_at = datetime.now(UTC)
     user = (
         await db.execute(select(User).where(User.id == row.user_id))
     ).scalar_one_or_none()
@@ -82,16 +133,19 @@ async def _api_key_user(db: AsyncSession, raw_key: str) -> User:
 
 
 async def get_current_user(
+    request: Request,
     db: Annotated[AsyncSession, Depends(get_db)],
     access_token: Annotated[str | None, Cookie()] = None,
     authorization: Annotated[str | None, Header()] = None,
 ) -> User:
-    """Resolve a user via cookie/JWT or a bearer API key."""
+    """Resolve a user via cookie/JWT or a bearer API key (scope-enforced)."""
     # Bearer API keys (ak_...) are a distinct auth path; try them before JWT.
     if authorization and authorization.lower().startswith("bearer "):
         candidate = authorization[7:].strip()
         if candidate.startswith(API_KEY_PREFIX):
-            return await _api_key_user(db, candidate)
+            return await _api_key_user(
+                db, candidate, method=request.method, path=request.url.path
+            )
 
     claims, token = await _claims_and_token(access_token, authorization)
     if claims.session_id is not None:

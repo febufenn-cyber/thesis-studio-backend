@@ -280,6 +280,7 @@ async def me(current_user: CurrentUser) -> CurrentUserResponse:
         register_number=current_user.register_number,
         institution_name=current_user.institution.name,
         institution_short_name=current_user.institution.short_name,
+        institution_id=str(current_user.institution_id),
     )
 
 

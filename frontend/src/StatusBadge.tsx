@@ -18,16 +18,16 @@ export type Status =
   | "not_found";
 
 const STYLES: Record<Status, { label: string; fg: string; bg: string }> = {
-  verified: { label: "VERIFIED", fg: "#1f9d6b", bg: "#e5f4ee" },
+  verified: { label: "VERIFIED", fg: "#7DE8A8", bg: "rgba(125,232,168,0.14)" },
   // Resolved is advisory (a machine match / score), not human verification, so
   // it is shown in neutral slate — never the earned green. See AI safety rule 11.
-  resolved: { label: "RESOLVED", fg: "#4b4bd6", bg: "#ecebfb" },
-  verify: { label: "[VERIFY]", fg: "#c98a1a", bg: "#fbf1dc" },
-  retracted: { label: "RETRACTED", fg: "#d64545", bg: "#fbe7e7" },
-  resolving: { label: "RESOLVING", fg: "#4b4bd6", bg: "#ecebfb" },
-  unverifiable: { label: "UNVERIFIABLE", fg: "#6b7688", bg: "#eef0f3" },
-  drift: { label: "DRIFT", fg: "#c98a1a", bg: "#fbf1dc" },
-  not_found: { label: "NOT FOUND", fg: "#c98a1a", bg: "#fbf1dc" },
+  resolved: { label: "RESOLVED", fg: "#A5B8FF", bg: "rgba(165,184,255,0.16)" },
+  verify: { label: "[VERIFY]", fg: "#FFC46E", bg: "rgba(255,196,110,0.14)" },
+  retracted: { label: "RETRACTED", fg: "#FF7A76", bg: "rgba(255,122,118,0.14)" },
+  resolving: { label: "RESOLVING", fg: "#A5B8FF", bg: "rgba(165,184,255,0.16)" },
+  unverifiable: { label: "UNVERIFIABLE", fg: "rgba(255,255,255,0.55)", bg: "rgba(255,255,255,0.09)" },
+  drift: { label: "DRIFT", fg: "#FFC46E", bg: "rgba(255,196,110,0.14)" },
+  not_found: { label: "NOT FOUND", fg: "#FFC46E", bg: "rgba(255,196,110,0.14)" },
 };
 
 /** Map a verbatim/verification status string to a badge Status. */
@@ -63,7 +63,7 @@ export function StatusBadge({ status, label }: { status: Status; label?: string 
     fontWeight: 700,
     color: s.fg,
     background: s.bg,
-    fontFamily: "Inter, system-ui, sans-serif",
+    fontFamily: "'Inter', system-ui, sans-serif",
   };
   const dot: CSSProperties = {
     width: 7,

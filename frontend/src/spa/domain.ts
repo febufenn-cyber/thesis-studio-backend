@@ -11,19 +11,31 @@ export interface Me {
   id: string;
   email: string;
   name?: string | null;
+  institution_id?: string;
+}
+
+export interface CollabProject {
+  id: string;
+  title: string;
+  role?: string | null;
+  mode?: string | null;
+  doc_type?: string | null;
+  workflow_state?: string | null;
+  updated_at?: string | null;
 }
 
 export interface ProjectSummary {
   id: string;
   title: string;
-  document_type?: string | null;
+  doc_type?: string | null;
+  status?: string | null;
   updated_at?: string | null;
 }
 
 export function useMe() {
   return useQuery({
     queryKey: ["me"],
-    queryFn: () => apiGet<Me>("/me"),
+    queryFn: () => apiGet<Me>("/auth/me"),
     retry: false, // a 401 must surface immediately as "signed out", not retry
   });
 }
@@ -33,5 +45,27 @@ export function useProjects(enabled: boolean) {
     queryKey: ["projects"],
     queryFn: () => apiGet<ProjectSummary[]>("/projects"),
     enabled,
+  });
+}
+
+export function useCollabProjects(enabled: boolean) {
+  return useQuery({
+    queryKey: ["collab-projects"],
+    queryFn: () => apiGet<CollabProject[]>("/collaboration/projects"),
+    enabled,
+    retry: false,
+  });
+}
+
+export function useInstitutionAccess(institutionId: string | undefined) {
+  return useQuery({
+    queryKey: ["institution-access", institutionId],
+    queryFn: async () => {
+      const r = await fetch(`/institutions/${institutionId}/analytics`, { credentials: "include" });
+      return r.ok;
+    },
+    enabled: !!institutionId,
+    retry: false,
+    staleTime: 5 * 60 * 1000,
   });
 }

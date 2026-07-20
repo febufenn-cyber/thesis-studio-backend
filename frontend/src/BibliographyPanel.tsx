@@ -84,14 +84,14 @@ export function BibliographyPanel({ projectId }: { projectId: string }) {
 }
 
 const S: Record<string, CSSProperties> = {
-  wrap: { fontFamily: "Inter, system-ui, sans-serif", color: "#1b2733" },
+  wrap: { fontFamily: "'Inter', system-ui, sans-serif", color: "rgba(255,255,255,0.96)" },
   row: { display: "flex", gap: 8, marginBottom: 8 },
-  select: { flex: 1, fontFamily: "inherit", fontSize: 12.5, border: "1px solid #e7e3db", background: "#fff", borderRadius: 7, padding: "7px 8px" },
-  input: { width: "100%", boxSizing: "border-box", fontFamily: "inherit", fontSize: 12.5, border: "1px solid #e7e3db", borderRadius: 7, padding: "7px 9px", marginBottom: 8 },
-  btn: { display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 13px", borderRadius: 9, border: "1px solid #4b4bd6", background: "#4b4bd6", color: "#fff", fontWeight: 600, fontSize: 12.5, cursor: "pointer" },
-  err: { color: "#d64545", fontSize: 12.5, marginTop: 9 },
-  out: { marginTop: 12, border: "1px solid #e7e3db", borderRadius: 11, padding: "12px 14px" },
-  outHead: { fontSize: 11, color: "#6b7688", fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 8 },
+  select: { flex: 1, fontFamily: "inherit", fontSize: 12.5, border: "1px solid rgba(255,255,255,0.13)", background: "rgba(255,255,255,0.07)", borderRadius: 7, padding: "7px 8px" },
+  input: { width: "100%", boxSizing: "border-box", fontFamily: "inherit", fontSize: 12.5, border: "1px solid rgba(255,255,255,0.13)", borderRadius: 7, padding: "7px 9px", marginBottom: 8 },
+  btn: { display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 13px", borderRadius: 9, border: "1px solid #A5B8FF", background: "#A5B8FF", color: "#fff", fontWeight: 600, fontSize: 12.5, cursor: "pointer" },
+  err: { color: "#FF7A76", fontSize: 12.5, marginTop: 9 },
+  out: { marginTop: 12, border: "1px solid rgba(255,255,255,0.13)", borderRadius: 11, padding: "12px 14px" },
+  outHead: { fontSize: 11, color: "rgba(255,255,255,0.55)", fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 8 },
   list: { margin: 0, paddingLeft: 20, display: "flex", flexDirection: "column", gap: 9 },
   entry: { fontSize: 13, lineHeight: 1.55 },
 };

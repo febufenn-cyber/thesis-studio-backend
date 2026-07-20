@@ -11,12 +11,14 @@ import base64
 import binascii
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import CurrentUser, fetch_owned_project
+from app.core.config import get_settings
+from app.core.rate_limit import limiter
 from app.db.deps import get_db
 from app.interop.pandoc import (
     BINARY_OUTPUTS,
@@ -65,7 +67,9 @@ async def interop_formats(current_user: CurrentUser) -> dict:
 
 
 @router.post("/projects/{project_id}/export/pandoc")
+@limiter.limit(lambda: get_settings().RATE_LIMIT_EXPENSIVE)
 async def export_pandoc(
+    request: Request,
     project_id: UUID,
     body: ExportPandocRequest,
     current_user: CurrentUser,
@@ -97,7 +101,9 @@ async def export_pandoc(
 
 
 @router.post("/interop/convert/preview")
+@limiter.limit(lambda: get_settings().RATE_LIMIT_EXPENSIVE)
 async def convert_preview(
+    request: Request,
     body: ConvertPreviewRequest,
     current_user: CurrentUser,
 ) -> dict:

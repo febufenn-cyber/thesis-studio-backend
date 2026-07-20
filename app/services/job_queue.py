@@ -33,6 +33,7 @@ _QUEUE_BY_KIND = {
     "billing_event": "maintenance",
     "data_lifecycle": "maintenance",
     "retention_sweep": "maintenance",
+    "notification_digest": "maintenance",
 }
 
 
@@ -40,7 +41,7 @@ async def enqueue_job(
     db: AsyncSession,
     *,
     kind: str,
-    user_id: UUID,
+    user_id: UUID | None,
     project_id: UUID | None,
     payload: dict,
     max_attempts: int = 3,
@@ -250,6 +251,12 @@ async def _dispatch(job: Job) -> dict:
         async with AsyncSessionLocal() as db:
             row = await replay_event(db, UUID(payload["billing_event_id"]))
             return {"billing_event_id": str(row.id), "state": row.state}
+    if job.kind == "notification_digest":
+        from app.services.digest_service import send_daily_digests
+
+        async with AsyncSessionLocal() as db:
+            sent = await send_daily_digests(db)
+            return {"digests_sent": sent}
     if job.kind in {"data_lifecycle", "retention_sweep"}:
         from app.commercial.privacy import execute_lifecycle_job, execute_retention_sweep
 

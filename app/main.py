@@ -36,6 +36,7 @@ from app.api import (
     domain_profiles,
     editor,
     external_downloads,
+    guide,
     institutional,
     institutional_lifecycle,
     integrity,
@@ -58,6 +59,7 @@ from app.api import (
     resolutions,
     review_workspace,
     sessions,
+    submission_pack,
     submissions,
     supervision,
     support_console,
@@ -92,6 +94,7 @@ API_MODULES = (
     interop_pandoc,
     supervision,
     locales,
+    guide,
     research,
     integrity,
     api_keys,
@@ -112,6 +115,7 @@ API_MODULES = (
     presence,
     institutional,
     institutional_lifecycle,
+    submission_pack,
     submissions,
     external_downloads,
     data_portability,
@@ -146,6 +150,43 @@ async def _sweep_orphaned_compiles() -> None:
             logging.getLogger(__name__).warning(
                 "Startup sweep: marked %d legacy compile(s) failed", result.rowcount
             )
+
+
+async def _ensure_default_institution() -> None:
+    """First-run bootstrap (FRICTION_LOG F1): signup requires an institution
+    matching DEFAULT_INSTITUTION_SHORT_NAME; a fresh deployment has none, so
+    the very first user's signup used to fail. Idempotent."""
+    from app.db.session import AsyncSessionLocal
+    from app.models.institution import Institution
+
+    settings = get_settings()
+    short = settings.DEFAULT_INSTITUTION_SHORT_NAME.strip()
+    if not short:
+        return
+    async with AsyncSessionLocal() as db:
+        existing = (
+            await db.execute(
+                select(Institution).where(Institution.short_name == short)
+            )
+        ).scalar_one_or_none()
+        if existing is not None:
+            return
+        db.add(
+            Institution(
+                name=short,
+                short_name=short,
+                email_domains="",
+                address="",
+                short_address="",
+                university_name=short,
+                default_department="",
+                department_aided=False,
+            )
+        )
+        await db.commit()
+        logging.getLogger(__name__).warning(
+            "Bootstrapped default institution %r (edit its details in admin)", short
+        )
 
 
 async def _register_release() -> None:
@@ -209,10 +250,26 @@ async def lifespan(app: FastAPI):
     except Exception:
         log.exception("Startup recovery of expired jobs failed (continuing)")
     try:
+        await _ensure_default_institution()
+    except Exception:
+        log.exception("Default-institution bootstrap failed (continuing)")
+    try:
         await _register_release()
     except Exception:
         log.exception("Release identity registration failed (continuing)")
+    # Compliance: keep the daily retention sweep enqueued (idempotent per day;
+    # executes on the queue worker). See app/services/retention_scheduler.py.
+    import asyncio as _asyncio
+
+    from app.services.retention_scheduler import retention_scheduler_loop
+
+    sweep_task = _asyncio.create_task(retention_scheduler_loop())
     yield
+    sweep_task.cancel()
+    try:
+        await sweep_task
+    except (Exception, _asyncio.CancelledError):
+        pass
     log.info("Robofox Thesis Studio shutting down release=%s", settings.RELEASE_SHA or "development")
 
 
@@ -225,8 +282,25 @@ def _serve_frontend(path: Path, label: str) -> Response:
     return FileResponse(path)
 
 
+def _init_sentry(settings) -> None:
+    """Optional error monitoring: active only when SENTRY_DSN is set AND the
+    sdk is installed. Absence of either is never an error."""
+    if not settings.SENTRY_DSN:
+        return
+    try:
+        import sentry_sdk
+
+        sentry_sdk.init(dsn=settings.SENTRY_DSN, traces_sample_rate=0.05,
+                        release=settings.RELEASE_SHA or None)
+        logging.getLogger(__name__).info("Sentry initialised")
+    except ImportError:
+        logging.getLogger(__name__).warning(
+            "SENTRY_DSN set but sentry-sdk not installed; pip install sentry-sdk")
+
+
 def create_app() -> FastAPI:
     settings = get_settings()
+    _init_sentry(settings)
     static_dir = Path(__file__).parent / "static"
     app = FastAPI(
         title="Robofox Thesis Studio API",
@@ -244,8 +318,11 @@ def create_app() -> FastAPI:
     from slowapi import _rate_limit_exceeded_handler
     from slowapi.errors import RateLimitExceeded
 
+    from app.core.security_headers import SecurityHeadersMiddleware
+
     app.state.limiter = limiter
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+    app.add_middleware(SecurityHeadersMiddleware)
     app.add_middleware(JourneyTracingMiddleware)
     app.add_middleware(CommercialGuardMiddleware)
     app.add_middleware(
@@ -257,7 +334,13 @@ def create_app() -> FastAPI:
         expose_headers=["X-Request-ID", "X-Trace-ID", "X-Release-SHA"],
     )
     app.mount("/static", StaticFiles(directory=static_dir), name="static")
+    # SERVICE_SCOPE §6: the pre-studio console layer (chat sessions, chat
+    # streaming, phase-1 active-registry reads) is quarantined behind a
+    # default-off flag. The studio never calls these; only /legacy did.
+    legacy_modules = {sessions, chat, active_registry}
     for module in API_MODULES:
+        if module in legacy_modules and not settings.LEGACY_CONSOLE_ENABLED:
+            continue
         # Versioned mount. New clients target /v1; the router's own prefix is
         # preserved (e.g. /v1/auth, /v1/projects).
         app.include_router(module.router, prefix="/v1")
@@ -291,9 +374,10 @@ def create_app() -> FastAPI:
     async def frontend_v2() -> Response:
         return _serve_frontend(static_dir / "v2.html", "v2")
 
-    @app.get("/legacy", include_in_schema=False)
-    async def frontend_legacy() -> Response:
-        return _serve_frontend(static_dir / "index.html", "legacy")
+    if settings.LEGACY_CONSOLE_ENABLED:
+        @app.get("/legacy", include_in_schema=False)
+        async def frontend_legacy() -> Response:
+            return _serve_frontend(static_dir / "index.html", "legacy")
 
     # Phase B SPA (docs/FRONTEND_LLD.md §19). Served at /app; the catch-all
     # returns the shell so client-side routes (e.g. /app/projects/{id}/library)
