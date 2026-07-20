@@ -12,10 +12,10 @@
   },
   "dependencies": {
     "@tanstack/react-query": "5.51.23",
-    "dompurify": "3.1.6",
+    "dompurify": "^3.4.12",
     "react": "18.3.1",
     "react-dom": "18.3.1",
-    "react-router-dom": "6.26.1"
+    "react-router-dom": "^6.30.4"
   },
   "devDependencies": {
     "@types/dompurify": "3.0.5",
