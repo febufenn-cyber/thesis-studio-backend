@@ -40,6 +40,20 @@ async def readiness_report() -> dict:
                     select(func.count()).select_from(Job).where(Job.status == "queued")
                 )
             ).scalar_one()
+            # A freshly-enqueued job is not evidence of a missing worker: the
+            # web app itself enqueues maintenance jobs at boot (retention
+            # sweep, notification digest), seconds before workers claim them.
+            # Only jobs that have been WAITING past a grace window count
+            # against readiness — otherwise every clean deployment 503s its
+            # own healthcheck at startup (caught by the amd64 runtime smoke).
+            waiting_grace = now - timedelta(minutes=5)
+            queued_waiting = (
+                await db.execute(
+                    select(func.count())
+                    .select_from(Job)
+                    .where(Job.status == "queued", Job.created_at < waiting_grace)
+                )
+            ).scalar_one()
             running = (
                 await db.execute(
                     select(func.count()).select_from(Job).where(Job.status == "running")
@@ -59,7 +73,7 @@ async def readiness_report() -> dict:
                 await db.execute(select(func.max(Job.heartbeat_at)))
             ).scalar_one()
             worker_ok = stuck == 0 and (
-                queued == 0
+                queued_waiting == 0
                 or (
                     recent_heartbeat is not None
                     and recent_heartbeat >= now - timedelta(minutes=2)
@@ -68,6 +82,7 @@ async def readiness_report() -> dict:
             checks["worker"] = {
                 "ok": worker_ok,
                 "queued": queued,
+                "queued_waiting": queued_waiting,
                 "running": running,
                 "stuck": stuck,
                 "recent_heartbeat": recent_heartbeat.isoformat() if recent_heartbeat else None,
